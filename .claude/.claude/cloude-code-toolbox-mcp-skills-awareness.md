@@ -1,6 +1,6 @@
 # Cloude Code ToolBox — MCP & Skills awareness
 
-_Generated: 2026-07-07T20:11:02.305Z_
+_Generated: 2026-07-07T20:09:13.822Z_
 
 ## How to use this report
 
@@ -13,9 +13,9 @@ _Generated: 2026-07-07T20:11:02.305Z_
 
 ## MCP — workspace
 
-Workspace `mcp.json` _(folder: Seguimiento-hitos-gadisnow)_
+Workspace `mcp.json` _(folder: .claude)_
 
-- **d:\00-Proyectos Claude\Seguimiento-hitos-gadisnow\.mcp.json** — _File missing_
+- **c:\Users\jorge\Downloads\seguimiento-hitos-entrega\.claude\.mcp.json** — _File missing_
 
 _No active workspace servers in mcp.json._
 
@@ -29,8 +29,7 @@ _No active user-scoped servers in mcp.json._
 
 ### Project-scoped
 
-- **configurar-deploy** — `d:\00-Proyectos Claude\Seguimiento-hitos-gadisnow\.claude\skills\configurar-deploy`
-  - Pone en marcha Seguimiento-Hitos en Supabase + Vercel de forma automática. Le pegás a Claude el token de Supabase (sbp_) y el de Vercel (vcp_) y Claude hace todo por API - crea el proyecto Supabase, aplica migraciones, d
+_None found (or no workspace open)._
 
 ### User-scoped
 

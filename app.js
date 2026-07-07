@@ -1,4 +1,5 @@
-const STORAGE_KEY = "sgtemas_v4";
+import * as authApi from "./src/authApi.js";
+import * as dataApi from "./src/dataApi.js";
 
 function simpleHash(str) {
   let h = 0;
@@ -78,361 +79,7 @@ function updateSortHeaders() {
   });
 }
 
-// =========================================================
-// Seed data
-// =========================================================
-const seedData = {
-  config: { currentUser: "Jorge Rios", areaDefault: "SSOyS", rol: "Admin" },
-  temas: [
-    {
-      id: "T-001",
-      nombre: "Declaracion Jurada Anual de Patrimonio (periodo 2025)",
-      programa: "Personales",
-      solicitante: "Valeria Ricco",
-      prioridad: "Media",
-      responsable: "Jorge Rios",
-      estado: "Pendiente",
-      expediente: "",
-      gde: "",
-      fechaInicio: "2026-05-04",
-      fechaLimite: "2026-07-31",
-      ultimaActualizacion: "2026-05-26",
-      descripcion: "VTO 31 de julio de 2026. Jorge avisado el 26/5.",
-      historial: [{ event: "Tema creado", at: "2026-05-04", by: "Jorge Rios" }],
-      comentarios: [],
-      documentos: [],
-      hitos: [
-        { id: "H-001-1", nombre: "Recibir pedido OA: NO-2026-44395169-APN-SSGAI#MEC", responsable: "Jorge Rios", estado: "Cerrado", fechaLimite: "2026-05-10" },
-        { id: "H-001-2", nombre: "Completar declaracion con modelo periodo 2024", responsable: "Jorge Rios", estado: "Pendiente", fechaLimite: "2026-07-15" },
-        { id: "H-001-3", nombre: "Presentar declaracion jurada", responsable: "Jorge Rios", estado: "Bloqueado", fechaLimite: "2026-07-31" }
-      ]
-    },
-    {
-      id: "T-002",
-      nombre: "NRU 1763 - Barrio Avenida de las Americas - Municipalidad de Concepcion",
-      programa: "DNISU",
-      solicitante: "Natalia Hilu, Pablo Morillo",
-      prioridad: "Alta",
-      responsable: "Alejandro B",
-      estado: "En curso",
-      expediente: "EX-2022-94776460-APN-CEFISU#MDS",
-      gde: "https://gde.example/EX-2022-94776460",
-      fechaInicio: "2026-05-19",
-      fechaLimite: "2026-06-15",
-      ultimaActualizacion: "2026-05-26",
-      descripcion: "Validacion del Certificado de avance N02 (60%) por auditor externo.",
-      historial: [{ event: "Tema creado", at: "2026-05-19", by: "Alejandro B" }],
-      comentarios: [],
-      documentos: ["Certificado_avance_N02.pdf", "Dictamen_auditor.pdf", "Observaciones.pdf"],
-      hitos: [
-        { id: "H-002-1", nombre: "Enviar certificado al auditor externo", responsable: "Alejandro B", estado: "Cerrado", fechaLimite: "2026-05-08" },
-        { id: "H-002-2", nombre: "Revision del auditor externo", responsable: "Luis Mesones", estado: "En curso", fechaLimite: "2026-06-10" },
-        { id: "H-002-3", nombre: "Recepcion de observaciones", responsable: "Alejandro B", estado: "Pendiente", fechaLimite: "2026-06-12" },
-        { id: "H-002-4", nombre: "Subsanar observaciones", responsable: "Alejandro B", estado: "Pendiente", fechaLimite: "2026-06-13" },
-        { id: "H-002-5", nombre: "Aprobacion final", responsable: "Luis Mesones", estado: "Pendiente", fechaLimite: "2026-06-15" }
-      ]
-    },
-    {
-      id: "T-003",
-      nombre: "NRU 1754 - Barrio Santa Barbara 1 y 2 - Cooperativa Santa Barbara Ltda",
-      programa: "DNISU",
-      solicitante: "Jose Paredes, Natalia Hilu",
-      prioridad: "Media",
-      responsable: "Alejandro B",
-      estado: "Pendiente",
-      expediente: "",
-      gde: "",
-      fechaInicio: "2026-05-19",
-      fechaLimite: "2026-06-30",
-      ultimaActualizacion: "2026-05-22",
-      descripcion: "",
-      historial: [{ event: "Tema creado", at: "2026-05-19", by: "Alejandro B" }],
-      comentarios: [],
-      documentos: [],
-      hitos: [
-        { id: "H-003-1", nombre: "Definicion de circuito para aprobacion de Redeterminacion de precios (C2)", responsable: "Alejandro B", estado: "Pendiente", fechaLimite: "2026-06-10" },
-        { id: "H-003-2", nombre: "Validacion del certificado por auditoria externa", responsable: "Luis Mesones", estado: "Pendiente", fechaLimite: "2026-06-20" },
-        { id: "H-003-3", nombre: "Formalizacion del cierre del proyecto", responsable: "Alejandro B", estado: "Pendiente", fechaLimite: "2026-06-30" }
-      ]
-    },
-    {
-      id: "T-004",
-      nombre: "Estado proyectos 5797, 5798, 5799 - Fundacion Trazando Futuro / Coop. Suenos en Comun",
-      programa: "DNISU",
-      solicitante: "Sebastian Pareja",
-      prioridad: "Media",
-      responsable: "Alejandro B",
-      estado: "Pendiente",
-      expediente: "",
-      gde: "",
-      fechaInicio: "2026-05-19",
-      fechaLimite: "2026-06-29",
-      ultimaActualizacion: "2026-05-19",
-      descripcion: "",
-      historial: [{ event: "Tema creado", at: "2026-05-19", by: "Alejandro B" }],
-      comentarios: [],
-      documentos: [],
-      hitos: [
-        { id: "H-004-1", nombre: "Proy. 5797 - Barrio Quinta de Pelozo - SUM y Playon deportivo", responsable: "Alejandro B", estado: "Pendiente", fechaLimite: "2026-06-10" },
-        { id: "H-004-2", nombre: "Proy. 5798 - Barrio San Carlos I - Electrica y Nucleos humedos", responsable: "Alejandro B", estado: "Pendiente", fechaLimite: "2026-06-20" },
-        { id: "H-004-3", nombre: "Proy. 5799 - Barrio Nuevo Amanecer - Electrica, Vereda y arbolado", responsable: "Alejandro B", estado: "Pendiente", fechaLimite: "2026-06-29" }
-      ]
-    },
-    {
-      id: "T-005",
-      nombre: "Loteo Parque Sur - Municipalidad de Catamarca",
-      programa: "DNISU",
-      solicitante: "Jose Paredes, Natalia Hilu, Valeria Sanchez",
-      prioridad: "Alta",
-      responsable: "Luis Mesones",
-      estado: "En curso",
-      expediente: "EX-2022-130503405-APN-CEFISU#MDS",
-      gde: "https://gde.example/EX-2022-130503405",
-      fechaInicio: "2026-05-19",
-      fechaLimite: "2026-06-12",
-      ultimaActualizacion: "2026-05-23",
-      descripcion: "RDT 5 - rendiciones enviadas el 07-05-26.",
-      historial: [{ event: "Tema creado", at: "2026-05-19", by: "Luis Mesones" }],
-      comentarios: [],
-      documentos: [],
-      hitos: [
-        { id: "H-005-1", nombre: "CO 6, 7 y 8 - Elevacion a Subsecretaria para desembolsos", responsable: "Alejandro B", estado: "En curso", fechaLimite: "2026-06-05" },
-        { id: "H-005-2", nombre: "RDT 5 - Subsanacion de rendiciones por la UE", responsable: "Jurisdiccion", estado: "Bloqueado", fechaLimite: "2026-06-08" },
-        { id: "H-005-3", nombre: "RDT 5 - Elevacion del informe", responsable: "Luis Mesones", estado: "Bloqueado", fechaLimite: "2026-06-12" }
-      ]
-    },
-    {
-      id: "T-006",
-      nombre: "Convenio Traspaso a Cordoba - Barrio Zepa SISU",
-      programa: "DNISU",
-      solicitante: "BH, Adrian Danieli",
-      prioridad: "Alta",
-      responsable: "Gabriela",
-      estado: "En curso",
-      expediente: "",
-      gde: "",
-      fechaInicio: "2026-05-19",
-      fechaLimite: "2026-06-05",
-      ultimaActualizacion: "2026-05-25",
-      descripcion: "",
-      historial: [{ event: "Tema creado", at: "2026-05-19", by: "Gabriela" }],
-      comentarios: [],
-      documentos: [],
-      hitos: [
-        { id: "H-006-1", nombre: "Hito 1 - Definicion de alcance", responsable: "Gabriela", estado: "En curso", fechaLimite: "2026-06-05" }
-      ]
-    },
-    {
-      id: "T-007",
-      nombre: "Seguimiento 3 expedientes de subastas - Liceo / Estacion Buenos Aires / La Plata",
-      programa: "PROCREAR",
-      solicitante: "BH",
-      prioridad: "Alta",
-      responsable: "Karina",
-      estado: "En curso",
-      expediente: "",
-      gde: "",
-      fechaInicio: "2026-05-19",
-      fechaLimite: "2026-06-02",
-      ultimaActualizacion: "2026-05-27",
-      descripcion: "",
-      historial: [{ event: "Tema creado", at: "2026-05-19", by: "Karina" }],
-      comentarios: [],
-      documentos: [],
-      hitos: [
-        { id: "H-007-1", nombre: "Barrio Liceo - Publicacion en boletin oficial", responsable: "Karina", estado: "En curso", fechaLimite: "2026-05-31" },
-        { id: "H-007-2", nombre: "Estacion Buenos Aires - Publicacion en boletin oficial", responsable: "Karina", estado: "En curso", fechaLimite: "2026-06-01" },
-        { id: "H-007-3", nombre: "La Plata - Publicacion en boletin oficial", responsable: "Marielda", estado: "En curso", fechaLimite: "2026-06-02" }
-      ]
-    },
-    {
-      id: "T-008",
-      nombre: "Concesion Palais de Glace",
-      programa: "Concesiones",
-      solicitante: "Ignacio Lupi",
-      prioridad: "Alta",
-      responsable: "Luisina",
-      estado: "Bloqueado",
-      expediente: "",
-      gde: "",
-      fechaInicio: "2026-05-20",
-      fechaLimite: "2026-06-30",
-      ultimaActualizacion: "2026-05-28",
-      descripcion: "",
-      historial: [{ event: "Tema creado", at: "2026-05-20", by: "Luisina" }],
-      comentarios: [],
-      documentos: [],
-      hitos: [
-        { id: "H-008-1", nombre: "Delegacion de facultades - con expediente", responsable: "Luisina, Karina", estado: "En curso", fechaLimite: "2026-06-05" },
-        { id: "H-008-2", nombre: "Confeccion de pliegos", responsable: "Luisina", estado: "En curso", fechaLimite: "2026-06-15" },
-        { id: "H-008-3", nombre: "Llamado a licitacion", responsable: "Karina", estado: "Bloqueado", fechaLimite: "2026-06-30" }
-      ]
-    },
-    {
-      id: "T-009",
-      nombre: "Concesion ETOR",
-      programa: "Concesiones",
-      solicitante: "Ignacio Lupi",
-      prioridad: "Alta",
-      responsable: "Luisina",
-      estado: "Bloqueado",
-      expediente: "",
-      gde: "",
-      fechaInicio: "2026-05-20",
-      fechaLimite: "2026-06-08",
-      ultimaActualizacion: "2026-05-20",
-      descripcion: "",
-      historial: [{ event: "Tema creado", at: "2026-05-20", by: "Luisina" }],
-      comentarios: [],
-      documentos: [],
-      hitos: []
-    },
-    {
-      id: "T-010",
-      nombre: "Concesion Muse MARQ",
-      programa: "Concesiones",
-      solicitante: "Ignacio Lupi",
-      prioridad: "Media",
-      responsable: "Luisina",
-      estado: "Cerrado",
-      expediente: "",
-      gde: "",
-      fechaInicio: "2026-05-20",
-      fechaLimite: "2026-06-20",
-      ultimaActualizacion: "2026-05-20",
-      descripcion: "",
-      historial: [{ event: "Tema creado", at: "2026-05-20", by: "Luisina" }],
-      comentarios: [],
-      documentos: [],
-      hitos: []
-    },
-    {
-      id: "T-011",
-      nombre: "13 Foro Urbano Mundial (WUF13) MINURVI",
-      programa: "Institucionales",
-      solicitante: "Wenceslao Maislin",
-      prioridad: "Baja",
-      responsable: "Jorge Rios",
-      estado: "En revision",
-      expediente: "",
-      gde: "",
-      fechaInicio: "2026-05-14",
-      fechaLimite: "2026-12-15",
-      ultimaActualizacion: "2026-05-28",
-      descripcion: "Mayo 2026: definir ejes tematicos. Julio 2026: avances en plenaria virtual. Diciembre 2026: informe final.",
-      historial: [{ event: "Tema creado", at: "2026-05-14", by: "Jorge Rios" }],
-      comentarios: [],
-      documentos: [],
-      hitos: [
-        { id: "H-011-1", nombre: "Definicion de ejes tematicos", responsable: "Jorge Rios", estado: "En revision", fechaLimite: "2026-05-31" },
-        { id: "H-011-2", nombre: "Plenaria virtual de avances", responsable: "Jorge Rios", estado: "Pendiente", fechaLimite: "2026-07-31" }
-      ]
-    },
-    {
-      id: "T-012",
-      nombre: "Expedientes designaciones KL y LR",
-      programa: "Administracion",
-      solicitante: "Privada",
-      prioridad: "Media",
-      responsable: "Privada",
-      estado: "Cerrado",
-      expediente: "EX-2026-33988163-APN-DGDA#MEC",
-      gde: "https://gde.example/EX-2026-33988163",
-      fechaInicio: "2026-05-15",
-      fechaLimite: "2026-06-05",
-      ultimaActualizacion: "2026-05-28",
-      descripcion: "",
-      historial: [{ event: "Tema creado", at: "2026-05-15", by: "Privada" }],
-      comentarios: [],
-      documentos: [],
-      hitos: [
-        { id: "H-012-1", nombre: "Karina - EX-2026-33988163-APN-DGDA#MEC en DIYAN#MDYTE", responsable: "Privada", estado: "En curso", fechaLimite: "2026-05-31" },
-        { id: "H-012-2", nombre: "Luisina - EX-2026-36272697-APN-SICYT#JGM en DIYAN#MDYTE", responsable: "Privada", estado: "En curso", fechaLimite: "2026-05-31" }
-      ]
-    }
-  ],
-  expedientes: [
-    {
-      numero: "EX-2022-94776460-APN-CEFISU#MDS",
-      gde: "https://gde.example/EX-2022-94776460",
-      temaAsociado: "NRU 1763 - Barrio Avenida de las Americas",
-      fechaInicio: "2026-05-19",
-      fechaLimite: "2026-06-15",
-      ultimaActualizacion: "2026-05-26",
-      responsable: "Alejandro B",
-      estado: "Activo",
-      documentos: ["Certificado_avance_N02.pdf"],
-      historial: [{ event: "Apertura expediente", at: "2026-05-19" }]
-    },
-    {
-      numero: "EX-2022-130503405-APN-CEFISU#MDS",
-      gde: "https://gde.example/EX-2022-130503405",
-      temaAsociado: "Loteo Parque Sur - Catamarca",
-      fechaInicio: "2026-05-19",
-      fechaLimite: "2026-06-12",
-      ultimaActualizacion: "2026-05-23",
-      responsable: "Luis Mesones",
-      estado: "Activo",
-      documentos: [],
-      historial: [{ event: "Apertura expediente", at: "2026-05-19" }]
-    },
-    {
-      numero: "EX-2026-33988163-APN-DGDA#MEC",
-      gde: "https://gde.example/EX-2026-33988163",
-      temaAsociado: "Designaciones KL y LR",
-      fechaInicio: "2026-05-15",
-      fechaLimite: "2026-06-05",
-      ultimaActualizacion: "2026-05-28",
-      responsable: "Privada",
-      estado: "Activo",
-      documentos: [],
-      historial: [{ event: "Apertura expediente", at: "2026-05-15" }]
-    }
-  ],
-  documentos: [
-    { id: "D-001", nombre: "Certificado_avance_N02.pdf", tipo: "PDF", relacionado: "EX-2022-94776460-APN-CEFISU#MDS", fecha: "2026-05-08" },
-    { id: "D-002", nombre: "Dictamen_auditor.pdf",       tipo: "PDF", relacionado: "T-002", fecha: "2026-05-20" },
-    { id: "D-003", nombre: "Observaciones.pdf",           tipo: "PDF", relacionado: "T-002", fecha: "2026-05-25" }
-  ],
-  responsables: [
-    { id: "R-001", nombre: "Jorge",     apellido: "Rios",    email: "", dependencia: "SSOyS", cargo: "", usuarioGDE: "" },
-    { id: "R-002", nombre: "Alejandro", apellido: "B",       email: "", dependencia: "",      cargo: "", usuarioGDE: "" },
-    { id: "R-003", nombre: "Luis",      apellido: "Mesones", email: "", dependencia: "",      cargo: "", usuarioGDE: "" },
-    { id: "R-004", nombre: "Gabriela",  apellido: "",        email: "", dependencia: "",      cargo: "", usuarioGDE: "" },
-    { id: "R-005", nombre: "Karina",    apellido: "",        email: "", dependencia: "",      cargo: "", usuarioGDE: "" },
-    { id: "R-006", nombre: "Marielda",  apellido: "",        email: "", dependencia: "",      cargo: "", usuarioGDE: "" },
-    { id: "R-007", nombre: "Luisina",   apellido: "",        email: "", dependencia: "",      cargo: "", usuarioGDE: "" }
-  ],
-  reuniones: [],
-  usuarios: [
-    {
-      id: "U-001",
-      nombre: "Jorge Rios",
-      email: "jorgerios.estudio@gmail.com",
-      passwordHash: simpleHash("admin123"),
-      rol: "Admin",
-      activo: true,
-      aprobado: true,
-      fechaRegistro: "2026-05-01",
-      ultimoAcceso: "2026-06-29"
-    },
-    {
-      id: "U-002",
-      nombre: "Admin",
-      email: "admin@sistema.com",
-      passwordHash: simpleHash("admin"),
-      rol: "Admin",
-      activo: true,
-      aprobado: true,
-      fechaRegistro: "2026-06-30",
-      ultimoAcceso: ""
-    }
-  ],
-  sesion: {
-    usuarioId: "U-001",
-    loggedAt: "2026-06-29"
-  }
-};
+// seedData eliminado: la fuente de verdad ahora es Supabase.
 
 // =========================================================
 // State helpers
@@ -441,54 +88,16 @@ function escHtml(s) {
   return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
-function migrateState(s) {
-  if (!s.config) s.config = { currentUser: "Jorge Rios", areaDefault: "SSOyS", rol: "Admin" };
-  if (!s.config.rol) s.config.rol = "Admin";
 
-  const today = fmtDate(new Date());
+// Estado en memoria para renderizar. La fuente de verdad es Supabase.
+let state = {
+  config: { currentUser: "", areaDefault: "SSOyS", rol: "Viewer" },
+  temas: [], expedientes: [], responsables: [], documentos: [], usuarios: [],
+  profile: null
+};
 
-  (s.temas || []).forEach((t) => {
-    if (t.tipo !== undefined && t.programa === undefined) { t.programa = t.tipo; delete t.tipo; }
-    if (!t.hitos) t.hitos = [];
-    if (!t.comentarios) t.comentarios = [];
-    if (!t.documentos) t.documentos = [];
-    if (!t.historial) t.historial = [{ event: "Importado", at: t.fechaInicio || today, by: "sistema" }];
-  });
-
-  if (!s.responsables) {
-    const names = unique([
-      ...s.temas.map((t) => t.responsable),
-      ...s.temas.flatMap((t) => t.hitos.map((h) => h.responsable))
-    ]).filter((n) => n && n !== "Privada" && n !== "Jurisdiccion");
-    s.responsables = names.map((name, i) => {
-      const parts = name.trim().split(/\s+/);
-      return { id: `R-${String(i+1).padStart(3,"0")}`, nombre: parts[0]||name, apellido: parts.slice(1).join(" "), email: "", dependencia: "" };
-    });
-  }
-
-  if (!s.expedientes) s.expedientes = [];
-  if (!s.documentos) s.documentos = [];
-  if (!s.reuniones) s.reuniones = [];
-  if (!s.usuarios) s.usuarios = structuredClone(seedData.usuarios);
-  if (!s.usuarios.find((u) => u.email === "admin@sistema.com")) {
-    s.usuarios.push({ id: "U-002", nombre: "Admin", email: "admin@sistema.com", passwordHash: simpleHash("admin"), rol: "Admin", activo: true, aprobado: true, fechaRegistro: "2026-06-30", ultimoAcceso: "" });
-  }
-  if (!s.sesion) s.sesion = { usuarioId: "U-001", loggedAt: new Date().toISOString() };
-  return s;
-}
-
-function loadState() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return structuredClone(seedData);
-  try { return migrateState(JSON.parse(raw)); }
-  catch { return structuredClone(seedData); }
-}
-
-function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
-
-let state = loadState();
+// Datos principales NO se guardan en localStorage (viven en Supabase).
+function saveState() { /* no-op: persistimos via dataApi */ }
 
 const charts = {};
 
@@ -497,22 +106,34 @@ function getDark() { return document.documentElement.dataset.theme === "dark"; }
 // =========================================================
 // Session & permissions
 // =========================================================
-function getSessionUser() {
-  if (!state.sesion || !state.sesion.usuarioId) return null;
-  return state.usuarios.find((u) => u.id === state.sesion.usuarioId) || null;
-}
+function getSessionUser() { return state.profile; }
 
-function getCurrentRol() {
-  const u = getSessionUser();
-  if (u) return u.rol;
-  return state.config.rol || "Admin";
-}
+function getCurrentRol() { return state.profile ? state.profile.rol : "Viewer"; }
 
 function puedeEditar() { const r = getCurrentRol(); return r === "Admin" || r === "Editor"; }
 function puedeEliminar() { return getCurrentRol() === "Admin"; }
 function esAdmin() { return getCurrentRol() === "Admin"; }
-function activeUserName() { return getSessionUser()?.nombre || state.config.currentUser; }
-function activeUserId() { return getSessionUser()?.id || null; }
+function activeUserName() { return state.profile ? state.profile.nombre : state.config.currentUser; }
+function activeUserId() { return state.profile ? state.profile.id : null; }
+
+// --------- Persistencia / recarga desde Supabase ---------
+async function reloadState() {
+  const data = await dataApi.fetchInitialState();
+  state.temas = data.temas;
+  state.expedientes = data.expedientes;
+  state.responsables = data.responsables;
+  state.documentos = data.documentos;
+  state.usuarios = data.usuarios;
+  renderAll();
+}
+
+// Ejecuta una mutacion async y muestra un toast si falla.
+async function withBusy(fn) {
+  try { await fn(); return true; }
+  catch (e) { console.error(e); showToast("Error: " + (e && e.message ? e.message : e)); return false; }
+}
+
+function isPersistedTema(tema) { return tema && tema.__persisted !== false; }
 
 function isTemaVisible(t) {
   if (!t.privado) return true;
@@ -659,18 +280,32 @@ function init() {
   initTheme();
   bindEvents();
   fillFilterOptions();
+  boot();
+}
 
-  const devBypass = localStorage.getItem("sgtemas_dev_bypass") === "true";
-  if (devBypass && !state.sesion.usuarioId) {
-    state.sesion = { usuarioId: "U-001", loggedAt: new Date().toISOString() };
-  }
+// Resuelve la sesion de Supabase y decide que pantalla mostrar.
+async function boot() {
+  let session;
+  try { session = await authApi.getSession(); }
+  catch (e) { console.error(e); }
 
-  if (!state.sesion || !state.sesion.usuarioId) {
-    showLoginScreen();
-  } else {
-    showApp();
-    renderAll();
-  }
+  if (!session) { showLoginScreen(); return; }
+
+  let profile = null;
+  try { profile = await authApi.loadProfile(); }
+  catch (e) { console.error(e); }
+
+  if (!profile) { showLoginScreen(); return; }
+  if (!profile.aprobado) { showAccessNotice("pendiente"); return; }
+  if (!profile.activo) { showAccessNotice("desactivada"); return; }
+
+  state.profile = profile;
+  state.config.currentUser = profile.nombre;
+  state.config.rol = profile.rol;
+
+  showApp();
+  const ok = await withBusy(reloadState);
+  if (ok) { authApi.touchLastAccess().catch(() => {}); }
 }
 
 function bindEvents() {
@@ -752,38 +387,42 @@ function bindEvents() {
   $("calPrev").addEventListener("click", () => { calCursor.setMonth(calCursor.getMonth() - 1); renderCalendar(); });
   $("calNext").addEventListener("click", () => { calCursor.setMonth(calCursor.getMonth() + 1); renderCalendar(); });
 
-  $("saveConfig").addEventListener("click", () => {
+  $("saveConfig").addEventListener("click", async () => {
     const user = getSessionUser();
     if (!user) return;
     const nombre = els.cfgNombre.value.trim();
     const email = els.cfgEmail.value.trim().toLowerCase();
     if (!nombre) { showToast("El nombre es requerido"); return; }
     if (!email) { showToast("El email es requerido"); return; }
-    if (state.usuarios.some((u) => u.id !== user.id && u.email.toLowerCase() === email)) {
-      showToast("Ya existe un usuario con ese email"); return;
-    }
-    user.nombre = nombre;
-    user.email = email;
-    saveState();
-    renderAll();
-    showToast("Datos guardados");
+    await withBusy(async () => {
+      const updated = await authApi.updateOwnProfile({ nombre, email });
+      if (updated) {
+        state.profile = updated;
+        state.config.currentUser = updated.nombre;
+      }
+      renderAll();
+      showToast("Datos guardados");
+    });
   });
 
-  $("savePassword").addEventListener("click", () => {
+  $("savePassword").addEventListener("click", async () => {
     const user = getSessionUser();
     if (!user) return;
     const actual = els.cfgPassActual.value;
     const nueva = els.cfgPassNueva.value;
     const confirmar = els.cfgPassConfirmar.value;
-    if (simpleHash(actual) !== user.passwordHash) { showToast("Contraseña actual incorrecta"); return; }
-    if (nueva.length < 4) { showToast("La nueva contraseña debe tener al menos 4 caracteres"); return; }
+    if (nueva.length < 6) { showToast("La nueva contraseña debe tener al menos 6 caracteres"); return; }
     if (nueva !== confirmar) { showToast("Las contraseñas no coinciden"); return; }
-    user.passwordHash = simpleHash(nueva);
-    saveState();
-    els.cfgPassActual.value = "";
-    els.cfgPassNueva.value = "";
-    els.cfgPassConfirmar.value = "";
-    showToast("Contraseña actualizada");
+    try {
+      await authApi.changePassword(actual, nueva);
+      els.cfgPassActual.value = "";
+      els.cfgPassNueva.value = "";
+      els.cfgPassConfirmar.value = "";
+      showToast("Contraseña actualizada");
+    } catch (err) {
+      if (err && err.code === "bad_current_password") showToast("Contraseña actual incorrecta");
+      else showToast("No se pudo actualizar la contraseña");
+    }
   });
 
   $("exportCsv").addEventListener("click", exportCsv);
@@ -812,10 +451,10 @@ function bindEvents() {
 
   const logoutBtn = $("logoutBtn");
   if (logoutBtn) {
-    logoutBtn.addEventListener("click", () => {
+    logoutBtn.addEventListener("click", async () => {
       if (!confirm("Cerrar sesion?")) return;
-      state.sesion = { usuarioId: null, loggedAt: "" };
-      saveState();
+      await withBusy(() => authApi.logout());
+      state.profile = null;
       showLoginScreen();
     });
   }
@@ -854,6 +493,28 @@ function showApp() {
   updateHeaderForRole();
 }
 
+// Aviso en la pantalla de login para cuentas pendientes/desactivadas.
+function showAccessNotice(kind) {
+  const ls = $("loginScreen");
+  const app = document.querySelector(".app");
+  if (ls) { ls.style.display = "grid"; ls.style.placeItems = "center"; }
+  if (app) app.style.display = "none";
+  const wrap = $("loginFormWrap");
+  if (!wrap) return;
+  const isOff = kind === "desactivada";
+  const msg = isOff
+    ? "Tu cuenta esta desactivada. Contacta a un administrador."
+    : "Tu solicitud de acceso esta pendiente de aprobacion por un administrador.";
+  wrap.innerHTML = `
+    <div class="login-${isOff ? "error" : "success"}">${msg}</div>
+    <button type="button" class="login-link" id="noticeLogout" style="margin-top:10px">Volver al login</button>`;
+  $("noticeLogout").addEventListener("click", async () => {
+    await withBusy(() => authApi.logout());
+    state.profile = null;
+    renderLogin();
+  });
+}
+
 function updateHeaderForRole() {
   const mu = $("menuUsuarios");
   if (mu) mu.style.display = esAdmin() ? "" : "none";
@@ -875,7 +536,8 @@ function updateHeaderForRole() {
     if (topbarAv) topbarAv.textContent = initials;
   }
   if (els.dropdownLastLogin) {
-    els.dropdownLastLogin.textContent = `Ultima conexion: ${fmtDateTimeNice(state.sesion.loggedAt)}`;
+    const last = state.profile ? state.profile.ultimoAcceso : "";
+    els.dropdownLastLogin.textContent = `Ultima conexion: ${last ? fmtDateNice(last) : "—"}`;
   }
 }
 
@@ -893,20 +555,20 @@ function renderLogin() {
       <button type="submit" class="login-btn">Ingresar</button>
       <button type="button" class="login-link" id="goRegister">Solicitar acceso</button>
     </form>`;
-  $("loginFormEl").addEventListener("submit", (e) => {
+  $("loginFormEl").addEventListener("submit", async (e) => {
     e.preventDefault();
     const email = $("loginEmail").value.trim().toLowerCase();
-    const pass  = simpleHash($("loginPass").value);
-    const user  = state.usuarios.find((u) => u.email.toLowerCase() === email && u.passwordHash === pass);
+    const pass  = $("loginPass").value;
     const msg   = $("loginMsg");
-    if (!user) { msg.innerHTML = `<div class="login-error">Email o contraseña incorrectos.</div>`; return; }
-    if (!user.aprobado) { msg.innerHTML = `<div class="login-error">Tu cuenta está pendiente de aprobación.</div>`; return; }
-    if (!user.activo)   { msg.innerHTML = `<div class="login-error">Tu cuenta está desactivada.</div>`; return; }
-    user.ultimoAcceso = fmtDate(new Date());
-    state.sesion = { usuarioId: user.id, loggedAt: new Date().toISOString() };
-    saveState();
-    showApp();
-    renderAll();
+    const btn   = e.target.querySelector(".login-btn");
+    if (btn) { btn.disabled = true; btn.textContent = "Ingresando..."; }
+    try {
+      await authApi.login(email, pass);
+      await boot();
+    } catch (err) {
+      if (btn) { btn.disabled = false; btn.textContent = "Ingresar"; }
+      msg.innerHTML = `<div class="login-error">Email o contraseña incorrectos.</div>`;
+    }
   });
   $("goRegister").addEventListener("click", renderRegister);
 }
@@ -925,7 +587,7 @@ function renderRegister() {
       <button type="button" class="login-link" id="goLogin">Volver al login</button>
     </form>`;
   $("goLogin").addEventListener("click", renderLogin);
-  $("regFormEl").addEventListener("submit", (e) => {
+  $("regFormEl").addEventListener("submit", async (e) => {
     e.preventDefault();
     const msg = $("regMsg");
     const nombre = $("regNombre").value.trim();
@@ -933,24 +595,21 @@ function renderRegister() {
     const pass   = $("regPass").value;
     const pass2  = $("regPass2").value;
     if (pass !== pass2) { msg.innerHTML = `<div class="login-error">Las contraseñas no coinciden.</div>`; return; }
-    if (pass.length < 4) { msg.innerHTML = `<div class="login-error">La contraseña debe tener al menos 4 caracteres.</div>`; return; }
-    if (state.usuarios.find((u) => u.email.toLowerCase() === email)) {
-      msg.innerHTML = `<div class="login-error">Ya existe un usuario con ese email.</div>`; return;
+    if (pass.length < 6) { msg.innerHTML = `<div class="login-error">La contraseña debe tener al menos 6 caracteres.</div>`; return; }
+    const btn = e.target.querySelector(".login-btn");
+    if (btn) { btn.disabled = true; btn.textContent = "Enviando..."; }
+    try {
+      await authApi.register(nombre, email, pass);
+      // Queda con sesion iniciada pero sin aprobar: cerramos para dejar el login limpio.
+      await authApi.logout();
+      state.profile = null;
+      msg.innerHTML = `<div class="login-success">Tu solicitud fue enviada. El administrador debe aprobarla antes de que puedas ingresar.</div>`;
+      setTimeout(() => renderLogin(), 3500);
+    } catch (err) {
+      if (btn) { btn.disabled = false; btn.textContent = "Solicitar acceso"; }
+      const already = /registered|already/i.test(err && err.message ? err.message : "");
+      msg.innerHTML = `<div class="login-error">${already ? "Ya existe un usuario con ese email." : "No se pudo completar el registro."}</div>`;
     }
-    state.usuarios.push({
-      id: nextUsuarioId(),
-      nombre,
-      email,
-      passwordHash: simpleHash(pass),
-      rol: "Viewer",
-      activo: true,
-      aprobado: false,
-      fechaRegistro: fmtDate(new Date()),
-      ultimoAcceso: ""
-    });
-    saveState();
-    msg.innerHTML = `<div class="login-success">Tu solicitud fue enviada. El administrador debe aprobarla antes de que puedas ingresar.</div>`;
-    setTimeout(() => renderLogin(), 3500);
   });
 }
 
@@ -977,32 +636,37 @@ function renderUsuarios() {
           <select class="pill" style="font-size:12px;padding:3px 8px" data-rol-select="${u.id}">
             ${["Admin","Editor","Viewer"].map((r) => `<option ${u.rol === r ? "selected" : ""}>${r}</option>`).join("")}
           </select>
-          ${u.id !== state.sesion.usuarioId ? `<button class="ghost" style="font-size:12px;color:#dc2626" data-desactivar="${u.id}">Desactivar</button>` : ""}
-          ${u.id !== state.sesion.usuarioId ? `<button class="ghost" style="font-size:12px;color:#dc2626" data-eliminar="${u.id}">Eliminar</button>` : ""}
+          ${u.id !== state.profile.id ? `<button class="ghost" style="font-size:12px;color:#dc2626" data-desactivar="${u.id}">Desactivar</button>` : ""}
+          ${u.id !== state.profile.id ? `<button class="ghost" style="font-size:12px;color:#dc2626" data-eliminar="${u.id}">Eliminar</button>` : ""}
         </div>
       </td>
     </tr>`).join("") || `<tr><td colspan="5" style="color:var(--muted);text-align:center">Sin usuarios.</td></tr>`;
 
   tbActivos.querySelectorAll("[data-eliminar]").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       const u = state.usuarios.find((x) => x.id === btn.dataset.eliminar);
       if (u && confirm(`Eliminar a ${u.nombre} definitivamente?`)) {
-        state.usuarios = state.usuarios.filter((x) => x.id !== u.id);
-        saveState(); renderUsuarios();
+        await withBusy(async () => { await dataApi.deleteProfile(u.id); await reloadState(); renderUsuarios(); });
       }
     });
   });
 
   tbActivos.querySelectorAll("[data-rol-select]").forEach((sel) => {
-    sel.addEventListener("change", () => {
+    sel.addEventListener("change", async () => {
       const u = state.usuarios.find((x) => x.id === sel.dataset.rolSelect);
-      if (u) { u.rol = sel.value; saveState(); showToast("Rol actualizado"); }
+      if (u) await withBusy(async () => {
+        await dataApi.updateProfileRole(u.id, sel.value);
+        await reloadState();
+        showToast("Rol actualizado");
+      });
     });
   });
   tbActivos.querySelectorAll("[data-desactivar]").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       const u = state.usuarios.find((x) => x.id === btn.dataset.desactivar);
-      if (u && confirm(`Desactivar a ${u.nombre}?`)) { u.activo = false; saveState(); renderUsuarios(); }
+      if (u && confirm(`Desactivar a ${u.nombre}?`)) {
+        await withBusy(async () => { await dataApi.deactivateProfile(u.id); await reloadState(); renderUsuarios(); });
+      }
     });
   });
 
@@ -1023,18 +687,22 @@ function renderUsuarios() {
     </tr>`).join("") || `<tr><td colspan="4" style="color:var(--muted);text-align:center">Sin solicitudes pendientes.</td></tr>`;
 
   tbPendientes.querySelectorAll("[data-aprobar]").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       const u = state.usuarios.find((x) => x.id === btn.dataset.aprobar);
       const rolSel = document.getElementById(`rolAprobacion-${u.id}`);
-      if (u) { u.aprobado = true; u.rol = rolSel ? rolSel.value : "Viewer"; saveState(); renderUsuarios(); showToast(`${u.nombre} aprobado`); }
+      if (u) await withBusy(async () => {
+        await dataApi.approveProfile(u.id, rolSel ? rolSel.value : "Viewer");
+        await reloadState();
+        renderUsuarios();
+        showToast(`${u.nombre} aprobado`);
+      });
     });
   });
   tbPendientes.querySelectorAll("[data-rechazar]").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       const u = state.usuarios.find((x) => x.id === btn.dataset.rechazar);
       if (u && confirm(`Rechazar solicitud de ${u.nombre}?`)) {
-        state.usuarios = state.usuarios.filter((x) => x.id !== u.id);
-        saveState(); renderUsuarios();
+        await withBusy(async () => { await dataApi.deleteProfile(u.id); await reloadState(); renderUsuarios(); });
       }
     });
   });
@@ -1125,7 +793,6 @@ function renderAll() {
   renderConfig();
   updateSortHeaders();
   updateHeaderForRole();
-  saveState();
 }
 
 function renderConfig() {
@@ -1420,16 +1087,23 @@ function bindKanban() {
       const kcards = col.querySelector(".kcards");
       if (dragging && kcards && dragging.parentElement !== kcards) kcards.appendChild(dragging);
     });
-    col.addEventListener("drop", () => {
+    col.addEventListener("drop", async () => {
       if (!dragId) return;
-      const tema = state.temas.find((t) => t.id === dragId);
-      if (tema) {
-        setTemaEstado(tema, col.dataset.estado);
-        const orderedIds = Array.from(col.querySelectorAll(".kcard")).map((c) => c.dataset.id);
-        reorderColumn(col.dataset.estado, orderedIds);
-      }
-      dragId = "";
-      renderAll();
+      const id = dragId; dragId = "";
+      const tema = state.temas.find((t) => t.id === id);
+      const nuevoEstado = col.dataset.estado;
+      const orderedIds = Array.from(col.querySelectorAll(".kcard")).map((c) => c.dataset.id);
+      await withBusy(async () => {
+        if (tema && tema.estado !== nuevoEstado) {
+          const extra = nuevoEstado === "Cerrado"
+            ? { fecha_cierre: fmtDate(new Date()), cerrado_por: activeUserName() }
+            : {};
+          await dataApi.updateTemaEstado(id, nuevoEstado, extra);
+          await dataApi.logActivity(id, `Cambio a ${nuevoEstado}`);
+        }
+        await dataApi.reorderTemas(orderedIds);
+        await reloadState();
+      });
     });
   });
   els.agendaKanban.querySelectorAll("[data-add-estado]").forEach((btn) => {
@@ -1437,22 +1111,8 @@ function bindKanban() {
   });
 }
 
-function reorderColumn(estado, orderedIds) {
-  const grouped = state.temas.filter((t) => t.estado === estado);
-  if (!grouped.length) return;
-  const insertAt = state.temas.findIndex((t) => t.estado === estado);
-  state.temas = state.temas.filter((t) => t.estado !== estado);
-  const orderedTemas = orderedIds.map((id) => grouped.find((t) => t.id === id)).filter(Boolean);
-  state.temas.splice(insertAt, 0, ...orderedTemas);
-}
-
-function setTemaEstado(tema, estado) {
-  if (tema.estado === estado) return;
-  tema.estado = estado;
-  tema.ultimaActualizacion = fmtDate(new Date());
-  tema.historial.push({ event: `Cambio a ${estado}`, at: tema.ultimaActualizacion, by: activeUserName() });
-  if (estado === "Cerrado") { tema.fechaCierre = fmtDate(new Date()); tema.cerradoPor = activeUserName(); }
-}
+// (reorderColumn / setTemaEstado reemplazados por dataApi.reorderTemas /
+//  dataApi.updateTemaEstado en el handler de drop del Kanban.)
 
 function renderAgendaLista() {
   const temas = sortTableData(getFilteredTemas(), "tableAgendaLista");
@@ -1504,10 +1164,15 @@ function renderCalendar() {
   els.calGrid.querySelectorAll(".cal-event").forEach((ev) => ev.addEventListener("dragstart", () => { dragId = ev.dataset.tema; }));
   els.calGrid.querySelectorAll(".cal-day").forEach((day) => {
     day.addEventListener("dragover", (e) => e.preventDefault());
-    day.addEventListener("drop", () => {
+    day.addEventListener("drop", async () => {
       if (!dragId) return;
-      const tema = state.temas.find((t) => t.id === dragId);
-      if (tema) { tema.fechaLimite = day.dataset.date; tema.historial.push({ event: "Fecha modificada por calendario", at: fmtDate(new Date()), by: activeUserName() }); renderAll(); }
+      const id = dragId; dragId = "";
+      const nuevaFecha = day.dataset.date;
+      await withBusy(async () => {
+        await dataApi.setTemaFechaLimite(id, nuevaFecha);
+        await dataApi.logActivity(id, "Fecha modificada por calendario");
+        await reloadState();
+      });
     });
   });
 }
@@ -1682,10 +1347,7 @@ function openTemaDrawer(temaId, activeTab = "detalle") {
     </div>`).join("");
 
   const docHtml = tema.documentos.length
-    ? tema.documentos.map((d) => `
-      <div class="doc-item">
-        <span>📄 ${escHtml(d)}</span>
-      </div>`).join("")
+    ? tema.documentos.map(renderDocItem).join("")
     : `<p style="color:var(--muted)">Sin documentos adjuntos.</p>`;
 
   els.drawerBody.innerHTML = `
@@ -1779,16 +1441,22 @@ function openTemaDrawer(temaId, activeTab = "detalle") {
 
   $("editTemaBtn")?.addEventListener("click", () => openTemaForm(tema));
 
-  $("deleteTemaBtn")?.addEventListener("click", () => {
+  $("deleteTemaBtn")?.addEventListener("click", async () => {
     if (!confirm("Eliminar este tema? Esta accion no se puede deshacer.")) return;
-    state.temas = state.temas.filter((t) => t.id !== tema.id);
-    closeDrawer(); renderAll();
+    await withBusy(async () => {
+      await dataApi.deleteTema(tema.id);
+      closeDrawer();
+      await reloadState();
+    });
   });
 
   // Wire GDE links inside drawer
   els.drawerBody.querySelectorAll("[data-gde-open]").forEach((a) => {
     a.addEventListener("click", (e) => { e.preventDefault(); openGDE(a.dataset.gdeOpen); });
   });
+
+  // Descargas de documentos
+  wireDocDownloads(els.drawerBody.querySelector("#docList"));
 }
 
 function openExpedienteDrawer(numero) {
@@ -1812,8 +1480,8 @@ function openExpedienteDrawer(numero) {
     </div>
     <article class="card" style="margin-top:12px"><h4 style="margin-bottom:8px">Temas asociados</h4>${temasRel.length ? temasRel.map((t) => `<p>· ${t.id} - ${escHtml(t.nombre)} ${badge(t.estado)}</p>`).join("") : "<p style='color:var(--muted)'>Sin temas.</p>"}</article>
     <article class="card" style="margin-top:8px"><h4 style="margin-bottom:8px">Hitos</h4>${hitos.length ? hitos.map((h) => `<p>· ${h.temaId}: ${escHtml(h.nombre)} ${badge(h.estado)}</p>`).join("") : "<p style='color:var(--muted)'>Sin hitos.</p>"}</article>
-    <article class="card" style="margin-top:8px"><h4 style="margin-bottom:8px">Documentos</h4>${ex.documentos.length ? ex.documentos.map((d) => `<p>📄 ${escHtml(d)}</p>`).join("") : "<p style='color:var(--muted)'>Sin documentos.</p>"}</article>
-    <article class="card" style="margin-top:8px"><h4 style="margin-bottom:8px">Historial</h4>${ex.historial.map((h) => `<p>${fmtDateNice(h.at)} · ${escHtml(h.event)}</p>`).join("")}</article>
+    <article class="card" style="margin-top:8px"><h4 style="margin-bottom:8px">Documentos</h4><div id="expDocList">${ex.documentos.length ? ex.documentos.map(renderDocItem).join("") : "<p style='color:var(--muted)'>Sin documentos.</p>"}</div></article>
+    <article class="card" style="margin-top:8px"><h4 style="margin-bottom:8px">Historial</h4>${ex.historial.length ? ex.historial.map((h) => `<p>${fmtDateNice(h.at)} · ${escHtml(h.event)}</p>`).join("") : "<p style='color:var(--muted)'>Sin historial.</p>"}</article>
     <article class="card" style="margin-top:8px"><h4 style="margin-bottom:8px">Responsables</h4>${responsables.map((r) => `<p>👤 ${escHtml(r)}</p>`).join("")}</article>
   `;
   els.drawer.classList.add("open");
@@ -1821,6 +1489,7 @@ function openExpedienteDrawer(numero) {
   els.drawerBody.querySelectorAll("[data-gde-open]").forEach((a) => {
     a.addEventListener("click", (e) => { e.preventDefault(); openGDE(a.dataset.gdeOpen); });
   });
+  wireDocDownloads(els.drawerBody.querySelector("#expDocList"));
 }
 
 function attemptCloseDrawer() {
@@ -1913,15 +1582,18 @@ function openQuickRespModal(onSave) {
   const dlg = document.getElementById("modalNewResp");
   const form = document.getElementById("newRespForm");
   form.reset();
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(form).entries());
     if (!data.nombre?.trim()) { showToast("El nombre es requerido"); return; }
-    const newResp = { id: nextRespId(), nombre: data.nombre.trim(), apellido: (data.apellido || "").trim(), email: data.email || "", cargo: data.cargo || "", dependencia: data.dependencia || "", usuarioGDE: "" };
-    state.responsables.push(newResp);
-    saveState();
-    dlg.close();
-    if (onSave) onSave([newResp.nombre, newResp.apellido].filter(Boolean).join(" "));
+    const ui = { nombre: data.nombre.trim(), apellido: (data.apellido || "").trim(), email: data.email || "", cargo: data.cargo || "", dependencia: data.dependencia || "", usuarioGDE: "" };
+    await withBusy(async () => {
+      const created = await dataApi.createResponsable(ui);
+      state.responsables.push(created);
+      dlg.close();
+      renderResponsables();
+      if (onSave) onSave([created.nombre, created.apellido].filter(Boolean).join(" "));
+    });
   }
   dlg.addEventListener("close", () => form.removeEventListener("submit", handleSubmit), { once: true });
   form.addEventListener("submit", handleSubmit);
@@ -2166,6 +1838,17 @@ function wireHitosListButtons(draft) {
   });
 }
 
+// Proximo id de hito para un tema: H-<codigo tema sin 'T-'>-<max sufijo + 1>.
+function nextHitoId(tema) {
+  const base = String(tema.id).replace(/^T-/, "");
+  const nums = (tema.hitos || []).map((h) => {
+    const m = /(\d+)$/.exec(h.id || "");
+    return m ? parseInt(m[1], 10) : 0;
+  });
+  const n = (nums.length ? Math.max(...nums) : 0) + 1;
+  return `H-${base}-${n}`;
+}
+
 function wireAddHitoInline(draft) {
   const addBtn = document.getElementById("taskAddHitoBtn");
   const wrap = document.getElementById("taskHitoInlineFormWrap");
@@ -2188,16 +1871,23 @@ function wireAddHitoInline(draft) {
       wrap.innerHTML = "";
       addBtn.classList.remove("hidden");
     });
-    document.getElementById("inlineHitoSaveBtn").addEventListener("click", () => {
+    document.getElementById("inlineHitoSaveBtn").addEventListener("click", async () => {
       const nombre = document.getElementById("inlineHitoNombre").value.trim();
       const fechaLimite = document.getElementById("inlineHitoFecha").value;
       const estado = document.getElementById("inlineHitoEstado").value;
       if (!nombre) { showToast("El nombre del hito es requerido"); return; }
       const newHito = {
-        id: `H-${draft.id}-${draft.hitos.length + 1}`,
+        id: nextHitoId(draft),
         nombre, estado, fechaLimite,
         responsable: draft.responsable || activeUserName()
       };
+      if (isPersistedTema(draft)) {
+        const ok = await withBusy(async () => {
+          await dataApi.createHito(draft.id, newHito);
+          await dataApi.logActivity(draft.id, "Hito agregado", { hitoId: newHito.id });
+        });
+        if (!ok) return;
+      }
       draft.hitos.push(newHito);
       draft.historial.push({ event: "Hito agregado", at: fmtDate(new Date()), by: activeUserName() });
       draft.ultimaActualizacion = fmtDate(new Date());
@@ -2252,15 +1942,21 @@ function buildActividadTabHtml(tema) {
 function wireActividadTabEvents(draft) {
   const btn = document.getElementById("taskSaveComment");
   if (!btn) return;
-  btn.addEventListener("click", () => {
+  btn.addEventListener("click", async () => {
     const input = document.getElementById("taskNewComment");
     const v = (input?.value || "").trim();
     if (!v) return;
-    const currentUser = getSessionUser()?.nombre || state.config.currentUser;
+    if (!isPersistedTema(draft)) { showToast("Guarda el tema antes de comentar."); return; }
+    const currentUser = activeUserName();
+    const ok = await withBusy(async () => {
+      await dataApi.createComentario(draft.id, v);
+      await dataApi.logActivity(draft.id, `Comentario: "${v.slice(0, 40)}"`);
+    });
+    if (!ok) return;
     draft.comentarios = draft.comentarios || [];
     draft.comentarios.push({ by: currentUser, text: v, at: fmtDate(new Date()) });
     draft.ultimaActualizacion = fmtDate(new Date());
-    draft.historial.push({ event: `Comentario: "${v.slice(0,40)}"`, at: fmtDate(new Date()), by: currentUser });
+    draft.historial.push({ event: `Comentario: "${v.slice(0, 40)}"`, at: fmtDate(new Date()), by: currentUser });
     renderAll();
     refreshTaskActividadPane(draft);
   });
@@ -2276,9 +1972,35 @@ function refreshTaskActividadPane(draft) {
 // =========================================================
 // Task modal — Tab "Documentos"
 // =========================================================
+// Documentos son objetos {id, nombre, storagePath, ...}. Enlace de descarga
+// via signed URL generada al hacer clic.
+function renderDocItem(d) {
+  const nombre = d && d.nombre ? d.nombre : String(d || "");
+  const id = d && d.id ? d.id : "";
+  return `<div class="doc-item">
+    <span>📄 ${escHtml(nombre)}</span>
+    ${id ? `<a href="#" class="link" data-doc-download="${id}" style="margin-left:8px">Ver / descargar</a>` : ""}
+  </div>`;
+}
+
+function wireDocDownloads(container) {
+  if (!container) return;
+  container.querySelectorAll("[data-doc-download]").forEach((a) => {
+    a.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const doc = state.documentos.find((x) => x.id === a.dataset.docDownload);
+      if (!doc || !doc.storagePath) { showToast("Documento no disponible"); return; }
+      await withBusy(async () => {
+        const url = await dataApi.getDocumentoUrl(doc.storagePath);
+        window.open(url, "_blank", "noopener");
+      });
+    });
+  });
+}
+
 function buildDocumentosTabHtml(tema) {
   const docHtml = tema.documentos.length
-    ? tema.documentos.map((d) => `<div class="doc-item"><span>📄 ${escHtml(d)}</span></div>`).join("")
+    ? tema.documentos.map(renderDocItem).join("")
     : `<p style="color:var(--muted)">Sin documentos adjuntos.</p>`;
   return `
     <div id="taskDocList">${docHtml}</div>
@@ -2287,15 +2009,26 @@ function buildDocumentosTabHtml(tema) {
 }
 
 function wireDocumentosTabEvents(draft) {
+  wireDocDownloads(document.getElementById("taskDocList"));
   const btn = document.getElementById("taskUploadDocBtn");
   if (!btn) return;
   btn.addEventListener("click", () => {
-    const name = prompt("Nombre del documento:");
-    if (!name) return;
-    draft.documentos.push(name);
-    state.documentos.push({ id: nextDocId(), nombre: name, tipo: name.split(".").pop().toUpperCase(), relacionado: draft.id, fecha: fmtDate(new Date()) });
-    renderAll();
-    refreshTaskDocumentosPane(draft);
+    if (!isPersistedTema(draft)) { showToast("Guarda el tema antes de adjuntar documentos."); return; }
+    const input = document.createElement("input");
+    input.type = "file";
+    input.onchange = async () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      await withBusy(async () => {
+        const doc = await dataApi.uploadDocumento(file, { relacionadoTipo: "tema", temaId: draft.id });
+        await dataApi.logActivity(draft.id, `Documento adjuntado: ${file.name}`);
+        draft.documentos.push(doc);
+        state.documentos.push(doc);
+        renderAll();
+        refreshTaskDocumentosPane(draft);
+      });
+    };
+    input.click();
   });
 }
 
@@ -2371,7 +2104,7 @@ function renderTaskFormShell(draft, isEdit) {
   document.getElementById("taskModalCloseBtn").addEventListener("click", () => els.modalTask.close());
   document.getElementById("taskModalCancelBtn").addEventListener("click", () => els.modalTask.close());
 
-  els.taskForm.onsubmit = (e) => {
+  els.taskForm.onsubmit = async (e) => {
     e.preventDefault();
     if (!puedeEditar()) return;
     const resp = getSelectedResp(els.taskForm);
@@ -2385,19 +2118,33 @@ function renderTaskFormShell(draft, isEdit) {
     const gdeHidden = document.getElementById("tarea-gdeNumeroHidden");
     data.expediente = hasExp ? (gdeHidden ? gdeHidden.value.trim() : (draft.expediente || "")) : "";
     delete data.numero;
-    if (isEdit) {
-      Object.assign(draft, data);
-      draft.ultimaActualizacion = fmtDate(new Date());
-      draft.historial.push({ event: "Tema editado", at: draft.ultimaActualizacion, by: activeUserName() });
-    } else {
-      Object.assign(draft, data);
-      draft.creadoPor = activeUserId();
-      draft.ultimaActualizacion = fmtDate(new Date());
-      state.temas.push(draft);
+
+    Object.assign(draft, data);
+    draft.ultimaActualizacion = fmtDate(new Date());
+    if (draft.estado === "Cerrado" && !draft.fechaCierre) {
+      draft.fechaCierre = fmtDate(new Date());
+      draft.cerradoPor = activeUserName();
     }
+
+    const submitBtn = els.taskForm.querySelector('[value="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    const ok = await withBusy(async () => {
+      if (isEdit) {
+        await dataApi.updateTema(draft.id, draft);
+        await dataApi.logActivity(draft.id, "Tema editado");
+      } else {
+        draft.creadoPor = activeUserId();
+        await dataApi.createTema(draft);
+        await dataApi.logActivity(draft.id, "Tema creado");
+        // Hitos agregados en memoria antes de guardar el tema nuevo.
+        for (const h of (draft.hitos || [])) await dataApi.createHito(draft.id, h);
+      }
+      await reloadState();
+    });
+    if (submitBtn) submitBtn.disabled = false;
+    if (!ok) return;
     els.modalTask.close();
     closeDrawer();
-    renderAll();
   };
 }
 
@@ -2412,7 +2159,8 @@ function openTemaForm(existing = null, defaultEstado = "Pendiente") {
     descripcion: "", privado: false,
     hitos: [], comentarios: [], documentos: [],
     historial: [{ event: "Tema creado", at: fmtDate(new Date()), by: activeUserName() }],
-    ultimaActualizacion: fmtDate(new Date())
+    ultimaActualizacion: fmtDate(new Date()),
+    __persisted: false  // aun no existe en Supabase
   };
   renderTaskFormShell(draft, isEdit);
   els.modalTask.showModal();
@@ -2474,7 +2222,7 @@ function openHitoForm(tema, existing = null, opts = {}) {
     });
   }
 
-  els.dynamicForm.onsubmit = (e) => {
+  els.dynamicForm.onsubmit = async (e) => {
     e.preventDefault();
     const resp = getSelectedResp(els.dynamicForm);
     if (!resp) { showToast("Selecciona al menos un responsable"); return; }
@@ -2483,14 +2231,24 @@ function openHitoForm(tema, existing = null, opts = {}) {
     const hiddenExp = document.getElementById("hito-gdeNumeroHidden");
     data.expediente = ownExpChk.checked ? (hiddenExp?.value.trim() || "") : "";
     delete data.numero;
-    if (isEdit) {
-      Object.assign(existing, data);
-      tema.historial.push({ event: `Hito ${existing.id} editado`, at: fmtDate(new Date()), by: activeUserName() });
-    } else {
-      const newHito = { id: `H-${tema.id}-${tema.hitos.length + 1}`, ...data };
-      tema.hitos.push(newHito);
-      tema.historial.push({ event: "Hito agregado", at: fmtDate(new Date()), by: activeUserName() });
+
+    const persisted = isPersistedTema(tema);
+    const targetHito = isEdit ? Object.assign(existing, data) : { id: nextHitoId(tema), ...data };
+
+    if (persisted) {
+      const ok = await withBusy(async () => {
+        if (isEdit) {
+          await dataApi.updateHito(existing.id, existing);
+          await dataApi.logActivity(tema.id, `Hito ${existing.id} editado`, { hitoId: existing.id });
+        } else {
+          await dataApi.createHito(tema.id, targetHito);
+          await dataApi.logActivity(tema.id, "Hito agregado", { hitoId: targetHito.id });
+        }
+      });
+      if (!ok) return;
     }
+    if (!isEdit) tema.hitos.push(targetHito);
+    tema.historial.push({ event: isEdit ? `Hito ${existing.id} editado` : "Hito agregado", at: fmtDate(new Date()), by: activeUserName() });
     tema.ultimaActualizacion = fmtDate(new Date());
     els.modalForm.close();
     renderAll();
@@ -2499,8 +2257,15 @@ function openHitoForm(tema, existing = null, opts = {}) {
   els.modalForm.showModal();
 }
 
-function deleteHito(tema, hitoId, opts = {}) {
+async function deleteHito(tema, hitoId, opts = {}) {
   if (!confirm("Eliminar hito?")) return;
+  if (isPersistedTema(tema)) {
+    const ok = await withBusy(async () => {
+      await dataApi.deleteHito(hitoId);
+      await dataApi.logActivity(tema.id, `Hito ${hitoId} eliminado`, { hitoId });
+    });
+    if (!ok) return;
+  }
   tema.hitos = tema.hitos.filter((h) => h.id !== hitoId);
   tema.historial.push({ event: `Hito ${hitoId} eliminado`, at: fmtDate(new Date()), by: activeUserName() });
   tema.ultimaActualizacion = fmtDate(new Date());
@@ -2729,7 +2494,7 @@ function openExpedienteForm(existing = null) {
   `;
   wireGdeWidget();
   initRespDropdowns(els.dynamicForm);
-  els.dynamicForm.onsubmit = (e) => {
+  els.dynamicForm.onsubmit = async (e) => {
     e.preventDefault();
     const numero = document.getElementById("gdeNumeroHidden")?.value.trim();
     if (!numero) { showToast("Completa el número de expediente"); return; }
@@ -2739,17 +2504,16 @@ function openExpedienteForm(existing = null) {
     data.numero = numero;
     data.responsable = resp;
     data.ultimaActualizacion = fmtDate(new Date());
-    if (isEdit) {
-      const oldNumero = existing.numero;
-      Object.assign(existing, data);
-      if (numero !== oldNumero) {
-        state.temas.forEach((t) => { if (t.expediente === oldNumero) t.expediente = numero; });
+    const ok = await withBusy(async () => {
+      if (isEdit) {
+        await dataApi.updateExpediente(existing.numero, data);
+      } else {
+        await dataApi.createExpediente(data);
       }
-    } else {
-      state.expedientes.push({ ...data, documentos: [], historial: [{ event: "Apertura expediente", at: data.ultimaActualizacion }] });
-    }
+      await reloadState();
+    });
+    if (!ok) return;
     els.modalForm.close();
-    renderAll();
   };
   els.modalForm.showModal();
 }
@@ -2852,71 +2616,55 @@ function openResponsableForm(existing = null) {
     </div>
     <label>Usuario GDE<input name="usuarioGDE" value="${escHtml(existing?.usuarioGDE || "")}" /></label>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      ${isEdit ? `<button class="ghost" type="button" id="deleteRespBtn" style="color:#dc2626">Eliminar</button><span style="flex:1"></span>` : ""}
+      ${isEdit && esAdmin() ? `<button class="ghost" type="button" id="deleteRespBtn" style="color:#dc2626">Eliminar</button><span style="flex:1"></span>` : ""}
       <button class="primary" value="submit">Guardar</button>
       <button class="ghost" value="cancel" type="button" onclick="document.getElementById('modalForm').close()">Cancelar</button>
     </div>
   `;
-  if (isEdit) {
+  if (isEdit && esAdmin()) {
     const delBtn = els.dynamicForm.querySelector("#deleteRespBtn");
     if (delBtn) {
-      delBtn.addEventListener("click", () => {
+      delBtn.addEventListener("click", async () => {
         if (!confirm(`Eliminar a ${existing.nombre}?`)) return;
         const fullNameDel = [existing.nombre, existing.apellido].filter(Boolean).join(" ");
-        state.temas.forEach((t) => {
-          if (t.responsable === fullNameDel) t.responsable = "";
-          t.hitos.forEach((h) => { if (h.responsable === fullNameDel) h.responsable = ""; });
+        await withBusy(async () => {
+          await dataApi.deleteResponsable(existing.id, fullNameDel);
+          els.modalForm.close();
+          await reloadState();
         });
-        state.expedientes.forEach((e) => { if (e.responsable === fullNameDel) e.responsable = ""; });
-        state.responsables = state.responsables.filter((r) => r.id !== existing.id);
-        saveState(); els.modalForm.close(); renderAll();
       });
     }
   }
-  els.dynamicForm.onsubmit = (e) => {
+  els.dynamicForm.onsubmit = async (e) => {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(els.dynamicForm).entries());
-    if (isEdit) Object.assign(existing, data);
-    else state.responsables.push({ id: nextRespId(), ...data });
-    saveState(); els.modalForm.close(); renderResponsables();
+    if (!data.nombre || !data.nombre.trim()) { showToast("El nombre es requerido"); return; }
+    await withBusy(async () => {
+      if (isEdit) await dataApi.updateResponsable(existing.id, data);
+      else await dataApi.createResponsable(data);
+      els.modalForm.close();
+      await reloadState();
+    });
   };
   els.modalForm.showModal();
 }
 
 function openUsuarioForm() {
+  // Con Supabase Auth las cuentas se crean por auto-registro (nunca guardamos
+  // contrasenas). El admin no crea usuarios: los aprueba y asigna rol.
   els.dynamicForm.innerHTML = `
-    <h3>Agregar usuario</h3>
-    <label>Nombre<input name="nombre" required /></label>
-    <label>Email<input type="email" name="email" required /></label>
-    <label>Contraseña<input type="password" name="password" required minlength="4" /></label>
-    <label>Rol<select name="rol">${["Admin","Editor","Viewer"].map((r) => `<option>${r}</option>`).join("")}</select></label>
-    <div class="btn-group">
-      <button class="primary" value="submit">Guardar</button>
-      <button class="ghost" value="cancel" type="button" onclick="document.getElementById('modalForm').close()">Cancelar</button>
+    <h3>Alta de usuarios</h3>
+    <p style="font-size:13.5px;line-height:1.6;color:var(--text)">
+      Los usuarios se dan de alta ellos mismos desde la pantalla de inicio con
+      <strong>"Solicitar acceso"</strong>. Cuando lo hagan, apareceran en
+      <strong>Solicitudes pendientes</strong> y desde ahi podras aprobarlos y
+      asignarles un rol (Admin / Editor / Viewer).
+    </p>
+    <div class="btn-group" style="justify-content:flex-end">
+      <button class="primary" type="button" onclick="document.getElementById('modalForm').close()">Entendido</button>
     </div>
   `;
-  els.dynamicForm.onsubmit = (e) => {
-    e.preventDefault();
-    const data = Object.fromEntries(new FormData(els.dynamicForm).entries());
-    const nombre = data.nombre.trim();
-    const email = data.email.trim().toLowerCase();
-    if (state.usuarios.find((u) => u.email.toLowerCase() === email)) {
-      showToast("Ya existe un usuario con ese email"); return;
-    }
-    state.usuarios.push({
-      id: nextUsuarioId(),
-      nombre,
-      email,
-      passwordHash: simpleHash(data.password),
-      rol: data.rol,
-      activo: true,
-      aprobado: true,
-      fechaRegistro: fmtDate(new Date()),
-      ultimoAcceso: ""
-    });
-    saveState(); els.modalForm.close(); renderUsuarios();
-    showToast(`${nombre} agregado`);
-  };
+  els.dynamicForm.onsubmit = (e) => { e.preventDefault(); els.modalForm.close(); };
   els.modalForm.showModal();
 }
 

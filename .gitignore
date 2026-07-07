@@ -1,1 +1,26 @@
+# Dependencias
+node_modules/
+
+# Build
+dist/
+dist-ssr/
+
+# Variables de entorno / secretos
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Vercel
+.vercel/
+
+# Supabase CLI
+supabase/.branches/
+supabase/.temp/
+
+# Editor / OS
 .claude/settings.local.json
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*

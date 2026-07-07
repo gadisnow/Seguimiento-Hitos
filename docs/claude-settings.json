@@ -1,0 +1,34 @@
+{
+  "_comment": "Config sugerida de Claude Code para este proyecto. Copiar el contenido (sin este _comment) a .claude/settings.json y revisarlo. Aplica: (1) hook SessionStart que avisa si falta .env o variables (sin imprimir valores); (2) allowlist de permisos para comandos seguros habituales. Como widena permisos/agrega hook, Claude no puede escribirlo solo en auto mode: aplicalo vos o desde /hooks.",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(npm run build)",
+      "Bash(npm run dev)",
+      "Bash(npm run preview)",
+      "Bash(git status)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "timeout": 15,
+            "statusMessage": "Verificando .env (tokens)",
+            "command": "$req=@('VITE_SUPABASE_URL','VITE_SUPABASE_ANON_KEY','SUPABASE_ACCESS_TOKEN','SUPABASE_PROJECT_REF','VERCEL_TOKEN'); $envPath=Join-Path $PWD '.env'; $ctx=$null; if(-not (Test-Path $envPath)){ $ctx='Falta el archivo .env en la raiz. Antes de trabajar, pedir al usuario los tokens y crear .env (gitignored): VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, SUPABASE_ACCESS_TOKEN, SUPABASE_PROJECT_REF, VERCEL_TOKEN. Nunca commitear secretos.' } else { $lines=Get-Content $envPath; $missing=@(); foreach($k in $req){ $f=$false; foreach($l in $lines){ if($l.TrimStart().StartsWith($k+'=')){ $p=$l.Split('=',2); if($p.Count -gt 1 -and $p[1].Trim()){ $f=$true; break } } }; if(-not $f){ $missing+=$k } }; if($missing.Count -gt 0){ $ctx='Faltan variables en .env: '+($missing -join ', ')+'. Pedirlas al usuario antes de trabajar. No commitear secretos.' } }; if($ctx){ (@{ hookSpecificOutput=@{ hookEventName='SessionStart'; additionalContext=('REGLA DE TOKENS: '+$ctx) } } | ConvertTo-Json -Compress) } else { '{}' }"
+          }
+        ]
+      }
+    ]
+  }
+}
