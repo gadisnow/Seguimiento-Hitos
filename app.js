@@ -18,6 +18,36 @@ const STATE_COLORS = {
 
 const RESP_PALETTE = ["#4f46e5","#3b82f6","#06b6d4","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899","#84cc16","#f97316"];
 
+// Paleta fija estilo Trello: color de fondo -> color de texto correspondiente.
+const LABEL_PALETTE = [
+  { bg: "#bbf7d0", fg: "#065f46" },
+  { bg: "#fef08a", fg: "#854d0e" },
+  { bg: "#fed7aa", fg: "#9a3412" },
+  { bg: "#fecaca", fg: "#991b1b" },
+  { bg: "#e9d5ff", fg: "#6b21a8" },
+  { bg: "#bfdbfe", fg: "#1e40af" }
+];
+
+function etiquetaFg(bg) {
+  return (LABEL_PALETTE.find((c) => c.bg === bg) || LABEL_PALETTE[0]).fg;
+}
+
+function etiquetaChipHtml(et, opts = {}) {
+  return `<span class="etiqueta-chip" style="background:${et.color};color:${etiquetaFg(et.color)}">
+    ${escHtml(et.nombre)}
+    ${opts.removable ? `<button type="button" class="etiqueta-chip-remove" data-etiqueta-remove="${opts.index}" aria-label="Quitar etiqueta">✕</button>` : ""}
+  </span>`;
+}
+
+// Etiquetas ya usadas en algun tema, para sugerir/reusar en vez de recrear con otro color.
+function getEtiquetasRegistro() {
+  const map = new Map();
+  state.temas.forEach((t) => (t.etiquetas || []).forEach((et) => {
+    if (et && et.nombre && !map.has(et.nombre)) map.set(et.nombre, et.color);
+  }));
+  return [...map.entries()].map(([nombre, color]) => ({ nombre, color }));
+}
+
 const tableSortState = {
   tableAgendaLista: { key: "id", dir: 1 },
   tableExpedientes: { key: "numero", dir: 1 },
@@ -28,7 +58,6 @@ const tableSortGetters = {
   tableAgendaLista: {
     id: (x) => x.id || "",
     nombre: (x) => x.nombre || "",
-    programa: (x) => x.programa || "",
     expediente: (x) => x.expediente || "",
     responsable: (x) => x.responsable || "",
     estado: (x) => x.estado || "",
@@ -257,7 +286,6 @@ const els = {
   dropdownLastLogin:  $("dropdownLastLogin"),
   fResponsable:       $("fResponsable"),
   fEstado:            $("fEstado"),
-  fPrograma:          $("fPrograma"),
   fExpediente:        $("fExpediente"),
   fPrioridad:         $("fPrioridad"),
   btnMisTemas:        $("btnMisTemas"),
@@ -361,13 +389,13 @@ function bindEvents() {
   });
 
   $("clearFilters").addEventListener("click", () => {
-    [els.fResponsable, els.fEstado, els.fPrograma, els.fExpediente, els.fPrioridad].forEach((s) => (s.value = ""));
+    [els.fResponsable, els.fEstado, els.fExpediente, els.fPrioridad].forEach((s) => (s.value = ""));
     showMisTemasOnly = false;
     els.btnMisTemas.classList.remove("mis-temas-active");
     renderAll();
   });
 
-  [els.fResponsable, els.fEstado, els.fPrograma, els.fExpediente, els.fPrioridad].forEach((s) => s.addEventListener("change", renderAll));
+  [els.fResponsable, els.fEstado, els.fExpediente, els.fPrioridad].forEach((s) => s.addEventListener("change", renderAll));
   els.globalSearch.addEventListener("input", renderAll);
 
   els.btnMisTemas.addEventListener("click", () => {
@@ -726,7 +754,6 @@ function fillFilterOptions() {
   const visibles = state.temas.filter(isTemaVisible);
   fillSelect(els.fResponsable, unique(visibles.map((t) => t.responsable)), "Responsable");
   fillSelect(els.fEstado, STATES, "Estado");
-  fillSelect(els.fPrograma, unique(visibles.map((t) => t.programa)), "Programa");
   fillSelect(els.fExpediente, unique(visibles.map((t) => t.expediente)), "Expediente");
   fillSelect(els.fPrioridad, ["Alta", "Media", "Baja"], "Prioridad");
 }
@@ -744,11 +771,10 @@ function getFilteredTemas() {
     if (showMisTemasOnly && !t.responsable.includes(activeUserName())) return false;
     if (els.fResponsable.value && t.responsable !== els.fResponsable.value) return false;
     if (els.fEstado.value && t.estado !== els.fEstado.value) return false;
-    if (els.fPrograma.value && t.programa !== els.fPrograma.value) return false;
     if (els.fExpediente.value && t.expediente !== els.fExpediente.value) return false;
     if (els.fPrioridad.value && t.prioridad !== els.fPrioridad.value) return false;
     if (!q) return true;
-    const blobTema = [t.id, t.nombre, t.expediente, t.responsable, t.programa, t.solicitante, t.descripcion, t.estado].join(" ").toLowerCase();
+    const blobTema = [t.id, t.nombre, t.expediente, t.responsable, t.solicitante, t.descripcion, t.estado].join(" ").toLowerCase();
     if (blobTema.includes(q)) return true;
     const hitosMatch = t.hitos.some((h) => [h.nombre, h.responsable, h.descripcion || "", h.estado, h.expediente || ""].join(" ").toLowerCase().includes(q));
     return hitosMatch;
@@ -905,31 +931,6 @@ function renderDashboard() {
     );
   }
 
-  // Progreso por programa
-  const progEl = $("progresoPorPrograma");
-  if (progEl) {
-    const programas = unique(temas.map((t) => t.programa)).filter(Boolean);
-    if (!programas.length) {
-      progEl.innerHTML = `<p style="color:var(--muted)">Sin datos.</p>`;
-    } else {
-      progEl.innerHTML = programas.map((prog) => {
-        const ptemas = temas.filter((t) => t.programa === prog);
-        const cerrados = ptemas.filter((t) => t.estado === "Cerrado").length;
-        const total = ptemas.length;
-        const pct = total > 0 ? Math.round((cerrados / total) * 100) : 0;
-        const byEstado = countBy(ptemas, "estado");
-        const dominante = Object.entries(byEstado).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
-        return `
-          <div class="prog-row">
-            <span class="prog-name" title="${escHtml(prog)}">${escHtml(prog)}</span>
-            <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
-            <span class="prog-count">${cerrados}/${total} cerrados</span>
-            <span class="badge ${badgeClass(dominante)}">${escHtml(dominante)}</span>
-          </div>`;
-      }).join("");
-    }
-  }
-
   // Alertas resumen lateral
   const alerts = buildAlerts(temas);
   const alertCount = alerts.length;
@@ -1043,8 +1044,9 @@ function renderAgenda() {
             return `
               <article class="kcard" draggable="true" data-id="${t.id}">
                 <div class="title">${t.privado ? "🔒 " : ""}${escHtml(t.nombre)}</div>
-                <div class="meta">${t.id} · ${escHtml(t.programa || "")}</div>
+                <div class="meta">${t.id}</div>
                 <div class="meta">${respDisplay(t.responsable)}</div>
+                ${t.etiquetas && t.etiquetas.length ? `<div class="etiquetas-chips">${t.etiquetas.map((et) => etiquetaChipHtml(et)).join("")}</div>` : ""}
                 ${hitoBar}
                 <div class="row">
                   <span class="date-pill ${dateTone(t.fechaLimite, t.estado)}" title="Vencimiento">
@@ -1124,7 +1126,7 @@ function renderAgendaLista() {
     <tr data-tema="${t.id}">
       <td>${t.id}</td>
       <td>${escHtml(t.nombre)}</td>
-      <td>${escHtml(t.programa || "-")}</td>
+      <td>${t.etiquetas && t.etiquetas.length ? `<div class="etiquetas-chips">${t.etiquetas.map((et) => etiquetaChipHtml(et)).join("")}</div>` : "-"}</td>
       <td>${t.expediente || "-"}</td>
       <td>${respDisplay(t.responsable)}</td>
       <td>${badge(t.estado)}</td>
@@ -1298,7 +1300,6 @@ function renderReportes() {
   const items = [
     ["Temas por estado",       objToText(countBy(temas, "estado"))],
     ["Temas por responsable",  objToText(countBy(temas, "responsable"))],
-    ["Temas por programa",     objToText(countBy(temas, "programa"))],
     ["Tiempo prom. resolucion", `${avgResolutionDays(temas)} dias`],
     ["Temas vencidos",         temas.filter((t) => t.estado !== "Cerrado" && daysUntil(t.fechaLimite) < 0).length],
     ["Hitos vencidos",         hitosVencidos.length],
@@ -1374,7 +1375,7 @@ function openTemaDrawer(temaId, activeTab = "detalle") {
           <div class="detail-grid">
             <div class="k">Responsable</div><div class="v">${respDisplay(tema.responsable)}</div>
             <div class="k">Solicitante</div><div class="v">${escHtml(tema.solicitante || "-")}</div>
-            <div class="k">Programa</div><div class="v">${escHtml(tema.programa || "-")}</div>
+            <div class="k">Etiquetas</div><div class="v">${tema.etiquetas && tema.etiquetas.length ? `<div class="etiquetas-chips">${tema.etiquetas.map((et) => etiquetaChipHtml(et)).join("")}</div>` : "-"}</div>
             <div class="k">Prioridad</div><div class="v"><span class="prio prio-${(tema.prioridad || "media").toLowerCase()}">${tema.prioridad || "Media"}</span></div>
             <div class="k">Inicio</div><div class="v">${fmtDateNice(tema.fechaInicio)}</div>
             <div class="k">Vencimiento</div><div class="v"><span class="fecha-with-badge"><span>${fmtDateNice(tema.fechaLimite)}</span>${diasRestantesBadge(tema.fechaLimite)}</span></div>
@@ -1729,7 +1730,14 @@ function buildTareaTabHtml(draft) {
         <label>ID<input value="${escHtml(draft.id)}" readonly /></label>
         <label>Nombre<input name="nombre" id="taskNombreInput" value="${escHtml(draft.nombre || "")}" required /></label>
       </div>
-      <label>Programa<input name="programa" value="${escHtml(draft.programa || "")}" /></label>
+      <div class="etiquetas-field">
+        <span class="etiquetas-field-label">Etiquetas</span>
+        <div class="etiquetas-row" id="taskEtiquetasRow">
+          <div class="etiquetas-chips" id="taskEtiquetasChips">${(draft.etiquetas || []).map((et, i) => etiquetaChipHtml(et, { removable: true, index: i })).join("")}</div>
+          <button type="button" class="etiqueta-add-btn" id="taskEtiquetaAddBtn" title="Agregar etiqueta">+</button>
+          <div class="etiqueta-popover hidden" id="taskEtiquetaPopover"></div>
+        </div>
+      </div>
     </div>
 
     <div class="task-section">
@@ -1796,6 +1804,88 @@ function wireTareaTabEvents(draft) {
   }
 
   wireDiasBadge(document.getElementById("taskFechaLimiteInput"), document.getElementById("taskDiasBadge"));
+  wireEtiquetasField(draft);
+}
+
+// Chips de etiquetas + popover para crear/reusar (dentro del tab "Tarea").
+function wireEtiquetasField(draft) {
+  draft.etiquetas = draft.etiquetas || [];
+  const chipsEl = document.getElementById("taskEtiquetasChips");
+  const addBtn = document.getElementById("taskEtiquetaAddBtn");
+  const popover = document.getElementById("taskEtiquetaPopover");
+  if (!chipsEl || !addBtn || !popover) return;
+
+  function renderChips() {
+    chipsEl.innerHTML = draft.etiquetas.map((et, i) => etiquetaChipHtml(et, { removable: true, index: i })).join("");
+    chipsEl.querySelectorAll("[data-etiqueta-remove]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        draft.etiquetas.splice(Number(btn.dataset.etiquetaRemove), 1);
+        renderChips();
+      });
+    });
+  }
+  renderChips();
+
+  function onDocClick(e) {
+    if (!popover.contains(e.target) && e.target !== addBtn) closePopover();
+  }
+
+  function closePopover() {
+    popover.classList.add("hidden");
+    popover.innerHTML = "";
+    document.removeEventListener("click", onDocClick, true);
+  }
+
+  function openPopover() {
+    let selectedColor = LABEL_PALETTE[0].bg;
+    const existentes = getEtiquetasRegistro().filter((r) => !draft.etiquetas.some((et) => et.nombre === r.nombre));
+    popover.innerHTML = `
+      <input type="text" id="etiquetaNombreInput" placeholder="Nombre de la etiqueta" />
+      <div class="etiqueta-swatches">
+        ${LABEL_PALETTE.map((c) => `<button type="button" class="etiqueta-swatch selected" data-swatch="${c.bg}" style="background:${c.bg}" aria-label="Color"></button>`).join("")}
+      </div>
+      <button type="button" class="primary etiqueta-crear-btn" id="etiquetaCrearBtn">Crear etiqueta</button>
+      ${existentes.length ? `
+      <div class="etiqueta-existentes">
+        <div class="etiqueta-existentes-title">Etiquetas existentes</div>
+        ${existentes.map((r) => `<button type="button" class="etiqueta-existente-item" data-existente-nombre="${escHtml(r.nombre)}" data-existente-color="${r.color}"><span class="etiqueta-swatch-sm" style="background:${r.color}"></span>${escHtml(r.nombre)}</button>`).join("")}
+      </div>` : ""}
+    `;
+    popover.classList.remove("hidden");
+
+    const swatches = popover.querySelectorAll("[data-swatch]");
+    swatches.forEach((sw, i) => sw.classList.toggle("selected", i === 0));
+    swatches.forEach((sw) => {
+      sw.addEventListener("click", () => {
+        selectedColor = sw.dataset.swatch;
+        swatches.forEach((s) => s.classList.toggle("selected", s === sw));
+      });
+    });
+
+    document.getElementById("etiquetaCrearBtn").addEventListener("click", () => {
+      const nombre = document.getElementById("etiquetaNombreInput").value.trim();
+      if (!nombre) { showToast("El nombre de la etiqueta es requerido"); return; }
+      draft.etiquetas.push({ nombre, color: selectedColor });
+      renderChips();
+      closePopover();
+    });
+
+    popover.querySelectorAll("[data-existente-nombre]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        draft.etiquetas.push({ nombre: btn.dataset.existenteNombre, color: btn.dataset.existenteColor });
+        renderChips();
+        closePopover();
+      });
+    });
+
+    setTimeout(() => document.addEventListener("click", onDocClick, true), 0);
+  }
+
+  addBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!popover.classList.contains("hidden")) { closePopover(); return; }
+    openPopover();
+  });
 }
 
 // =========================================================
@@ -2152,7 +2242,7 @@ function openTemaForm(existing = null, defaultEstado = "Pendiente") {
   const isEdit = Boolean(existing);
   const draft = existing || {
     id: nextTemaId(),
-    nombre: "", programa: "", solicitante: "",
+    nombre: "", solicitante: "", etiquetas: [],
     prioridad: "Media", responsable: state.config.currentUser,
     estado: defaultEstado, expediente: "", gde: "",
     fechaInicio: fmtDate(new Date()), fechaLimite: fmtDate(new Date()),
@@ -2673,14 +2763,14 @@ function openUsuarioForm() {
 // =========================================================
 function exportCsv() {
   const temas = getFilteredTemas();
-  const header = ["id","nombre","expediente","responsable","prioridad","programa","fechaInicio","fechaLimite","estado"];
+  const header = ["id","nombre","expediente","responsable","prioridad","fechaInicio","fechaLimite","estado"];
   const rows = temas.map((t) => header.map((h) => csv(String(t[h] || ""))).join(","));
   download("reporte_temas.csv", [header.join(","), ...rows].join("\n"), "text/csv;charset=utf-8;");
 }
 
 function exportExcel() {
   const temas = getFilteredTemas();
-  const tsv = ["ID\tTema\tEstado\tResponsable\tPrograma\tVto", ...temas.map((t) => `${t.id}\t${t.nombre}\t${t.estado}\t${t.responsable}\t${t.programa || ""}\t${t.fechaLimite}`)].join("\n");
+  const tsv = ["ID\tTema\tEstado\tResponsable\tVto", ...temas.map((t) => `${t.id}\t${t.nombre}\t${t.estado}\t${t.responsable}\t${t.fechaLimite}`)].join("\n");
   download("reporte_temas.xls", tsv, "application/vnd.ms-excel");
 }
 
@@ -2696,7 +2786,7 @@ function exportPdfLike() {
       <table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:12px">
         <thead>
           <tr style="background:#f1f5f9">
-            <th>ID</th><th>Tema</th><th>Programa</th><th>Responsable</th><th>Estado</th><th>Vencimiento</th>
+            <th>ID</th><th>Tema</th><th>Responsable</th><th>Estado</th><th>Vencimiento</th>
           </tr>
         </thead>
         <tbody>
@@ -2704,7 +2794,6 @@ function exportPdfLike() {
           <tr>
             <td>${t.id}</td>
             <td>${escHtml(t.nombre)}</td>
-            <td>${escHtml(t.programa || "-")}</td>
             <td>${escHtml(t.responsable || "-")}</td>
             <td>${t.estado}</td>
             <td>${t.fechaLimite}</td>

@@ -16,8 +16,8 @@ export function temaFromRow(r) {
     id: r.id,
     codigo: r.codigo || r.id,
     nombre: r.nombre || "",
-    programa: r.programa || "",
     solicitante: r.solicitante || "",
+    etiquetas: r.etiquetas || [],
     prioridad: r.prioridad || "Media",
     responsable: r.responsable_text || "",
     estado: r.estado || "Pendiente",
@@ -43,8 +43,8 @@ export function temaFromRow(r) {
 export function temaToRow(ui) {
   return {
     nombre: ui.nombre,
-    programa: orNull(ui.programa),
     solicitante: orNull(ui.solicitante),
+    etiquetas: ui.etiquetas || [],
     prioridad: ui.prioridad || "Media",
     responsable_text: orNull(ui.responsable),
     estado: ui.estado || "Pendiente",
