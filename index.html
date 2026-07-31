@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gestión de Temas · SSOyS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- =================== LOGIN =================== -->
+  <div class="login-screen" id="loginScreen" style="display:none">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="brand-icon" style="width:52px;height:52px;font-size:22px;border-radius:14px;margin:0 auto">G</div>
+      </div>
+      <h1 class="login-title">Gestión de Temas</h1>
+      <p class="login-sub">Subsecretaría de Obras y Servicios</p>
+      <div id="loginFormWrap"></div>
+    </div>
+  </div>
+
+  <div class="app" style="display:none">
+    <header class="topbar" id="topbar">
+      <div class="topbar-brand">
+        <div class="brand-icon-sm">G</div>
+        <span class="brand-name">Gestion de Temas</span>
+      </div>
+
+      <div class="search-wrap-outer">
+        <div class="search-wrap">
+          <span class="search-ic">⌕</span>
+          <input id="globalSearch" type="search" placeholder="Buscar tema, expediente..." />
+        </div>
+        <span class="search-count hidden" id="searchCount"></span>
+      </div>
+
+      <div class="topbar-actions">
+        <button class="icon-btn notif" aria-label="Notificaciones">🔔<span class="notif-dot" id="notifDot">0</span></button>
+
+        <div class="user-menu" id="userMenu">
+          <button class="user-menu-trigger" id="userMenuTrigger">
+            <div class="topbar-avatar" id="topbarAvatar">JR</div>
+            <span class="user-menu-name" id="userMenuName">Jorge Rios</span>
+            <span class="chevron">⌄</span>
+          </button>
+          <div class="user-menu-dropdown" id="userMenuDropdown">
+            <div class="user-menu-header">
+              <strong id="dropdownUserName">Jorge Rios</strong>
+              <span id="dropdownLastLogin">Ultima conexion: —</span>
+            </div>
+            <button class="user-menu-item" id="menuUsuarios" data-view="usuarios" style="display:none">Usuarios</button>
+            <button class="user-menu-item" data-view="configuracion">Configuracion</button>
+            <button class="user-menu-item" id="darkToggle">
+              <span>Modo oscuro</span>
+              <span class="toggle-switch" id="darkToggleSwitch"></span>
+            </button>
+            <div class="user-menu-sep"></div>
+            <button class="user-menu-item danger" id="logoutBtn">Salir</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <nav class="tabbar" id="tabbar">
+      <button class="tab-item active" data-view="dashboard"><span class="ic">▦</span><span>Dashboard</span></button>
+      <button class="tab-item" data-view="agenda"><span class="ic">▤</span><span>Temas</span></button>
+      <button class="tab-item" data-view="hitos"><span class="ic">◆</span><span>Hitos</span></button>
+      <button class="tab-item" data-view="expedientes"><span class="ic">▣</span><span>Expedientes</span></button>
+      <button class="tab-item" data-view="alertas"><span class="ic">!</span><span>Alertas</span></button>
+      <button class="tab-item" data-view="calendario"><span class="ic">▧</span><span>Calendario</span></button>
+      <button class="board-menu-trigger" id="boardMenuBtn" title="Menú" aria-label="Menú">⋯</button>
+    </nav>
+
+    <main class="main">
+      <!-- =================== DASHBOARD =================== -->
+      <section class="view active" id="view-dashboard">
+        <div class="kpi-row" id="kpiRow"></div>
+
+        <div class="grid-2-1">
+          <article class="card">
+            <div class="card-head">
+              <h3>Temas por responsable</h3>
+              <a class="link" href="#" data-link="agenda">Ver detalle</a>
+            </div>
+            <div class="donut-wrap">
+              <canvas id="donutResp"></canvas>
+              <div class="donut-center"><strong id="donutRespTotal">0</strong><small>Total</small></div>
+            </div>
+            <ul class="legend" id="legendResp"></ul>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <h3>Temas por estado</h3>
+              <a class="link" href="#" data-link="agenda">Ver detalle</a>
+            </div>
+            <div class="donut-wrap">
+              <canvas id="donutEstado"></canvas>
+              <div class="donut-center"><strong id="donutEstadoTotal">0</strong><small>Total</small></div>
+            </div>
+            <ul class="legend" id="legendEstado"></ul>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <h3>Proximos vencimientos</h3>
+              <a class="link" href="#" data-link="agenda">Ver todos</a>
+            </div>
+            <div class="semaforo" id="semaforoList"></div>
+          </article>
+        </div>
+
+        <div class="grid-2-1">
+          <article class="card span-2">
+            <div class="card-head">
+              <h3>Actividad reciente</h3>
+              <a class="link" href="#" data-link="agenda">Ver todas</a>
+            </div>
+            <div class="activity-feed" id="activityFeed"></div>
+          </article>
+
+          <article class="card">
+            <div class="card-head"><h3>Alertas activas</h3><a class="link" href="#" data-link="alertas">Ver todas</a></div>
+            <div class="alert-list" id="alertList"></div>
+          </article>
+        </div>
+
+        <article class="card">
+          <div class="card-head"><h3>Requieren atencion</h3></div>
+          <div class="atencion-list" id="atencionList"></div>
+        </article>
+      </section>
+
+      <!-- =================== AGENDA (TEMAS) =================== -->
+      <section class="view" id="view-agenda">
+        <div class="filter-pills">
+          <select id="fResponsable" class="pill"><option value="">Responsable</option></select>
+          <select id="fEstado" class="pill"><option value="">Estado</option></select>
+          <select id="fPrioridad" class="pill"><option value="">Prioridad</option></select>
+          <select id="fEtiqueta" class="pill"><option value="">Etiquetas</option></select>
+          <button id="btnMisTemas" class="pill ghost">Mis temas</button>
+          <button id="clearFilters" class="pill ghost">Limpiar filtros</button>
+          <button class="primary push-right" id="btnNewTema">+ Nuevo tema</button>
+        </div>
+
+        <div id="agendaKanban" class="kanban"></div>
+      </section>
+
+      <!-- =================== HITOS (tabla global) =================== -->
+      <section class="view" id="view-hitos">
+        <div class="section-head"><h2>Hitos</h2></div>
+        <article class="card">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="sortable" data-sort-table="tableHitos" data-sort-key="id">ID</th>
+                  <th class="sortable" data-sort-table="tableHitos" data-sort-key="nombre">Hito</th>
+                  <th class="sortable" data-sort-table="tableHitos" data-sort-key="tema">Tema</th>
+                  <th class="sortable" data-sort-table="tableHitos" data-sort-key="responsable">Responsable</th>
+                  <th class="sortable" data-sort-table="tableHitos" data-sort-key="estado">Estado</th>
+                  <th>Expediente</th>
+                  <th class="sortable" data-sort-table="tableHitos" data-sort-key="fechaInicio">Inicio</th>
+                  <th class="sortable" data-sort-table="tableHitos" data-sort-key="fechaLimite">Vencimiento</th>
+                </tr>
+              </thead>
+              <tbody id="tableHitos"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <!-- =================== CALENDARIO =================== -->
+      <section class="view" id="view-calendario">
+        <article class="card">
+          <div class="cal-toolbar">
+            <button class="icon-btn" id="calToday">Hoy</button>
+            <button class="icon-btn" id="calPrev">‹</button>
+            <button class="icon-btn" id="calNext">›</button>
+            <strong id="calTitle"></strong>
+            <span class="cal-spacer"></span>
+            <div class="gde-mode-toggle" id="calViewToggle">
+              <button type="button" class="gde-mode-btn active" data-cal-view="mes">Mes</button>
+              <button type="button" class="gde-mode-btn" data-cal-view="3dias">3 días</button>
+              <button type="button" class="gde-mode-btn" data-cal-view="semana-laboral">Semana laboral</button>
+              <button type="button" class="gde-mode-btn" data-cal-view="semana-completa">Semana completa</button>
+            </div>
+            <span class="cal-legend">
+              <i class="dot dot-pendiente"></i>Pendiente
+              <i class="dot dot-en-curso"></i>En curso
+              <i class="dot dot-en-revision"></i>En revision
+              <i class="dot dot-bloqueado"></i>Bloqueado
+              <i class="dot dot-cerrado"></i>Cerrado
+            </span>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+        </article>
+      </section>
+
+      <!-- =================== EXPEDIENTES =================== -->
+      <section class="view" id="view-expedientes">
+        <div class="section-head">
+          <h2>Expedientes</h2>
+          <button class="primary" id="btnNewExpediente">+ Nuevo expediente</button>
+        </div>
+        <article class="card">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="sortable" data-sort-table="tableExpedientes" data-sort-key="numero">Numero</th>
+                  <th class="sortable" data-sort-table="tableExpedientes" data-sort-key="temaAsociado">Tema</th>
+                  <th>Hito asociado</th>
+                  <th class="sortable" data-sort-table="tableExpedientes" data-sort-key="responsable">Responsable</th>
+                  <th class="sortable" data-sort-table="tableExpedientes" data-sort-key="fechaInicio">Inicio</th>
+                  <th class="sortable" data-sort-table="tableExpedientes" data-sort-key="fechaLimite">Vencimiento</th>
+                  <th class="sortable" data-sort-table="tableExpedientes" data-sort-key="estado">Estado</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tableExpedientes"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <!-- =================== ALERTAS =================== -->
+      <section class="view" id="view-alertas">
+        <div class="section-head"><h2>Alertas activas</h2></div>
+        <article class="card">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="sortable" data-sort-table="tableAlertas" data-sort-key="nivel">Nivel</th>
+                  <th>Tipo</th>
+                  <th class="sortable" data-sort-table="tableAlertas" data-sort-key="tema">Tema / Hito</th>
+                  <th>Tema padre</th>
+                  <th class="sortable" data-sort-table="tableAlertas" data-sort-key="responsable">Responsable</th>
+                  <th class="sortable" data-sort-table="tableAlertas" data-sort-key="expediente">Expediente</th>
+                  <th class="sortable" data-sort-table="tableAlertas" data-sort-key="fechaLimite">Vencimiento</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tableAlertas"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <!-- =================== REPORTES =================== -->
+      <section class="view" id="view-reportes">
+        <div class="section-head split">
+          <h2>Reportes</h2>
+          <div class="btn-group">
+            <button class="ghost" id="exportPdf">🖨 Imprimir PDF</button>
+            <button class="ghost" id="exportExcel">Excel</button>
+            <button class="ghost" id="exportCsv">CSV</button>
+          </div>
+        </div>
+        <div class="reports-grid" id="reportCards"></div>
+      </section>
+
+      <!-- =================== RESPONSABLES =================== -->
+      <section class="view" id="view-responsables">
+        <div class="tabs">
+          <button class="tab resp-tab active" data-resp-tab="tarjetas">⊞ Tarjetas</button>
+          <button class="tab resp-tab" data-resp-tab="lista">☰ Lista</button>
+          <button class="primary push-right" id="btnNewResponsable">+ Nuevo responsable</button>
+        </div>
+
+        <div id="respTarjetas">
+          <div class="resp-grid" id="respGrid"></div>
+        </div>
+
+        <div id="respLista" class="hidden">
+          <article class="card">
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Nombre</th><th>Cargo</th><th>Dependencia</th>
+                    <th>Correo</th><th>Usuario GDE</th><th>Temas</th><th>Hitos</th><th></th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyResponsables"></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- =================== USUARIOS =================== -->
+      <section class="view" id="view-usuarios">
+        <div class="section-head">
+          <h2>Usuarios</h2>
+          <button class="primary" id="btnNewUsuario">+ Agregar usuario</button>
+        </div>
+        <article class="card">
+          <div class="card-head"><h3>Usuarios activos</h3></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Nombre</th><th>Email</th><th>Rol</th><th>Ultimo acceso</th><th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tableUsuariosActivos"></tbody>
+            </table>
+          </div>
+        </article>
+        <article class="card" id="cardSolicitudes">
+          <div class="card-head"><h3>Solicitudes pendientes</h3></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Nombre</th><th>Email</th><th>Fecha solicitud</th><th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tableUsuariosPendientes"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <!-- =================== CONFIGURACION =================== -->
+      <section class="view" id="view-configuracion">
+        <div class="section-head"><h2>Configuracion</h2></div>
+        <article class="card form-card">
+          <h3 style="margin-bottom:4px">Mi cuenta</h3>
+          <label>Nombre<input id="cfgNombre" type="text" /></label>
+          <label>Email<input id="cfgEmail" type="email" /></label>
+          <button class="primary" id="saveConfig">Guardar cambios</button>
+        </article>
+        <article class="card form-card" style="margin-top:16px">
+          <h3 style="margin-bottom:4px">Cambiar contraseña</h3>
+          <label>Contraseña actual<input id="cfgPassActual" type="password" autocomplete="current-password" /></label>
+          <label>Nueva contraseña<input id="cfgPassNueva" type="password" autocomplete="new-password" /></label>
+          <label>Confirmar nueva contraseña<input id="cfgPassConfirmar" type="password" autocomplete="new-password" /></label>
+          <button class="primary" id="savePassword">Actualizar contraseña</button>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <!-- Detail drawer -->
+  <aside class="drawer" id="drawer">
+    <div class="drawer-head">
+      <button class="link back" id="closeDrawer">‹ Volver</button>
+      <button class="icon-btn" id="closeDrawerX" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="drawer-body" id="drawerBody"></div>
+  </aside>
+  <div class="drawer-overlay" id="drawerOverlay"></div>
+
+  <!-- Board menu: Etiquetas / Actividad -->
+  <aside class="board-menu hidden" id="boardMenu">
+    <div class="board-menu-head">
+      <button class="board-menu-back hidden" id="boardMenuBack" aria-label="Volver">‹</button>
+      <strong class="board-menu-title" id="boardMenuTitle">Menú</strong>
+      <button class="board-menu-close" id="boardMenuClose" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="board-menu-body" id="boardMenuBody"></div>
+  </aside>
+  <div class="board-menu-overlay hidden" id="boardMenuOverlay"></div>
+
+  <dialog id="modalForm">
+    <form method="dialog" id="dynamicForm"></form>
+  </dialog>
+
+  <dialog id="modalTask">
+    <form method="dialog" id="taskForm"></form>
+  </dialog>
+
+  <dialog id="modalNewResp">
+    <form id="newRespForm">
+      <h3>Nuevo responsable</h3>
+      <div class="row">
+        <label>Nombre <span style="color:#dc2626">*</span><input name="nombre" required /></label>
+        <label>Apellido<input name="apellido" /></label>
+      </div>
+      <label>Correo electronico<input type="email" name="email" /></label>
+      <div class="row">
+        <label>Cargo<input name="cargo" /></label>
+        <label>Dependencia<input name="dependencia" /></label>
+      </div>
+      <div class="btn-group" style="justify-content:flex-end;margin-top:4px">
+        <button class="primary" type="submit">Guardar</button>
+        <button class="ghost" type="button" id="cancelNewRespBtn">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Print area (hidden, shown only on print) -->
+  <div id="printArea"></div>
+
+  <div class="toast" id="toast"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

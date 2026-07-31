@@ -1,0 +1,18 @@
+{
+  "name": "seguimiento-hitos",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Seguimiento de temas, hitos y expedientes (SSOyS) sobre Supabase + Vercel",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10"
+  }
+}
