@@ -32,7 +32,10 @@ SPA (HTML/CSS/JS vanilla, build con **Vite**) para seguimiento de temas, hitos y
 expedientes de la SSOyS. Backend **Supabase** (Auth + Postgres + RLS + Storage),
 hosting **Vercel**. El frontend usa solo la anon key; la seguridad vive en las RLS.
 
-- Producción: https://seguimiento-hitos.vercel.app
+- Producción: https://seguimiento-hitos-gadisnow.vercel.app
+  (alias equivalentes al mismo deploy: `seguimiento-hitos-fawn.vercel.app`,
+  `seguimiento-hitos-jorgeriosestudio-8003-gadisnow.vercel.app` — `seguimiento-hitos.vercel.app`,
+  en cambio, NO es de este proyecto, pertenece a otra cuenta de Vercel)
 - Supabase ref: `sfvthcctgsyvjbsrzvug` · Vercel project: `seguimiento-hitos`
 
 ## Arquitectura
@@ -119,11 +122,13 @@ suben como archivo real a Storage (bucket privado `documentos`), con enlace por 
 
 
 
+
+
 <!-- cloude-code-toolbox:mcp-skills-awareness-begin -->
 
 ### MCP & Skills awareness (Cloude Code ToolBox)
 
-_Last synced: 2026-07-28T14:07:28.638Z._
+_Last synced: 2026-08-01T17:02:41.812Z._
 
 - **Full report:** `.claude/cloude-code-toolbox-mcp-skills-awareness.md` in this workspace (auto-overwritten on each scan). Use it as ground truth for configured servers and skill folders.
 - **MCP:** For **live tools** in Claude Code, enable the matching server via `/mcp`. Servers are configured in `~/.claude.json` (user) and `.mcp.json` (project).

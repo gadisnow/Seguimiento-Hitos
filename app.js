@@ -338,6 +338,12 @@ const els = {
   fPrioridad:         $("fPrioridad"),
   fEtiqueta:          $("fEtiqueta"),
   btnMisTemas:        $("btnMisTemas"),
+  fHResponsable:      $("fHResponsable"),
+  fHEstado:           $("fHEstado"),
+  fHPrioridad:        $("fHPrioridad"),
+  fHEtiqueta:         $("fHEtiqueta"),
+  btnMisHitos:        $("btnMisHitos"),
+  clearHitosFilters:  $("clearHitosFilters"),
   calGrid:            $("calGrid"),
   calTitle:           $("calTitle"),
   boardMenuBtn:       $("boardMenuBtn"),
@@ -354,6 +360,7 @@ let drawerHasUnsavedChanges = false;
 let currentDrawerTemaId = null;
 let respViewMode = "tarjetas";
 let showMisTemasOnly = false;
+let showMisHitosOnly = false;
 
 // =========================================================
 // Init / events
@@ -455,6 +462,23 @@ function bindEvents() {
     els.btnMisTemas.classList.toggle("mis-temas-active", showMisTemasOnly);
     renderAll();
   });
+
+  els.clearHitosFilters.addEventListener("click", () => {
+    [els.fHResponsable, els.fHEstado, els.fHPrioridad, els.fHEtiqueta].forEach((s) => (s.value = ""));
+    showMisHitosOnly = false;
+    els.btnMisHitos.classList.remove("mis-temas-active");
+    renderAll();
+  });
+
+  [els.fHResponsable, els.fHEstado, els.fHPrioridad, els.fHEtiqueta].forEach((s) => s.addEventListener("change", renderAll));
+
+  els.btnMisHitos.addEventListener("click", () => {
+    showMisHitosOnly = !showMisHitosOnly;
+    els.btnMisHitos.classList.toggle("mis-temas-active", showMisHitosOnly);
+    renderAll();
+  });
+
+  wireKanbanPanScroll();
 
   els.closeDrawer.addEventListener("click", attemptCloseDrawer);
   els.closeDrawerX.addEventListener("click", attemptCloseDrawer);
@@ -821,6 +845,11 @@ function fillFilterOptions() {
     visibles.filter((t) => t.estado !== "Cerrado").flatMap((t) => (t.etiquetas || []).map((e) => e.nombre))
   );
   fillSelect(els.fEtiqueta, etiquetasActivas, "Etiquetas");
+
+  fillSelect(els.fHResponsable, unique(visibles.flatMap((t) => t.hitos.map((h) => h.responsable))), "Responsable");
+  fillSelect(els.fHEstado, STATES, "Estado");
+  fillSelect(els.fHPrioridad, ["Alta", "Media", "Baja"], "Prioridad");
+  fillSelect(els.fHEtiqueta, etiquetasActivas, "Etiquetas");
 }
 
 function fillSelect(el, options, placeholder) {
@@ -1080,6 +1109,24 @@ function renderDonut(canvas, data, palette, key, legendEl, fixedOrder = null) {
 // =========================================================
 // AGENDA — 5-column Kanban / Lista / Calendario
 // =========================================================
+// Ancho de columna: preferencia visual (igual que etiquetasExpandidas), no
+// dato de negocio — se guarda por estado en localStorage.
+const KANBAN_COL_W_KEY = "sgtemas_kanban_col_widths";
+const KANBAN_COL_MIN_W = 220;
+const KANBAN_COL_MAX_W = 800;
+const KANBAN_COL_DEFAULT_W = 260;
+
+function loadKanbanColWidths() {
+  try { return JSON.parse(localStorage.getItem(KANBAN_COL_W_KEY)) || {}; }
+  catch { return {}; }
+}
+
+function saveKanbanColWidth(estado, width) {
+  const widths = loadKanbanColWidths();
+  widths[estado] = width;
+  localStorage.setItem(KANBAN_COL_W_KEY, JSON.stringify(widths));
+}
+
 function renderAgenda() {
   const temas = getFilteredTemas();
   const cols = ["Pendiente", "En curso", "En revision", "Bloqueado", "Cerrado"];
@@ -1090,16 +1137,19 @@ function renderAgenda() {
     "Bloqueado":   "04 · Bloqueado",
     "Cerrado":     "05 · Cerrado"
   };
+  const colWidths = loadKanbanColWidths();
 
   els.agendaKanban.innerHTML = cols.map((estado) => {
     const items = temas.filter((t) => t.estado === estado);
     const safe = estado.replace(/\s+/g, "-");
+    const width = clamp(colWidths[estado] || KANBAN_COL_DEFAULT_W, KANBAN_COL_MIN_W, KANBAN_COL_MAX_W);
     return `
-      <section class="col col-${safe}" data-estado="${estado}">
+      <section class="col col-${safe}" data-estado="${estado}" style="--col-w:${width}px">
         <div class="col-head">
           <span>${labels[estado]}</span>
           <span class="col-count">${items.length}</span>
         </div>
+        <div class="col-resize-handle" data-resize-col title="Arrastrar para ensanchar"></div>
         <div class="kcards">
           ${items.map((t) => {
             const totalH = t.hitos.length;
@@ -1195,6 +1245,68 @@ function bindKanban() {
   els.agendaKanban.querySelectorAll("[data-add-estado]").forEach((btn) => {
     btn.addEventListener("click", () => openTemaForm(null, btn.dataset.addEstado));
   });
+
+  wireColumnResize();
+}
+
+// Arrastrar el handle del borde derecho de una columna para ensancharla/
+// angostarla. Las tarjetas adentro no cambian de ancho (grid auto-fill de
+// 234px fijos en .kcards) — al ensanchar, simplemente entran mas por fila.
+function wireColumnResize() {
+  els.agendaKanban.querySelectorAll("[data-resize-col]").forEach((handle) => {
+    const col = handle.closest(".col");
+    let startX = 0, startWidth = 0;
+
+    handle.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      startX = e.clientX;
+      startWidth = col.getBoundingClientRect().width;
+      col.classList.add("resizing");
+      handle.setPointerCapture(e.pointerId);
+    });
+    handle.addEventListener("pointermove", (e) => {
+      if (!handle.hasPointerCapture(e.pointerId)) return;
+      const width = clamp(startWidth + (e.clientX - startX), KANBAN_COL_MIN_W, KANBAN_COL_MAX_W);
+      col.style.setProperty("--col-w", `${width}px`);
+    });
+    const stop = (e) => {
+      if (!handle.hasPointerCapture?.(e.pointerId)) return;
+      handle.releasePointerCapture(e.pointerId);
+      col.classList.remove("resizing");
+      saveKanbanColWidth(col.dataset.estado, Math.round(col.getBoundingClientRect().width));
+    };
+    handle.addEventListener("pointerup", stop);
+    handle.addEventListener("pointercancel", stop);
+  });
+}
+
+// Desplazar el tablero completo con el mouse (boton izquierdo apretado)
+// cuando las columnas ensanchadas superan el ancho de la pantalla. El
+// scroll con teclado (flechas) ya lo da gratis el navegador gracias al
+// tabindex="0" del contenedor — no hace falta JS para eso.
+function wireKanbanPanScroll() {
+  const board = els.agendaKanban;
+  let dragging = false;
+  let startX = 0, startScrollLeft = 0;
+
+  board.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    if (e.target.closest(".kcard, .col-resize-handle, button, a, input, textarea, select")) return;
+    dragging = true;
+    startX = e.clientX;
+    startScrollLeft = board.scrollLeft;
+    board.classList.add("panning");
+    board.setPointerCapture(e.pointerId);
+  });
+  board.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    board.scrollLeft = startScrollLeft - (e.clientX - startX);
+  });
+  const stopPan = () => { dragging = false; board.classList.remove("panning"); };
+  board.addEventListener("pointerup", stopPan);
+  board.addEventListener("pointercancel", stopPan);
 }
 
 // --------- Menu de acciones de la tarjeta Kanban (boton "⋯") ---------
@@ -1601,9 +1713,24 @@ function renderBoardMenuActividad() {
 // =========================================================
 function renderHitos() {
   const allHitos = state.temas.filter(isTemaVisible).flatMap((t) =>
-    t.hitos.map((h) => ({ ...h, temaId: t.id, temaNombre: t.nombre, expediente: h.expediente || t.expediente }))
+    t.hitos.map((h) => ({
+      ...h,
+      temaId: t.id,
+      temaNombre: t.nombre,
+      expediente: h.expediente || t.expediente,
+      temaPrioridad: t.prioridad,
+      temaEtiquetas: t.etiquetas || []
+    }))
   );
-  const rows = sortTableData(allHitos, "tableHitos");
+  const filtered = allHitos.filter((h) => {
+    if (showMisHitosOnly && !(h.responsable || "").includes(activeUserName())) return false;
+    if (els.fHResponsable.value && h.responsable !== els.fHResponsable.value) return false;
+    if (els.fHEstado.value && h.estado !== els.fHEstado.value) return false;
+    if (els.fHPrioridad.value && h.temaPrioridad !== els.fHPrioridad.value) return false;
+    if (els.fHEtiqueta.value && !h.temaEtiquetas.some((e) => e.nombre === els.fHEtiqueta.value)) return false;
+    return true;
+  });
+  const rows = sortTableData(filtered, "tableHitos");
   els.tableHitos.innerHTML = rows.length ? rows.map((h) => `
     <tr class="clickable-row" data-tema="${h.temaId}" title="Clic para abrir el tema">
       <td>${h.id}</td>
@@ -2149,13 +2276,27 @@ function respAvatarHtml(fullName) {
 
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
-// scrollHeight es 0/incorrecto si el textarea esta dentro de un .task-pane
-// oculto (display:none, p.ej. se abrio "Editar" estando en otra pestaña) —
-// por eso el resize se re-dispara tambien al activar la pestaña Tarea.
+// scrollHeight sale mal si se mide antes de que el layout final este listo.
+// Dos causas independientes, asi que se cubren las dos:
+// 1) el textarea todavia no esta realmente visible: dentro de un .task-pane
+//    oculto (display:none, p.ej. se abrio "Editar" estando en otra pestaña
+//    — por eso el resize se re-dispara tambien al activar la pestaña Tarea)
+//    o, el caso mas comun, porque el <dialog> se arma con
+//    renderTaskFormShell() ANTES de llamar a .showModal() — un dialog
+//    cerrado no tiene layout. requestAnimationFrame lo difiere al frame
+//    siguiente, para cuando el dialog ya esta mostrado y con layout real.
+// 2) la tipografia "Inter" se carga via Google Fonts con display=swap: el
+//    primer paint usa una fuente de respaldo (mas angosta/ancha) y recien
+//    cuando termina de cargar Inter el texto puede re-wrappear a otra
+//    cantidad de lineas — sin un nuevo resize, el alto queda pisado con el
+//    valor viejo. document.fonts.ready cubre ese swap tardio.
 function autoResizeTextarea(el) {
   if (!el) return;
-  el.style.height = "auto";
-  el.style.height = `${el.scrollHeight}px`;
+  const resize = () => { el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; };
+  requestAnimationFrame(resize);
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(resize).catch(() => {});
+  }
 }
 
 // =========================================================
@@ -2176,6 +2317,12 @@ const TIPO_VINCULO_INFO = {
   CC: { label: "Comienzo-Comienzo", ayuda: "Arranca el mismo dia que arranca el predecesor." },
   FF: { label: "Fin-Fin", ayuda: "Termina el mismo dia que termina el predecesor." }
 };
+
+function hitoPanelModoAyudaTexto(tipo) {
+  return tipo === "FF"
+    ? "Con vinculo Fin-Fin podes fijar una fecha comprometida: si el predecesor se atrasa y ya no se llega, este hito NO se mueve solo — se marca critico."
+    : "Este hito se mueve automaticamente cuando cambia el predecesor, conservando la distancia configurada (dias o fecha) y su propia duracion.";
+}
 
 function hitoPorId(hitos, id) { return hitos.find((h) => h.id === id) || null; }
 
@@ -2236,6 +2383,11 @@ function calcularFechasHito(hito, predecesor) {
 
   const tipo = hito.tipoVinculo || "FC";
   const anclaPredecesor = tipo === "CC" ? predecesor.fechaInicio : predecesor.fechaLimite;
+  // "dias": desfasaje relativo, siempre en cascada con el predecesor. "fecha": el
+  // hito guarda una fecha propia (fechaManual) — para FC/CC esa fecha se desplaza
+  // explicitamente en cascada cuando el predecesor cambia (ver desplazarCascadaPorDelta,
+  // conserva la distancia configurada); para FF representa un compromiso externo
+  // fijo que NO se mueve solo, y el hito se marca "critico" si deja de ser alcanzable.
   const anclaResultado = hito.modoFecha === "dias"
     ? sumarDias(anclaPredecesor, Number(hito.desfasajeDias) || 0)
     : (hito.fechaManual || anclaPredecesor);
@@ -2253,11 +2405,12 @@ function calcularFechasHito(hito, predecesor) {
 
 // Aproximacion optimista de holgura (NO es un CPM completo con rutas
 // paralelas): para `hito`, busca aguas abajo el/los sucesores mas cercanos
-// con modoFecha === 'fecha' (un compromiso fijo) y ve si, sumando solo la
-// duracionPropia de los hitos intermedios (mejor escenario posible, sin mas
-// desfasajes), se llega a tiempo. Si hay varias ramas se reporta la peor.
-// Valido mientras las cadenas sean lineales — el caso de uso actual, ya que
-// un hito admite un unico predecesor.
+// con un compromiso fijo (vinculo FF con fecha especifica — el unico caso que
+// no se mueve solo) y ve si, sumando solo la duracionPropia de los hitos
+// intermedios (mejor escenario posible, sin mas desfasajes), se llega a
+// tiempo. Si hay varias ramas se reporta la peor. Valido mientras las cadenas
+// sean lineales — el caso de uso actual, ya que un hito admite un unico
+// predecesor.
 function calcularCriticoHito(hito, hitos) {
   const sucesoresDirectos = hitos.filter((h) => h.predecesorId === hito.id);
   if (!sucesoresDirectos.length) return null;
@@ -2266,7 +2419,7 @@ function calcularCriticoHito(hito, hitos) {
   function explorar(sucesor, duracionAcumulada, profundidad) {
     if (profundidad > hitos.length + 1) return; // guarda defensiva
     const duracionConEste = duracionAcumulada + (Number(sucesor.duracionPropia) || 0);
-    if (sucesor.modoFecha === "fecha") {
+    if (sucesor.tipoVinculo === "FF" && sucesor.modoFecha === "fecha") {
       const fechaMinima = sumarDias(hito.fechaLimite, duracionConEste);
       const excesoDias = daysBetween(sucesor.fechaLimite, fechaMinima);
       if (excesoDias > 0 && (!peor || excesoDias > peor.excesoDias)) {
@@ -2278,6 +2431,33 @@ function calcularCriticoHito(hito, hitos) {
   }
   sucesoresDirectos.forEach((suc) => explorar(suc, 0, 0));
   return peor;
+}
+
+// Cuando un hito cambia de fecha, sus sucesores encadenados por FC/CC en modo
+// "fecha" (fecha propia elegida a mano) se desplazan la misma cantidad de dias
+// que se movio el predecesor — asi conservan la distancia/duracion que el
+// usuario configuro, en vez de quedar pegados a su fecha vieja. Los sucesores
+// en modo "dias" ya siguen al predecesor solos (formula de calcularFechasHito,
+// no necesitan ajuste). Los FF con fecha fija representan un compromiso
+// externo: deliberadamente NO se mueven solos (calcularCascadaHitos los marca
+// "fuera de secuencia"/"critico" si corresponde). `snapshotAntes` son las
+// fechaInicio/fechaLimite de todos los hitos ANTES del cambio que dispara esta
+// cascada; `excludeId` es el hito editado a mano (su fecha ya la puso el
+// usuario, no hay que "ajustarla" con un delta).
+function propagarCascadaPorDelta(hitos, snapshotAntes, excludeId) {
+  const porId = new Map(hitos.map((h) => [h.id, h]));
+  ordenTopologicoHitos(hitos).forEach((h) => {
+    const predecesor = h.predecesorId ? porId.get(h.predecesorId) : null;
+    if (h.id !== excludeId && predecesor && h.modoFecha === "fecha" && h.tipoVinculo !== "FF" && h.fechaManual) {
+      const antesPred = snapshotAntes.get(predecesor.id);
+      if (antesPred) {
+        const anclaCampo = h.tipoVinculo === "CC" ? "fechaInicio" : "fechaLimite";
+        const delta = daysBetween(antesPred[anclaCampo], predecesor[anclaCampo]);
+        if (delta) h.fechaManual = sumarDias(h.fechaManual, delta);
+      }
+    }
+    if (h.id !== excludeId) Object.assign(h, calcularFechasHito(h, predecesor));
+  });
 }
 
 // Punto de entrada: recalcula en cascada fechaInicio/fechaLimite y las
@@ -2394,7 +2574,9 @@ function renderMiniGantt(tema) {
     return `<rect class="${cls}" x="${x}" y="${y}" width="${w}" height="${GANTT_BAR_H}" rx="3.5"><title>${escHtml(title)}</title></rect>`;
   }).join("");
 
-  // -------- conectores de dependencia (angulo recto + flecha) --------
+  // -------- conectores de dependencia (angulo recto + punto de llegada) --------
+  // La linea toca siempre la barra del sucesor; el punto relleno (mismo color
+  // que la linea) marca el contacto en lugar de una flecha.
   const connectorsSvg = hitos.map((h, i) => {
     if (!h.predecesorId) return "";
     const predIdx = idxById.get(h.predecesorId);
@@ -2408,7 +2590,7 @@ function renderMiniGantt(tema) {
     const sucX0 = xForDate(h.fechaInicio || h.fechaLimite);
     const sucX1 = xForDate(h.fechaLimite || h.fechaInicio);
     const linkCls = h.__alertaFueraDeSecuencia ? "gantt-link alerta" : "gantt-link";
-    const markerId = h.__alertaFueraDeSecuencia ? "gantt-arrow-alerta" : "gantt-arrow";
+    const dotCls = h.__alertaFueraDeSecuencia ? "gantt-link-dot alerta" : "gantt-link-dot";
 
     if (tipo === "FF") {
       // ambos extremos "fin": la conexion sale y entra por la derecha, con un
@@ -2416,15 +2598,15 @@ function renderMiniGantt(tema) {
       const startX = Math.max(predX0, predX1);
       const endX = Math.max(sucX0, sucX1);
       const loopX = Math.max(startX, endX) + 14;
-      return `<path class="${linkCls}" marker-end="url(#${markerId})"
-        d="M ${startX} ${predY} L ${loopX} ${predY} L ${loopX} ${sucY} L ${endX + 7} ${sucY}"></path>`;
+      return `<path class="${linkCls}" d="M ${startX} ${predY} L ${loopX} ${predY} L ${loopX} ${sucY} L ${endX} ${sucY}"></path>
+        <circle class="${dotCls}" cx="${endX}" cy="${sucY}" r="2.5"></circle>`;
     }
     // FC: sale del fin del predecesor. CC: sale del inicio del predecesor.
     const startX = tipo === "CC" ? Math.min(predX0, predX1) : Math.max(predX0, predX1);
     const endX = Math.min(sucX0, sucX1);
     const midX = Math.round((startX + endX) / 2);
-    return `<path class="${linkCls}" marker-end="url(#${markerId})"
-      d="M ${startX} ${predY} L ${midX} ${predY} L ${midX} ${sucY} L ${endX - 7} ${sucY}"></path>`;
+    return `<path class="${linkCls}" d="M ${startX} ${predY} L ${midX} ${predY} L ${midX} ${sucY} L ${endX} ${sucY}"></path>
+      <circle class="${dotCls}" cx="${endX}" cy="${sucY}" r="2.5"></circle>`;
   }).join("");
 
   const rowLabels = hitos.map((h) =>
@@ -2444,12 +2626,6 @@ function renderMiniGantt(tema) {
         <div class="gantt-scroll">
           <svg class="gantt-svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
             <defs>
-              <marker id="gantt-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                <path d="M0,0 L8,4 L0,8 Z" class="gantt-arrow-head"></path>
-              </marker>
-              <marker id="gantt-arrow-alerta" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                <path d="M0,0 L8,4 L0,8 Z" class="gantt-arrow-head alerta"></path>
-              </marker>
               <pattern id="gantt-hatch-alerta" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
                 <rect width="6" height="6" class="gantt-hatch-bg"></rect>
                 <line x1="0" y1="0" x2="0" y2="6" class="gantt-hatch-line"></line>
@@ -2555,6 +2731,13 @@ function buildHitoEditPanelHtml(tema, hito) {
 
   return `
     <div class="hito-edit-panel">
+      <div class="hito-panel-topbar">
+        <span class="hito-panel-topbar-title">Editando hito</span>
+        <div class="hito-panel-topbar-actions">
+          <button type="button" class="ghost" id="hitoPanelCancelBtn-${hito.id}">Cancelar</button>
+          <button type="button" class="primary" id="hitoPanelSaveBtn-${hito.id}">Guardar</button>
+        </div>
+      </div>
       ${hito.__critico ? `<div class="hito-panel-critico-banner">🔥 <strong>Crítico:</strong> aun en el mejor escenario no se llega a "${escHtml(hito.__critico.hitoObjetivoNombre)}" (${fmtDateNice(hito.__critico.fechaComprometida)}) — se excede por ${hito.__critico.excesoDias}d.</div>` : ""}
       <div id="hitoPanelError-${hito.id}" class="hito-panel-error hidden"></div>
 
@@ -2575,6 +2758,7 @@ function buildHitoEditPanelHtml(tema, hito) {
         <button type="button" class="hito-modo-btn ${modoFecha === "dias" ? "active" : ""}" data-hito-modo="dias" ${tienePredecesor ? "" : "disabled"}>Desfasaje (días)</button>
       </div>
       <input type="hidden" name="modoFecha" id="hitoPanelModoFecha-${hito.id}" value="${modoFecha}" />
+      <p class="hito-panel-help" id="hitoPanelModoAyuda-${hito.id}">${tienePredecesor ? hitoPanelModoAyudaTexto(tipoActual) : ""}</p>
 
       <div class="hito-panel-grid-2col">
         <label id="hitoPanelCampoFecha-${hito.id}" class="${modoFecha === "fecha" ? "" : "hidden"}">Fecha<input type="date" name="fechaManual" value="${hito.fechaManual || hito.fechaLimite || ""}" /></label>
@@ -2598,19 +2782,16 @@ function buildHitoEditPanelHtml(tema, hito) {
         <div id="hitoPanelExpWrap-${hito.id}" class="${hito.expediente ? "" : "hidden"}">${buildGdeToggleWidget(hito.expediente || "")}</div>
         <label>Descripción<textarea name="descripcion">${escHtml(hito.descripcion || "")}</textarea></label>
       </details>
-
-      <div class="hito-panel-actions">
-        ${puedeEliminar() ? `<button type="button" class="btn-delete" id="hitoPanelDeleteBtn-${hito.id}">Eliminar</button>` : ""}
-        <span class="push-right"></span>
-        <button type="button" class="ghost" id="hitoPanelCancelBtn-${hito.id}">Cancelar</button>
-        <button type="button" class="primary" id="hitoPanelSaveBtn-${hito.id}">Guardar</button>
-      </div>
     </div>`;
 }
 
 function closeAllHitoEditPanels(exceptHitoId) {
   document.querySelectorAll(".hito-edit-panel-wrap").forEach((wrap) => {
-    if (wrap.id !== `hitoPanelWrap-${exceptHitoId}`) { wrap.innerHTML = ""; wrap.classList.add("hidden"); }
+    if (wrap.id !== `hitoPanelWrap-${exceptHitoId}`) {
+      wrap.innerHTML = "";
+      wrap.classList.add("hidden");
+      wrap.closest(".hito-item")?.classList.remove("editing");
+    }
   });
   document.querySelectorAll("[data-task-edit-hito]").forEach((btn) => {
     if (btn.dataset.taskEditHito !== exceptHitoId) btn.setAttribute("aria-expanded", "false");
@@ -2626,6 +2807,7 @@ function toggleHitoEditPanel(tema, hitoId, refreshCallback) {
   if (yaAbierto) {
     wrap.innerHTML = "";
     wrap.classList.add("hidden");
+    wrap.closest(".hito-item")?.classList.remove("editing");
     btn?.setAttribute("aria-expanded", "false");
     return;
   }
@@ -2633,6 +2815,7 @@ function toggleHitoEditPanel(tema, hitoId, refreshCallback) {
   if (!hito) return;
   wrap.innerHTML = buildHitoEditPanelHtml(tema, hito);
   wrap.classList.remove("hidden");
+  wrap.closest(".hito-item")?.classList.add("editing");
   btn?.setAttribute("aria-expanded", "true");
   wireHitoEditPanel(tema, hito, wrap, refreshCallback);
 }
@@ -2658,6 +2841,7 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
   const campoDesfasaje = document.getElementById(`hitoPanelCampoDesfasaje-${hito.id}`);
   const modoBtns = panelWrap.querySelectorAll("[data-hito-modo]");
   const errorBox = document.getElementById(`hitoPanelError-${hito.id}`);
+  const modoAyuda = document.getElementById(`hitoPanelModoAyuda-${hito.id}`);
 
   function limpiarError() { errorBox.classList.add("hidden"); errorBox.textContent = ""; }
 
@@ -2674,10 +2858,14 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
     tipoAyuda.textContent = tienePred
       ? TIPO_VINCULO_INFO[tipoSelect.value || "FC"].ayuda
       : "Elegí un predecesor para habilitar el tipo de vínculo.";
+    if (modoAyuda) modoAyuda.textContent = tienePred ? hitoPanelModoAyudaTexto(tipoSelect.value || "FC") : "";
     limpiarError();
   }
   predecesorSelect.addEventListener("change", actualizarDisponibilidadPredecesor);
-  tipoSelect.addEventListener("change", () => { tipoAyuda.textContent = TIPO_VINCULO_INFO[tipoSelect.value]?.ayuda || ""; });
+  tipoSelect.addEventListener("change", () => {
+    tipoAyuda.textContent = TIPO_VINCULO_INFO[tipoSelect.value]?.ayuda || "";
+    if (modoAyuda) modoAyuda.textContent = hitoPanelModoAyudaTexto(tipoSelect.value);
+  });
 
   modoBtns.forEach((b) => b.addEventListener("click", () => {
     if (b.disabled) return;
@@ -2690,12 +2878,6 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
   document.getElementById(`hitoPanelCancelBtn-${hito.id}`).addEventListener("click", () => {
     toggleHitoEditPanel(tema, hito.id, refreshCallback);
   });
-
-  if (puedeEliminar()) {
-    document.getElementById(`hitoPanelDeleteBtn-${hito.id}`)?.addEventListener("click", () => {
-      deleteHito(tema, hito.id, { onSaved: refreshCallback });
-    });
-  }
 
   document.getElementById(`hitoPanelSaveBtn-${hito.id}`).addEventListener("click", async () => {
     const nombre = panelWrap.querySelector('[name="nombre"]').value.trim();
@@ -2723,6 +2905,7 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
     const expediente = ownExpChk.checked ? (hiddenExp?.value.trim() || "") : "";
 
     const fechasAntes = new Map(tema.hitos.map((h) => [h.id, `${h.fechaInicio}|${h.fechaLimite}`]));
+    const snapshotAntes = new Map(tema.hitos.map((h) => [h.id, { fechaInicio: h.fechaInicio, fechaLimite: h.fechaLimite }]));
 
     Object.assign(hito, {
       nombre, estado, descripcion, expediente,
@@ -2741,6 +2924,8 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
       hito.fechaCierre = "";
     }
 
+    calcularCascadaHitos(tema.hitos);
+    propagarCascadaPorDelta(tema.hitos, snapshotAntes, hito.id);
     calcularCascadaHitos(tema.hitos);
     const cambiados = tema.hitos.filter((h) => h.id === hito.id || fechasAntes.get(h.id) !== `${h.fechaInicio}|${h.fechaLimite}`);
 

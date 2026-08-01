@@ -641,25 +641,60 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
 
 .push-right { margin-left: auto; }
 
-/* ============== Kanban ============== */
+/* ============== Kanban ==============
+   Columnas de ancho fijo/manual (--col-w, ajustable arrastrando
+   .col-resize-handle) en una fila flex con scroll horizontal — a diferencia
+   de una grilla, cada columna mantiene su propio ancho sin repartir el
+   espacio entre las demas. Las tarjetas dentro de .kcards tambien quedan a
+   ancho fijo (234px, el mismo de siempre) en un grid auto-fill: al ensanchar
+   la columna entran mas tarjetas por fila en vez de estirarse. */
 .kanban {
   position: relative;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(240px, 1fr));
+  display: flex;
+  align-items: flex-start;
   gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  cursor: grab;
 }
+.kanban.panning { cursor: grabbing; user-select: none; }
+.kanban:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 8px; }
 
 .col {
+  position: relative;
   background: #f7f9fc;
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 12px;
   min-height: 480px;
+  flex: 0 0 var(--col-w, 260px);
+  width: var(--col-w, 260px);
   min-width: 0;
   display: grid;
   grid-template-rows: auto 1fr auto;
   gap: 10px;
 }
+
+.col-resize-handle {
+  position: absolute;
+  top: 0; bottom: 0; right: -11px;
+  width: 14px;
+  cursor: col-resize;
+  z-index: 3;
+  touch-action: none;
+}
+.col-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 8px; bottom: 8px; left: 50%;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background .12s;
+}
+.col-resize-handle:hover::after,
+.col.resizing .col-resize-handle::after { background: var(--primary); }
 
 .col-head {
   display: flex;
@@ -671,6 +706,7 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
   font-size: 13px;
   color: white;
 }
+.col-head > span:first-child { text-align: left; }
 
 .col-Pendiente .col-head { background: var(--pendiente); }
 .col-En-curso .col-head { background: var(--en-curso); }
@@ -690,7 +726,13 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
   font-size: 11.5px;
 }
 
-.kcards { display: grid; gap: 4px; align-content: start; min-width: 0; }
+.kcards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 234px);
+  gap: 8px;
+  align-content: start;
+  min-width: 0;
+}
 
 .kcard {
   position: relative;
@@ -1685,21 +1727,21 @@ dialog#modalNewResp::backdrop { background: rgba(15,23,42,0.6); }
 /* Responsables */
 .resp-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
 }
 .resp-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 18px;
+  border-radius: 10px;
+  padding: 12px;
   display: grid;
-  gap: 14px;
+  gap: 8px;
   box-shadow: var(--shadow);
   transition: box-shadow .15s;
 }
 .resp-card:hover { box-shadow: 0 4px 20px rgba(15,23,42,0.1); }
-.resp-card-head { display: flex; gap: 12px; align-items: center; }
+.resp-card-head { display: flex; gap: 8px; align-items: center; }
 .resp-avatar-lg, .resp-avatar-sm {
   border-radius: 50%;
   color: #fff;
@@ -1708,18 +1750,25 @@ dialog#modalNewResp::backdrop { background: rgba(15,23,42,0.6); }
   flex-shrink: 0;
   letter-spacing: .03em;
 }
-.resp-avatar-lg { width: 46px; height: 46px; font-size: 15px; }
+.resp-avatar-lg { width: 34px; height: 34px; font-size: 12.5px; }
 .resp-avatar-sm { width: 30px; height: 30px; font-size: 11px; }
 .resp-info { min-width: 0; }
-.resp-name { font-weight: 600; font-size: 14.5px; color: var(--text); }
-.resp-email { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.resp-dep { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.resp-name { font-weight: 600; font-size: 12.5px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resp-email { font-size: 10.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resp-dep { font-size: 10.5px; color: var(--muted); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .resp-divider { border: 0; border-top: 1px solid var(--border); margin: 0; }
-.resp-stats { display: flex; gap: 20px; }
+.resp-stats { display: flex; gap: 12px; }
 .resp-stat { display: flex; flex-direction: column; gap: 1px; }
-.resp-stat strong { font-size: 22px; font-weight: 700; color: var(--primary); line-height: 1; }
-.resp-stat small { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.resp-stat strong { font-size: 16px; font-weight: 700; color: var(--primary); line-height: 1; }
+.resp-stat small { font-size: 8.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .resp-card-footer { display: flex; justify-content: flex-end; }
+.resp-card-footer button { padding: 5px 10px; font-size: 11.5px; }
+
+/* Formato lista de responsables: filas mas compactas que el resto de las
+   tablas de la app (solo esta, via #respLista). */
+#respLista .data-table { font-size: 12px; }
+#respLista .data-table th { padding: 6px 12px; font-size: 10.5px; }
+#respLista .data-table td { padding: 5px 12px; }
 
 /* Reports */
 .reports-grid {
@@ -1743,7 +1792,6 @@ dialog#modalNewResp::backdrop { background: rgba(15,23,42,0.6); }
   .kpi-row { grid-template-columns: repeat(2, 1fr); }
   .grid-2-1 { grid-template-columns: 1fr; }
   .span-2 { grid-column: span 1; }
-  .kanban { grid-template-columns: repeat(2, 1fr); }
   .reports-grid { grid-template-columns: 1fr 1fr; }
   .resp-grid { grid-template-columns: repeat(2, 1fr); }
   .filter-pills { gap: 6px; }
@@ -1757,7 +1805,6 @@ dialog#modalNewResp::backdrop { background: rgba(15,23,42,0.6); }
   .topbar { padding: 0 12px; gap: 10px; }
   .tabbar { padding: 0 12px; }
   .kpi-row { grid-template-columns: 1fr 1fr; }
-  .kanban { grid-template-columns: 1fr; }
   .reports-grid { grid-template-columns: 1fr; }
   .resp-grid { grid-template-columns: 1fr; }
   #dynamicForm .row { grid-template-columns: 1fr; }
@@ -1925,8 +1972,6 @@ html[data-theme="dark"] .resp-card { border-color: var(--border); }
 html[data-theme="dark"] .resp-divider { border-top-color: var(--border); }
 
 /* ============== 5-column Kanban — En revision ============== */
-.kanban { grid-template-columns: repeat(5, minmax(200px, 1fr)); }
-
 .col-En-revision { background: #f5f3ff; }
 .col-En-revision .col-head { background: #8b5cf6; color: #fff; }
 
@@ -2019,7 +2064,7 @@ html[data-theme="dark"] .col-En-revision { background: rgba(139,92,246,0.06); }
 
 .hito-progress-fill {
   height: 100%;
-  background: var(--primary);
+  background: var(--muted);
   border-radius: 999px;
   transition: width .3s ease;
 }
@@ -2540,8 +2585,8 @@ html[data-theme="dark"] .gantt-scroll::-webkit-scrollbar-thumb:hover { backgroun
 
 .gantt-link { fill: none; stroke: var(--muted); stroke-width: 1.5; }
 .gantt-link.alerta { stroke: #dc2626; }
-.gantt-arrow-head { fill: var(--muted); }
-.gantt-arrow-head.alerta { fill: #dc2626; }
+.gantt-link-dot { fill: var(--muted); }
+.gantt-link-dot.alerta { fill: #dc2626; }
 
 html[data-theme="dark"] .gantt-labels { background: var(--card); }
 
@@ -2551,7 +2596,14 @@ html[data-theme="dark"] .gantt-labels { background: var(--card); }
 .hito-item:last-child { border-bottom: 0; }
 .hito-item[draggable="true"] { cursor: grab; }
 .hito-item.dragging { opacity: .4; }
+.hito-item.editing {
+  background: rgba(79,70,229,0.06);
+  border-radius: 8px;
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+html[data-theme="dark"] .hito-item.editing { background: rgba(99,102,241,0.14); }
 .hito-compact-row { padding: 5px 0; }
+.hito-item.editing .hito-compact-row { padding-left: 7px; }
 .hito-drag-handle {
   flex-shrink: 0; color: var(--muted); font-size: 13px; line-height: 1;
   cursor: grab; padding: 0 1px; user-select: none;
@@ -2567,7 +2619,8 @@ html[data-theme="dark"] .gantt-labels { background: var(--card); }
 .hito-compact-side { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
 .hito-compact-row .resp-avatar-sm { width: 20px; height: 20px; font-size: 8.5px; }
 .hito-compact-side > .badge {
-  display: inline-block; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: inline-flex; justify-content: center; min-width: 82px; max-width: 130px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
 .hito-compact-meta {
@@ -2606,8 +2659,16 @@ html[data-theme="dark"] .gantt-labels { background: var(--card); }
 .hito-edit-panel-wrap.hidden { display: none; }
 .hito-edit-panel {
   margin: 4px 0 2px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
-  background: var(--bg); display: grid; gap: 4px;
+  background: #e3e8f0; display: grid; gap: 4px;
 }
+html[data-theme="dark"] .hito-edit-panel { background: #0b1220; }
+.hito-panel-topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin: -8px -10px 2px; padding: 6px 10px; border-bottom: 1px solid var(--border);
+}
+.hito-panel-topbar-title { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+.hito-panel-topbar-actions { display: flex; gap: 6px; }
+.hito-panel-topbar-actions button { padding: 4px 10px; font-size: 11.5px; border-radius: 7px; }
 /* #taskForm label/input ya traen su propio tamaño con selector con ID —
    hay que igualar esa especificidad (prefijo #taskForm) para poder pisarlo. */
 #taskForm .hito-edit-panel label { gap: 2px; font-size: 10px; }
@@ -2637,7 +2698,6 @@ html[data-theme="dark"] .hito-panel-error { color: #fca5a5; }
 }
 .hito-modo-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
 .hito-modo-btn:disabled { opacity: .45; cursor: not-allowed; }
-.hito-panel-actions { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
 
 /* Inline "add hito" form */
 .hito-inline-form {

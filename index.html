@@ -147,12 +147,19 @@
           <button class="primary push-right" id="btnNewTema">+ Nuevo tema</button>
         </div>
 
-        <div id="agendaKanban" class="kanban"></div>
+        <div id="agendaKanban" class="kanban" tabindex="0" role="region" aria-label="Tablero Kanban de temas"></div>
       </section>
 
       <!-- =================== HITOS (tabla global) =================== -->
       <section class="view" id="view-hitos">
-        <div class="section-head"><h2>Hitos</h2></div>
+        <div class="filter-pills">
+          <select id="fHResponsable" class="pill"><option value="">Responsable</option></select>
+          <select id="fHEstado" class="pill"><option value="">Estado</option></select>
+          <select id="fHPrioridad" class="pill"><option value="">Prioridad</option></select>
+          <select id="fHEtiqueta" class="pill"><option value="">Etiquetas</option></select>
+          <button id="btnMisHitos" class="pill ghost">Mis hitos</button>
+          <button id="clearHitosFilters" class="pill ghost">Limpiar filtros</button>
+        </div>
         <article class="card">
           <div class="table-wrap">
             <table class="data-table">
