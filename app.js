@@ -1,5 +1,8 @@
 import * as authApi from "./src/authApi.js";
 import * as dataApi from "./src/dataApi.js";
+import ExcelJS from "exceljs";
+import { jsPDF } from "jspdf";
+import { autoTable } from "jspdf-autotable";
 
 function simpleHash(str) {
   let h = 0;
@@ -181,11 +184,27 @@ function escHtml(s) {
 
 
 // Estado en memoria para renderizar. La fuente de verdad es Supabase.
+function defaultReportFilters() {
+  return {
+    dateField: "fechaLimite",
+    dateFrom: "", dateTo: "",
+    estados: [], prioridades: [], responsables: [], dependencias: [], etiquetas: [],
+    expediente: "",
+    soloVencidos: false, incluirPrivados: false, soloConExpediente: false,
+    secciones: { resumen: true, temas: true, hitos: true, expedientes: false, actividad: false }
+  };
+}
+
 let state = {
   config: { currentUser: "", areaDefault: "SSOyS", rol: "Viewer" },
   temas: [], expedientes: [], responsables: [], documentos: [], usuarios: [], etiquetas: [],
-  profile: null
+  profile: null,
+  reportFilters: defaultReportFilters()
 };
+
+// Borrador editable del panel "Personalizar reporte" — separado de state.reportFilters
+// para que Cancelar descarte cambios sin tocar el reporte vigente.
+let reportFiltersDraft = defaultReportFilters();
 
 // Datos principales NO se guardan en localStorage (viven en Supabase).
 function saveState() { /* no-op: persistimos via dataApi */ }
@@ -352,7 +371,42 @@ const els = {
   boardMenuBack:      $("boardMenuBack"),
   boardMenuTitle:     $("boardMenuTitle"),
   boardMenuClose:     $("boardMenuClose"),
-  boardMenuBody:      $("boardMenuBody")
+  boardMenuBody:      $("boardMenuBody"),
+  toggleReportFilters:      $("toggleReportFilters"),
+  reportFiltersPanel:       $("reportFiltersPanel"),
+  reportFiltersGrid:        $("reportFiltersGrid"),
+  reportDateField:          $("reportDateField"),
+  reportDateFrom:           $("reportDateFrom"),
+  reportDateTo:             $("reportDateTo"),
+  reportChipsEstado:        $("reportChipsEstado"),
+  reportChipsPrioridad:     $("reportChipsPrioridad"),
+  reportChipsResponsable:   $("reportChipsResponsable"),
+  reportChipsDependencia:   $("reportChipsDependencia"),
+  reportChipsEtiqueta:      $("reportChipsEtiqueta"),
+  reportExpediente:         $("reportExpediente"),
+  reportSoloVencidos:       $("reportSoloVencidos"),
+  reportIncluirPrivados:    $("reportIncluirPrivados"),
+  reportIncluirPrivadosRow: $("reportIncluirPrivadosRow"),
+  reportSoloConExpediente:  $("reportSoloConExpediente"),
+  reportSeccionResumen:     $("reportSeccionResumen"),
+  reportSeccionTemas:       $("reportSeccionTemas"),
+  reportSeccionHitos:       $("reportSeccionHitos"),
+  reportSeccionExpedientes: $("reportSeccionExpedientes"),
+  reportSeccionActividad:   $("reportSeccionActividad"),
+  reportFiltersHint:        $("reportFiltersHint"),
+  resetReportFilters:       $("resetReportFilters"),
+  cancelReportFilters:      $("cancelReportFilters"),
+  applyReportFilters:       $("applyReportFilters"),
+  planillaSplitBtn:   $("planillaSplitBtn"),
+  planillaArrow:      $("planillaArrow"),
+  planillaMenu:       $("planillaMenu"),
+  planillaExcelBtn:   $("planillaExcelBtn"),
+  planillaPdfBtn:     $("planillaPdfBtn"),
+  informeSplitBtn:    $("informeSplitBtn"),
+  informeArrow:       $("informeArrow"),
+  informeMenu:        $("informeMenu"),
+  informeWordBtn:     $("informeWordBtn"),
+  informePdfBtn:      $("informePdfBtn")
 };
 
 let calCursor = new Date();
@@ -544,9 +598,7 @@ function bindEvents() {
     }
   });
 
-  $("exportCsv").addEventListener("click", exportCsv);
-  $("exportExcel").addEventListener("click", exportExcel);
-  $("exportPdf").addEventListener("click", exportPdfLike);
+  wireReportFiltersPanel();
 
   document.addEventListener("click", (e) => {
     if (!e.target.closest(".resp-dropdown")) {
@@ -879,6 +931,35 @@ function getFilteredTemas() {
     else sc.classList.add("hidden");
   }
   return results;
+}
+
+// Filtra state.temas segun el panel "Personalizar reporte" de la vista Reportes —
+// estado independiente de los filtros globales de arriba (fResponsable, fEstado, etc).
+function getReportTemas(filters) {
+  const f = filters || state.reportFilters;
+  const dependenciasSet = f.dependencias.length
+    ? new Set(
+        state.responsables
+          .filter((r) => f.dependencias.includes(r.dependencia))
+          .map((r) => [r.nombre, r.apellido].filter(Boolean).join(" "))
+      )
+    : null;
+  return state.temas.filter((t) => {
+    if (!isTemaVisible(t)) return false;
+    if (t.privado && !f.incluirPrivados) return false;
+    if (f.dateFrom && (t[f.dateField] || "") < f.dateFrom) return false;
+    if (f.dateTo && (t[f.dateField] || "") > f.dateTo) return false;
+    if (f.estados.length && !f.estados.includes(t.estado)) return false;
+    if (f.prioridades.length && !f.prioridades.includes(t.prioridad)) return false;
+    const nombresTema = (t.responsable || "").split(",").map((s) => s.trim()).filter(Boolean);
+    if (f.responsables.length && !f.responsables.some((r) => nombresTema.includes(r))) return false;
+    if (dependenciasSet && !nombresTema.some((n) => dependenciasSet.has(n))) return false;
+    if (f.etiquetas.length && !(t.etiquetas || []).some((e) => f.etiquetas.includes(e.nombre))) return false;
+    if (f.expediente && !(t.expediente || "").toLowerCase().includes(f.expediente.toLowerCase())) return false;
+    if (f.soloVencidos && !(t.estado !== "Cerrado" && daysUntil(t.fechaLimite) < 0)) return false;
+    if (f.soloConExpediente && !t.expediente) return false;
+    return true;
+  });
 }
 
 // =========================================================
@@ -2051,7 +2132,8 @@ function renderAlertas() {
 // REPORTES
 // =========================================================
 function renderReportes() {
-  const temas = getFilteredTemas();
+  renderReportFiltersToggle();
+  const temas = getReportTemas(state.reportFilters);
   const allHitos = temas.flatMap((t) => t.hitos);
   const hitosVencidos = allHitos.filter((h) => h.estado !== "Cerrado" && daysUntil(h.fechaLimite) < 0);
 
@@ -2073,6 +2155,221 @@ function renderReportes() {
       <p>${r[1]}</p>
       ${i === 5 ? hitosVencidosDetail : ""}
     </article>`).join("");
+}
+
+// =========================================================
+// REPORTES — panel "Personalizar" (filtros propios, separados de los
+// filtros globales de arriba)
+// =========================================================
+const REPORT_ESTADO_DISPLAY = { "En revision": "En revisión" };
+
+function reportFiltersCount(f) {
+  let n = 0;
+  if (f.dateFrom || f.dateTo) n++;
+  if (f.estados.length) n++;
+  if (f.prioridades.length) n++;
+  if (f.responsables.length) n++;
+  if (f.dependencias.length) n++;
+  if (f.etiquetas.length) n++;
+  if (f.expediente) n++;
+  if (f.soloVencidos) n++;
+  if (f.incluirPrivados) n++;
+  if (f.soloConExpediente) n++;
+  return n;
+}
+
+function renderReportFiltersToggle() {
+  const btn = els.toggleReportFilters;
+  if (!btn) return;
+  const n = reportFiltersCount(state.reportFilters);
+  let countEl = btn.querySelector(".count");
+  if (n > 0) {
+    if (!countEl) {
+      countEl = document.createElement("span");
+      countEl.className = "count";
+      btn.appendChild(countEl);
+    }
+    countEl.textContent = n;
+  } else if (countEl) {
+    countEl.remove();
+  }
+}
+
+function reportChipHtml(value, label, on, dotClass) {
+  return `<label class="chip ${on ? "on" : ""}" data-chip="${escHtml(value)}">
+    <input type="checkbox" ${on ? "checked" : ""}>${dotClass ? `<span class="dot ${dotClass}"></span>` : ""}${escHtml(label)}
+  </label>`;
+}
+
+function renderReportChipSet(container, key) {
+  if (!container) return;
+  const selected = reportFiltersDraft[key];
+  let options;
+  if (key === "estados") {
+    options = STATES.map((s) => ({ value: s, label: REPORT_ESTADO_DISPLAY[s] || s, dotClass: `dot-${s.toLowerCase().replace(/\s+/g, "-")}` }));
+  } else if (key === "prioridades") {
+    options = ["Alta", "Media", "Baja"].map((p) => ({ value: p, label: p }));
+  } else if (key === "responsables") {
+    options = state.responsables
+      .map((r) => [r.nombre, r.apellido].filter(Boolean).join(" "))
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b))
+      .map((n) => ({ value: n, label: n }));
+  } else if (key === "dependencias") {
+    options = unique(state.responsables.map((r) => r.dependencia)).sort((a, b) => a.localeCompare(b)).map((d) => ({ value: d, label: d }));
+  } else if (key === "etiquetas") {
+    const activas = unique(
+      state.temas.filter(isTemaVisible).filter((t) => t.estado !== "Cerrado").flatMap((t) => (t.etiquetas || []).map((e) => e.nombre))
+    );
+    options = activas.sort((a, b) => a.localeCompare(b)).map((e) => ({ value: e, label: e }));
+  } else {
+    options = [];
+  }
+  container.innerHTML = options.length
+    ? options.map((o) => reportChipHtml(o.value, o.label, selected.includes(o.value), o.dotClass)).join("")
+    : `<span style="font-size:12px;color:var(--muted)">Sin opciones</span>`;
+  container.querySelectorAll(".chip").forEach((chip) => {
+    const input = chip.querySelector("input");
+    // Escuchar "change" en el checkbox (no "click" en el label): un label que
+    // envuelve un input reenvia el click al input, que burbujea de nuevo hacia
+    // el label — un listener de click en el label se dispara dos veces por
+    // cada click real y termina siendo un no-op neto.
+    input.addEventListener("change", () => {
+      const value = chip.dataset.chip;
+      const arr = reportFiltersDraft[key];
+      const idx = arr.indexOf(value);
+      if (input.checked && idx === -1) arr.push(value);
+      else if (!input.checked && idx !== -1) arr.splice(idx, 1);
+      chip.classList.toggle("on", input.checked);
+      updateReportFiltersFooter();
+    });
+  });
+}
+
+function updateReportFiltersFooter() {
+  if (!els.reportFiltersHint) return;
+  const n = reportFiltersCount(reportFiltersDraft);
+  const total = state.temas.filter(isTemaVisible).length;
+  const filtrado = getReportTemas(reportFiltersDraft).length;
+  els.reportFiltersHint.innerHTML = `<b>${n}</b> filtro${n === 1 ? "" : "s"} activo${n === 1 ? "" : "s"} · el reporte tendría <b>${filtrado}</b> de ${total} temas`;
+}
+
+function renderReportFiltersPanel() {
+  els.reportDateField.value = reportFiltersDraft.dateField;
+  els.reportDateFrom.value = reportFiltersDraft.dateFrom;
+  els.reportDateTo.value = reportFiltersDraft.dateTo;
+  els.reportExpediente.value = reportFiltersDraft.expediente;
+  els.reportSoloVencidos.checked = reportFiltersDraft.soloVencidos;
+  els.reportIncluirPrivados.checked = reportFiltersDraft.incluirPrivados;
+  els.reportSoloConExpediente.checked = reportFiltersDraft.soloConExpediente;
+  els.reportSeccionResumen.checked = reportFiltersDraft.secciones.resumen;
+  els.reportSeccionTemas.checked = reportFiltersDraft.secciones.temas;
+  els.reportSeccionHitos.checked = reportFiltersDraft.secciones.hitos;
+  els.reportSeccionExpedientes.checked = reportFiltersDraft.secciones.expedientes;
+  els.reportSeccionActividad.checked = reportFiltersDraft.secciones.actividad;
+
+  els.reportIncluirPrivadosRow?.classList.toggle("hidden", !esAdmin());
+
+  renderReportChipSet(els.reportChipsEstado, "estados");
+  renderReportChipSet(els.reportChipsPrioridad, "prioridades");
+  renderReportChipSet(els.reportChipsResponsable, "responsables");
+  renderReportChipSet(els.reportChipsDependencia, "dependencias");
+  renderReportChipSet(els.reportChipsEtiqueta, "etiquetas");
+
+  updateReportFiltersFooter();
+}
+
+function wireReportFiltersPanel() {
+  els.toggleReportFilters.addEventListener("click", () => {
+    const opening = !els.reportFiltersPanel.classList.contains("open");
+    if (opening) {
+      reportFiltersDraft = JSON.parse(JSON.stringify(state.reportFilters));
+      renderReportFiltersPanel();
+    }
+    els.reportFiltersPanel.classList.toggle("open", opening);
+    els.toggleReportFilters.classList.toggle("open", opening);
+  });
+
+  [els.reportDateField].forEach((el) => el.addEventListener("change", () => {
+    reportFiltersDraft.dateField = els.reportDateField.value;
+    updateReportFiltersFooter();
+  }));
+  [els.reportDateFrom, els.reportDateTo].forEach((el) => el.addEventListener("change", () => {
+    reportFiltersDraft.dateFrom = els.reportDateFrom.value;
+    reportFiltersDraft.dateTo = els.reportDateTo.value;
+    updateReportFiltersFooter();
+  }));
+  els.reportExpediente.addEventListener("input", () => {
+    reportFiltersDraft.expediente = els.reportExpediente.value;
+    updateReportFiltersFooter();
+  });
+  els.reportSoloVencidos.addEventListener("change", () => {
+    reportFiltersDraft.soloVencidos = els.reportSoloVencidos.checked;
+    updateReportFiltersFooter();
+  });
+  els.reportIncluirPrivados.addEventListener("change", () => {
+    reportFiltersDraft.incluirPrivados = els.reportIncluirPrivados.checked;
+    updateReportFiltersFooter();
+  });
+  els.reportSoloConExpediente.addEventListener("change", () => {
+    reportFiltersDraft.soloConExpediente = els.reportSoloConExpediente.checked;
+    updateReportFiltersFooter();
+  });
+  const seccionMap = {
+    reportSeccionResumen: "resumen", reportSeccionTemas: "temas", reportSeccionHitos: "hitos",
+    reportSeccionExpedientes: "expedientes", reportSeccionActividad: "actividad"
+  };
+  Object.entries(seccionMap).forEach(([id, key]) => {
+    els[id].addEventListener("change", () => { reportFiltersDraft.secciones[key] = els[id].checked; });
+  });
+
+  els.resetReportFilters.addEventListener("click", () => {
+    reportFiltersDraft = defaultReportFilters();
+    renderReportFiltersPanel();
+  });
+  els.cancelReportFilters.addEventListener("click", () => {
+    els.reportFiltersPanel.classList.remove("open");
+    els.toggleReportFilters.classList.remove("open");
+  });
+  els.applyReportFilters.addEventListener("click", () => {
+    state.reportFilters = JSON.parse(JSON.stringify(reportFiltersDraft));
+    els.reportFiltersPanel.classList.remove("open");
+    els.toggleReportFilters.classList.remove("open");
+    renderReportes();
+  });
+
+  // Split-buttons: la flecha abre/cierra su menu y cierra el otro; click afuera cierra ambos.
+  els.planillaArrow.addEventListener("click", (e) => {
+    e.stopPropagation();
+    els.informeMenu.classList.remove("open");
+    els.planillaMenu.classList.toggle("open");
+  });
+  els.informeArrow.addEventListener("click", (e) => {
+    e.stopPropagation();
+    els.planillaMenu.classList.remove("open");
+    els.informeMenu.classList.toggle("open");
+  });
+  document.addEventListener("click", (e) => {
+    if (!els.planillaMenu.contains(e.target) && e.target !== els.planillaArrow) els.planillaMenu.classList.remove("open");
+    if (!els.informeMenu.contains(e.target) && e.target !== els.informeArrow) els.informeMenu.classList.remove("open");
+  });
+
+  els.planillaExcelBtn.addEventListener("click", async () => {
+    els.planillaMenu.classList.remove("open");
+    await withBusy(async () => generarPlanillaExcel(getReportTemas(state.reportFilters), state.reportFilters.secciones));
+  });
+  els.planillaPdfBtn.addEventListener("click", async () => {
+    els.planillaMenu.classList.remove("open");
+    await withBusy(async () => generarPlanillaPdf(getReportTemas(state.reportFilters), state.reportFilters.secciones));
+  });
+  els.informeWordBtn.addEventListener("click", () => {
+    els.informeMenu.classList.remove("open");
+    showToast("Próximamente: el Informe se define en una siguiente pasada");
+  });
+  els.informePdfBtn.addEventListener("click", () => {
+    els.informeMenu.classList.remove("open");
+    showToast("Próximamente: el Informe se define en una siguiente pasada");
+  });
 }
 
 // =========================================================
@@ -3010,6 +3307,14 @@ function buildTareaTabHtml(draft, mode) {
     ? `<label>Solicitante<input name="solicitante" value="${escHtml(draft.solicitante || "")}" /></label>`
     : `<label>Solicitante<div class="task-view-value">${escHtml(draft.solicitante || "-")}</div></label>`;
 
+  const provinciaField = editable
+    ? `<label>Provincia<input name="provincia" value="${escHtml(draft.provincia || "")}" /></label>`
+    : `<label>Provincia<div class="task-view-value">${escHtml(draft.provincia || "-")}</div></label>`;
+
+  const municipioField = editable
+    ? `<label>Municipio<input name="municipio" value="${escHtml(draft.municipio || "")}" /></label>`
+    : `<label>Municipio<div class="task-view-value">${escHtml(draft.municipio || "-")}</div></label>`;
+
   const inicioField = editable
     ? `<label>Inicio<input type="date" name="fechaInicio" value="${draft.fechaInicio || fmtDate(new Date())}" /></label>`
     : `<label>Inicio<div class="task-view-value">${fmtDateNice(draft.fechaInicio)}</div></label>`;
@@ -3040,6 +3345,10 @@ function buildTareaTabHtml(draft, mode) {
       ${respField}
       ${prioridadField}
       ${solicitanteField}
+    </div>
+    <div class="task-grid-2col">
+      ${provinciaField}
+      ${municipioField}
     </div>
     <div class="task-grid-3col">
       ${inicioField}
@@ -3660,7 +3969,10 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
     e.preventDefault();
     if (mode !== "edit" || !puedeEditar()) return;
     const resp = getSelectedResp(els.taskForm);
-    if (!resp) { showToast("Selecciona al menos un responsable"); return; }
+    const estadoVal = els.taskForm.querySelector('[name="estado"]')?.value || draft.estado;
+    // Pendiente admite quedar sin responsable (se muestra "Sin responsable");
+    // cualquier otro estado lo requiere.
+    if (!resp && estadoVal !== "Pendiente") { showToast("Selecciona al menos un responsable"); return; }
     const nombreVal = (els.taskForm.querySelector('[name="nombre"]')?.value || "").trim();
     if (!nombreVal) { showToast("El nombre del tema es requerido"); return; }
     const data = Object.fromEntries(new FormData(els.taskForm).entries());
@@ -4171,6 +4483,7 @@ function renderResponsables() {
     const color = RESP_PALETTE[idx % RESP_PALETTE.length];
     return `
       <div class="resp-card" data-resp-id="${r.id}">
+        <button type="button" class="resp-card-edit" data-resp-edit="${r.id}" title="Editar">✎</button>
         <div class="resp-card-head">
           <div class="resp-avatar-lg" style="background:${color}">${initials}</div>
           <div class="resp-info">
@@ -4186,9 +4499,6 @@ function renderResponsables() {
           <div class="resp-stat"><strong>${stats.temas}</strong><small>Temas propios</small></div>
           <div class="resp-stat"><strong>${stats.hitos}</strong><small>Hitos asignados</small></div>
           <div class="resp-stat"><strong>${stats.temasConHito}</strong><small>Temas con hitos</small></div>
-        </div>
-        <div class="resp-card-footer">
-          <button class="ghost" data-resp-edit="${r.id}" style="font-size:12.5px">✎ Editar</button>
         </div>
       </div>`;
   }).join("");
@@ -4266,51 +4576,267 @@ function openUsuarioForm() {
 }
 
 // =========================================================
-// Exports
+// Exports — Planilla (Excel/PDF), estructura validada en
+// docs/reportes/template_reporte_temas.xlsx.xlsx
 // =========================================================
-function exportCsv() {
-  const temas = getFilteredTemas();
-  const header = ["id","nombre","expediente","responsable","prioridad","fechaInicio","fechaLimite","estado"];
-  const rows = temas.map((t) => header.map((h) => csv(String(t[h] || ""))).join(","));
-  download("reporte_temas.csv", [header.join(","), ...rows].join("\n"), "text/csv;charset=utf-8;");
+const REPORTE_COLUMNAS = [
+  "Fecha", "Nivel", "ID Tema", "Etiquetas", "Solicitante", "Importancia", "Provincia",
+  "Municipio", "Hito / Tema", "Responsable", "Estado", "Expediente", "Dependencia",
+  "Fecha de inicio", "Fecha de finalización", "Días restantes para su finalización",
+  "Última actualización", "Fecha última act", "Vencido", "Privado"
+];
+const REPORTE_ESTADO_LABEL = {
+  "Pendiente": "01 - Pendiente",
+  "En curso": "02 - En curso",
+  "En revision": "03 - En revisión",
+  "Cerrado": "04 - Cerrado",
+  "Bloqueado": "05 - Bloqueado"
+};
+const REPORTE_ESTADO_COLOR = {
+  "Pendiente":   { fill: "FFFEE2E2", text: "FF991B1B" },
+  "En curso":    { fill: "FFDBEAFE", text: "FF1D4ED8" },
+  "En revision": { fill: "FFEDE9FE", text: "FF5B21B6" },
+  "Cerrado":     { fill: "FFD1FAE5", text: "FF047857" },
+  "Bloqueado":   { fill: "FFFEF3C7", text: "FF92400E" }
+};
+const REPORTE_TEMA_FILL = "FFD6E4F7";
+const REPORTE_TEMA_TEXT = "FF1F3864";
+const REPORTE_HEADER_FILL = "FF0B5394";
+
+function reporteVencido(estado, fechaLimite) {
+  if (!fechaLimite) return "-";
+  return (estado !== "Cerrado" && daysUntil(fechaLimite) < 0) ? "Sí" : "No";
 }
 
-function exportExcel() {
-  const temas = getFilteredTemas();
-  const tsv = ["ID\tTema\tEstado\tResponsable\tVto", ...temas.map((t) => `${t.id}\t${t.nombre}\t${t.estado}\t${t.responsable}\t${t.fechaLimite}`)].join("\n");
-  download("reporte_temas.xls", tsv, "application/vnd.ms-excel");
+function reporteDiasRestantes(estado, fechaLimite) {
+  if (estado === "Cerrado" || !fechaLimite) return "-";
+  return daysUntil(fechaLimite);
 }
 
-function exportPdfLike() {
-  const temas = getFilteredTemas();
-  const printArea = document.getElementById("printArea");
-  if (!printArea) return;
+// Fuente unica de verdad para las filas de la Planilla — la usan tanto el
+// exportador Excel como el PDF. `nivel`/`estadoRaw`/`privadoRaw` quedan crudos
+// para poder pintar colores; el resto ya viene formateado para mostrar.
+function buildReporteRows(temas, secciones) {
+  const sec = secciones || { resumen: true, temas: true, hitos: true, expedientes: false, actividad: false };
+  const rows = [];
+  temas.forEach((t) => {
+    calcularCascadaHitos(t.hitos);
+    if (sec.temas) {
+      rows.push({
+        nivel: "TEMA", estadoRaw: t.estado, privadoRaw: t.privado,
+        Fecha: t.fechaInicio || "", "Nivel": "TEMA", "ID Tema": t.id,
+        "Etiquetas": (t.etiquetas || []).map((e) => e.nombre).join(", "),
+        "Solicitante": t.solicitante || "", "Importancia": t.prioridad || "",
+        "Provincia": t.provincia || "", "Municipio": t.municipio || "",
+        "Hito / Tema": t.nombre, "Responsable": t.responsable || "",
+        "Estado": REPORTE_ESTADO_LABEL[t.estado] || t.estado,
+        "Expediente": t.expediente || "", "Dependencia": "",
+        "Fecha de inicio": t.fechaInicio || "", "Fecha de finalización": t.fechaLimite || "",
+        "Días restantes para su finalización": reporteDiasRestantes(t.estado, t.fechaLimite),
+        "Última actualización": t.descripcion || "", "Fecha última act": t.ultimaActualizacion || "",
+        "Vencido": reporteVencido(t.estado, t.fechaLimite), "Privado": t.privado ? "Sí" : "No"
+      });
+    }
+    if (sec.hitos) {
+      t.hitos.forEach((h) => {
+        let dependencia = "";
+        if (h.predecesorId) {
+          const pred = hitoPorId(t.hitos, h.predecesorId);
+          if (pred) dependencia = `${pred.nombre} — ${h.tipoVinculo || "FC"}`;
+        }
+        rows.push({
+          nivel: "HITO", estadoRaw: h.estado, privadoRaw: t.privado,
+          Fecha: t.fechaInicio || "", "Nivel": "HITO", "ID Tema": t.id,
+          "Etiquetas": "", "Solicitante": "", "Importancia": "", "Provincia": "", "Municipio": "",
+          "Hito / Tema": h.nombre, "Responsable": h.responsable || t.responsable || "",
+          "Estado": REPORTE_ESTADO_LABEL[h.estado] || h.estado,
+          "Expediente": "", "Dependencia": dependencia,
+          "Fecha de inicio": h.fechaInicio || "", "Fecha de finalización": h.fechaLimite || "",
+          "Días restantes para su finalización": reporteDiasRestantes(h.estado, h.fechaLimite),
+          "Última actualización": "", "Fecha última act": "",
+          "Vencido": reporteVencido(h.estado, h.fechaLimite), "Privado": t.privado ? "Sí" : "No"
+        });
+      });
+    }
+  });
+  return rows;
+}
 
-  printArea.innerHTML = `
-    <div style="font-family:Arial,sans-serif;padding:20px">
-      <h1 style="font-size:18px;margin-bottom:4px">Reporte de Temas — SSOyS</h1>
-      <p style="color:#666;font-size:12px;margin-bottom:16px">Fecha: ${fmtDate(new Date())} · Usuario: ${escHtml(state.config.currentUser)}</p>
-      <table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead>
-          <tr style="background:#f1f5f9">
-            <th>ID</th><th>Tema</th><th>Responsable</th><th>Estado</th><th>Vencimiento</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${temas.map((t) => `
-          <tr>
-            <td>${t.id}</td>
-            <td>${escHtml(t.nombre)}</td>
-            <td>${escHtml(t.responsable || "-")}</td>
-            <td>${t.estado}</td>
-            <td>${t.fechaLimite}</td>
-          </tr>`).join("")}
-        </tbody>
-      </table>
-      <p style="font-size:10px;color:#999;margin-top:12px">Gestion de Temas SSOyS · ${temas.length} temas</p>
-    </div>`;
+function reporteNombreArchivo(ext) {
+  return `reporte_temas_${fmtDate(new Date())}.${ext}`;
+}
 
-  window.print();
+// -------- Excel --------
+async function generarPlanillaExcel(temas, secciones) {
+  const sec = secciones || state.reportFilters.secciones;
+  const rows = buildReporteRows(temas, sec);
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Seguimiento-Hitos";
+  wb.created = new Date();
+
+  const headerStyle = (cell) => {
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: REPORTE_HEADER_FILL } };
+    cell.font = { bold: true, size: 11, color: { argb: "FFFFFFFF" }, name: "Arial" };
+    cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+  };
+
+  if (sec.resumen) {
+    const ws = wb.addWorksheet("Resumen");
+    ws.columns = [{ width: 32 }, { width: 14 }];
+    ws.getCell("A1").value = "Indicador"; ws.getCell("B1").value = "Valor";
+    ["A1", "B1"].forEach((a) => headerStyle(ws.getCell(a)));
+    const temaRows = rows.filter((r) => r.nivel === "TEMA");
+    const hitoRows = rows.filter((r) => r.nivel === "HITO");
+    const porEstado = STATES.map((s) => [`  ${s}`, temaRows.filter((r) => r.estadoRaw === s).length]);
+    let r = 2;
+    ws.getCell(`A${r}`).value = "Temas por estado"; ws.getCell(`A${r}`).font = { bold: true }; r++;
+    porEstado.forEach(([label, count]) => { ws.getCell(`A${r}`).value = label; ws.getCell(`B${r}`).value = count; r++; });
+    ws.getCell(`A${r}`).value = "Temas vencidos"; ws.getCell(`B${r}`).value = temaRows.filter((x) => x.Vencido === "Sí").length; r++;
+    ws.getCell(`A${r}`).value = "Hitos vencidos"; ws.getCell(`B${r}`).value = hitoRows.filter((x) => x.Vencido === "Sí").length; r++;
+    ws.getCell(`A${r}`).value = "Temas con expediente"; ws.getCell(`B${r}`).value = temaRows.filter((x) => x.Expediente).length; r++;
+    ws.getCell(`A${r}`).value = "Total de temas en este reporte"; ws.getCell(`B${r}`).value = temaRows.length;
+  }
+
+  if (sec.temas) {
+    const ws = wb.addWorksheet("Seguimiento temas");
+    ws.getRow(1).height = 12.75;
+    REPORTE_COLUMNAS.forEach((col, i) => { const c = ws.getRow(2).getCell(i + 1); c.value = col; headerStyle(c); });
+    ws.getRow(2).height = 48;
+    ws.views = [{ state: "frozen", xSplit: 0, ySplit: 2 }];
+    ws.columns = [10.53, 9.73, 16, 19.73, 29.13, 16.12, 19.59, 19.59, 73.58, 21, 17.15, 39.53, 39.53, 18.4, 18.4, 21, 32.4, 19.4, 12, 11].map((width) => ({ width }));
+    rows.forEach((row, idx) => {
+      const excelRow = idx + 3;
+      REPORTE_COLUMNAS.forEach((col, i) => {
+        const cell = ws.getRow(excelRow).getCell(i + 1);
+        cell.value = row[col];
+        if (["Fecha", "Fecha de inicio", "Fecha de finalización"].includes(col) && row[col]) {
+          cell.value = new Date(`${row[col]}T00:00:00`);
+          cell.numFmt = col === "Fecha" ? "dd/mm" : "dd/mm/yy";
+        }
+      });
+      const estadoColor = REPORTE_ESTADO_COLOR[row.estadoRaw];
+      const estadoCell = ws.getRow(excelRow).getCell(11);
+      if (estadoColor) {
+        estadoCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: estadoColor.fill } };
+        estadoCell.font = { color: { argb: estadoColor.text }, bold: row.nivel === "TEMA" };
+      }
+      if (row.nivel === "TEMA") {
+        REPORTE_COLUMNAS.forEach((col, i) => {
+          if (col === "Estado") return;
+          const cell = ws.getRow(excelRow).getCell(i + 1);
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: REPORTE_TEMA_FILL } };
+          cell.font = { bold: true, color: { argb: REPORTE_TEMA_TEXT } };
+        });
+      }
+    });
+  }
+
+  if (sec.expedientes) {
+    const expedientesDelReporte = state.expedientes.filter((e) =>
+      temas.some((t) => t.expediente === e.numero)
+    );
+    const ws = wb.addWorksheet("Expedientes");
+    const cols = ["Número", "Tema asociado", "Responsable", "Estado", "Inicio", "Vencimiento", "Última actualización"];
+    cols.forEach((col, i) => { const c = ws.getRow(1).getCell(i + 1); c.value = col; headerStyle(c); });
+    ws.columns = [18, 30, 24, 14, 14, 14, 18].map((width) => ({ width }));
+    expedientesDelReporte.forEach((e, idx) => {
+      const row = ws.getRow(idx + 2);
+      row.getCell(1).value = e.numero; row.getCell(2).value = e.temaAsociado;
+      row.getCell(3).value = e.responsable; row.getCell(4).value = e.estado;
+      row.getCell(5).value = e.fechaInicio; row.getCell(6).value = e.fechaLimite;
+      row.getCell(7).value = e.ultimaActualizacion;
+    });
+  }
+
+  if (sec.actividad) {
+    const eventos = temas.flatMap((t) => (t.historial || []).map((h) => ({ ...h, temaId: t.id, temaNombre: t.nombre })))
+      .sort((a, b) => (b.at || "").localeCompare(a.at || ""));
+    const ws = wb.addWorksheet("Historial de actividad");
+    const cols = ["Fecha", "Tema", "Evento", "Por"];
+    cols.forEach((col, i) => { const c = ws.getRow(1).getCell(i + 1); c.value = col; headerStyle(c); });
+    ws.columns = [14, 30, 40, 20].map((width) => ({ width }));
+    eventos.forEach((ev, idx) => {
+      const row = ws.getRow(idx + 2);
+      row.getCell(1).value = ev.at; row.getCell(2).value = `${ev.temaId} — ${ev.temaNombre}`;
+      row.getCell(3).value = ev.event; row.getCell(4).value = ev.by || "sistema";
+    });
+  }
+
+  // Leyenda: texto fijo ya redactado, siempre incluida (no es un dato filtrable).
+  const wsL = wb.addWorksheet("Leyenda");
+  wsL.columns = [{ width: 19.26 }, { width: 74 }];
+  const leyendaEstados = [
+    ["01 - Pendiente", "El tema o hito está anotado pero todavía no arrancó ningún trabajo sobre él. No hay ningún impedimento externo: simplemente no se empezó, sea porque no llegó su turno de prioridad o porque su fecha de inicio prevista todavía no llegó.\nEjemplo: un hito recién creado que espera a que se libere el responsable, o un trámite que se sabe que hay que iniciar pero que aún no se gestionó."],
+    ["02 - En curso", "Hay trabajo activo sucediendo ahora mismo: alguien lo está redactando, coordinando, auditando o ejecutando en este momento.\nEjemplo: el responsable está armando la documentación, coordinando una reunión, o la obra está en ejecución."],
+    ["03 - En revisión", "El trabajo de fondo ya está terminado; lo único que falta es que un tercero lo revise, valide, apruebe o firme antes de poder cerrarlo. No depende de generar más contenido, sino de que alguien más lo mire.\nEjemplo: un informe redactado que espera la firma de un Secretario, o una rendición ya armada que está en poder de auditoría externa."],
+    ["04 - Cerrado", "Está completado y no requiere ninguna acción adicional de nadie.\nEjemplo: expediente firmado y archivado, hito cumplido y verificado, reunión realizada y sin pendientes posteriores."],
+    ["05 - Bloqueado", "No puede avanzar porque depende de un tercero o de algo externo que todavía no está resuelto. La diferencia con \"Pendiente\" es que acá ya se intentó avanzar pero hay un impedimento concreto identificado.\nEjemplo: el hito de elevación del expediente en T-002 es \"Bloqueado\" y no \"Pendiente\" porque está esperando que se apruebe la rendición contable —no es que no arrancó, es que está frenado por algo fuera del equipo."]
+  ];
+  const leyendaImportancia = [
+    ["Alta", "Tiene alta exposición institucional: involucra a autoridades (Ministro, Secretarios, intendentes), compromisos públicos ya asumidos, o su demora genera un riesgo concreto -legal, presupuestario o de imagen-. Se prioriza por encima del resto de la agenda.\nEjemplo: pedido de reunión de un intendente, expediente con vencimiento normativo, compromiso ya comunicado públicamente."],
+    ["Media", "Afecta la gestión habitual del área pero no compromete al Ministerio frente a terceros de forma crítica si se demora unos días. Tiene plazos, aunque con margen razonable de reprogramación.\nEjemplo: seguimiento de una obra en curso sin alertas activas, actualización de un convenio sin fecha límite inminente."],
+    ["Baja", "Bajo impacto o urgencia: puede posponerse sin consecuencias relevantes ni para el área ni para terceros. Se resuelve cuando hay disponibilidad, sin correr al resto de la agenda.\nEjemplo: trámites administrativos de rutina, actualizaciones internas sin fecha de vencimiento definida."],
+    ["Nota", "\"Importancia\" clasifica la prioridad de gestión del tema, no si está vencido. Un tema de Importancia Baja puede estar vencido igual (ver columna Vencido en \"Seguimiento temas\"), sin que eso lo vuelva Alta automáticamente."]
+  ];
+  wsL.mergeCells("A1:B1"); wsL.getCell("A1").value = "Estados"; headerStyle(wsL.getCell("A1"));
+  let lr = 2;
+  leyendaEstados.forEach(([a, b]) => { wsL.getCell(`A${lr}`).value = a; wsL.getCell(`B${lr}`).value = b; wsL.getCell(`B${lr}`).alignment = { wrapText: true, vertical: "top" }; lr++; });
+  lr++;
+  wsL.mergeCells(`A${lr}:B${lr}`); wsL.getCell(`A${lr}`).value = "Importancia"; headerStyle(wsL.getCell(`A${lr}`)); lr++;
+  leyendaImportancia.forEach(([a, b]) => { wsL.getCell(`A${lr}`).value = a; wsL.getCell(`B${lr}`).value = b; wsL.getCell(`B${lr}`).alignment = { wrapText: true, vertical: "top" }; lr++; });
+
+  const buffer = await wb.xlsx.writeBuffer();
+  download(reporteNombreArchivo("xlsx"), buffer, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+}
+
+// -------- PDF --------
+function generarPlanillaPdf(temas, secciones) {
+  const sec = secciones || state.reportFilters.secciones;
+  const rows = sec.temas || sec.hitos ? buildReporteRows(temas, sec) : [];
+  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+
+  doc.setFontSize(14);
+  doc.text("Reporte de Temas — SSOyS", 24, 28);
+  doc.setFontSize(9);
+  doc.setTextColor(100);
+  const nFiltros = reportFiltersCount(state.reportFilters);
+  doc.text(`Generado: ${fmtDate(new Date())} · Usuario: ${state.config.currentUser} · ${nFiltros} filtro${nFiltros === 1 ? "" : "s"} activo${nFiltros === 1 ? "" : "s"} · ${temas.length} temas`, 24, 42);
+  doc.setTextColor(0);
+
+  if (rows.length) {
+    autoTable(doc, {
+      startY: 54,
+      head: [REPORTE_COLUMNAS],
+      body: rows.map((r) => REPORTE_COLUMNAS.map((c) => (r[c] === undefined || r[c] === null ? "" : String(r[c])))),
+      styles: { fontSize: 6.5, cellPadding: 3 },
+      headStyles: { fillColor: [11, 83, 148], textColor: 255, fontStyle: "bold" },
+      didParseCell: (data) => {
+        if (data.section !== "body") return;
+        const row = rows[data.row.index];
+        if (!row) return;
+        if (row.nivel === "TEMA") {
+          data.cell.styles.fillColor = [214, 228, 247];
+          data.cell.styles.textColor = [31, 56, 100];
+          data.cell.styles.fontStyle = "bold";
+        }
+        if (REPORTE_COLUMNAS[data.column.index] === "Estado") {
+          const c = REPORTE_ESTADO_COLOR[row.estadoRaw];
+          if (c) {
+            data.cell.styles.fillColor = hexToRgb(c.fill);
+            data.cell.styles.textColor = hexToRgb(c.text);
+            data.cell.styles.fontStyle = row.nivel === "TEMA" ? "bold" : "normal";
+          }
+        }
+      }
+    });
+  }
+
+  doc.save(reporteNombreArchivo("pdf"));
+}
+
+function hexToRgb(argb) {
+  const hex = argb.length === 8 ? argb.slice(2) : argb;
+  return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)];
 }
 
 function download(name, content, mime) {
@@ -4320,8 +4846,6 @@ function download(name, content, mime) {
   a.href = url; a.download = name; a.click();
   URL.revokeObjectURL(url);
 }
-
-function csv(v) { return /[",\n]/.test(v) ? `"${v.replaceAll('"','""')}"` : v; }
 
 // =========================================================
 // Utils

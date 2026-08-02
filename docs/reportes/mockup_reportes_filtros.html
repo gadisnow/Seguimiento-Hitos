@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup — Reportes con filtros</title>
+<style>
+  :root {
+    --bg: #f4f7fb;
+    --card: #ffffff;
+    --border: #e6ecf3;
+    --text: #1f2a44;
+    --muted: #6b7a90;
+    --primary: #4f46e5;
+    --primary-2: #4338ca;
+    --primary-soft: #eef2ff;
+    --pendiente: #ef4444;
+    --en-curso: #3b82f6;
+    --bloqueado: #f59e0b;
+    --en-revision: #8b5cf6;
+    --cerrado: #10b981;
+    --vencido: #dc2626;
+    --pendiente-soft: #fee2e2;
+    --en-curso-soft: #dbeafe;
+    --bloqueado-soft: #fef3c7;
+    --en-revision-soft: #ede9fe;
+    --cerrado-soft: #d1fae5;
+    --shadow: 0 1px 2px rgba(15,23,42,.04), 0 4px 12px rgba(15,23,42,.05);
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+    padding: 28px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+
+  .mock-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow);
+  }
+
+  .section-head { display: flex; justify-content: space-between; align-items: center; }
+  .section-head.split { gap: 10px; flex-wrap: wrap; }
+  .section-head h2 { margin: 0; font-size: 20px; }
+
+  .btn-group { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: white;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .primary { background: var(--primary); color: #fff; border: 0; padding: 9px 14px; font-weight: 500; }
+  .primary:hover { background: var(--primary-2); }
+  .ghost { background: white; }
+  .ghost:hover { background: #f8fafc; }
+  .toggle-filters { display: inline-flex; align-items: center; gap: 6px; }
+  .toggle-filters .chev { transition: transform .15s ease; font-size: 11px; }
+  .toggle-filters.open .chev { transform: rotate(180deg); }
+  .toggle-filters .count {
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 999px;
+  }
+
+  /* ============ Panel de filtros ============ */
+  .filters-panel {
+    margin-top: 14px;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height .25s ease, opacity .2s ease, margin .25s ease;
+  }
+  .filters-panel.open { max-height: 900px; opacity: 1; }
+
+  .filters-inner {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow: var(--shadow);
+    padding: 18px 20px;
+  }
+
+  .filters-intro {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+    gap: 12px;
+  }
+  .filters-intro h3 { margin: 0 0 2px; font-size: 15px; }
+  .filters-intro p { margin: 0; font-size: 12.5px; color: var(--muted); }
+
+  .filters-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px 20px;
+  }
+  @media (max-width: 900px) { .filters-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 620px) { .filters-grid { grid-template-columns: 1fr; } }
+
+  .filter-group label.title {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  select, input[type="text"], input[type="date"] {
+    width: 100%;
+    font-family: inherit;
+    font-size: 13px;
+    padding: 8px 10px;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--text);
+  }
+
+  .date-range { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .date-range .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .date-range .two-col span { font-size: 11px; color: var(--muted); display:block; margin-bottom:3px; }
+
+  .chip-set { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip-set-scroll {
+    max-height: 84px;
+    overflow-y: auto;
+    padding-right: 2px;
+    align-content: flex-start;
+  }
+  .chip-set-scroll::-webkit-scrollbar { width: 6px; }
+  .chip-set-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    padding: 5px 10px 5px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: white;
+    cursor: pointer;
+    user-select: none;
+    color: var(--text);
+    transition: background .12s ease, border-color .12s ease, color .12s ease;
+  }
+  .chip input { accent-color: var(--primary); width: 13px; height: 13px; }
+  .chip.on {
+    background: var(--primary-soft);
+    border-color: var(--primary);
+    color: var(--primary-2);
+    font-weight: 600;
+  }
+  .chip .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 0;
+    border-top: 1px solid var(--border);
+  }
+  .toggle-row:first-of-type { border-top: none; }
+  .toggle-row .txt { font-size: 12.5px; }
+  .toggle-row .txt small { display: block; color: var(--muted); font-size: 11px; margin-top: 1px; }
+
+  .switch { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch .track {
+    position: absolute; inset: 0; background: var(--border); border-radius: 999px; cursor: pointer; transition: background .15s;
+  }
+  .switch .track::before {
+    content: ""; position: absolute; width: 16px; height: 16px; left: 2px; top: 2px;
+    background: white; border-radius: 50%; transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.25);
+  }
+  .switch input:checked + .track { background: var(--primary); }
+  .switch input:checked + .track::before { transform: translateX(16px); }
+
+  .sections-group { grid-column: 1 / -1; }
+  .sections-row { display: flex; flex-wrap: wrap; gap: 18px 28px; }
+  .sections-row label {
+    display: flex; align-items: center; gap: 7px; font-size: 13px; cursor: pointer;
+  }
+  .sections-row input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--primary); }
+
+  .filters-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .filters-footer .result-hint { font-size: 12.5px; color: var(--muted); }
+  .filters-footer .result-hint b { color: var(--text); }
+
+  /* ============ Reports grid (igual a la app) ============ */
+  .reports-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 18px;
+  }
+  @media (max-width: 900px) { .reports-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 620px) { .reports-grid { grid-template-columns: 1fr; } }
+  .reports-grid .card h3 { font-size: 14px; margin: 0 0 6px; }
+  .reports-grid .card p { margin: 0; font-size: 20px; font-weight: 700; }
+  .reports-grid .card p.small-txt { font-size: 13px; font-weight: 400; color: var(--muted); }
+
+  .split-btn { position: relative; display: inline-flex; }
+  .split-btn .split-main {
+    border-radius: 10px 0 0 10px;
+    padding-right: 12px;
+  }
+  .split-btn .primary.split-main { border-right: 1px solid rgba(255,255,255,.25); }
+  .split-btn .ghost.split-main { border-right: 1px solid var(--border); }
+  .split-btn .split-arrow {
+    border-radius: 0 10px 10px 0;
+    padding: 8px 8px;
+    font-size: 10px;
+    min-width: 28px;
+  }
+  .split-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 230px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 6px;
+    display: none;
+    z-index: 20;
+  }
+  .split-menu.open { display: block; }
+  .split-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: transparent;
+    padding: 9px 10px;
+    font-size: 13px;
+    border-radius: 8px;
+    color: var(--text);
+  }
+  .split-menu-item:hover { background: var(--primary-soft); color: var(--primary-2); }
+  .split-menu-item .ico { font-size: 15px; }
+
+  .note {
+    margin-top: 22px;
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="mock-label">Mockup — no funcional salvo el desplegable de filtros</div>
+
+  <div class="section-head split">
+    <h2>Reportes</h2>
+    <div class="btn-group">
+      <button class="ghost toggle-filters" id="toggleFilters">
+        ⚙ Personalizar <span class="chev">▾</span>
+      </button>
+      <div class="split-btn" id="planillaBtn">
+        <button class="ghost split-main">📊 Planilla</button>
+        <button class="ghost split-arrow" id="planillaArrow">▾</button>
+        <div class="split-menu" id="planillaMenu">
+          <button class="split-menu-item" id="planillaExcel"><span class="ico">📗</span>Descargar en Excel (.xlsx)</button>
+          <button class="split-menu-item" id="planillaPdf"><span class="ico">📕</span>Descargar en PDF</button>
+        </div>
+      </div>
+      <div class="split-btn" id="informeBtn">
+        <button class="primary split-main">📄 Informe</button>
+        <button class="primary split-arrow" id="informeArrow">▾</button>
+        <div class="split-menu" id="informeMenu">
+          <button class="split-menu-item" id="informeWord"><span class="ico">📝</span>Descargar en Word (.docx)</button>
+          <button class="split-menu-item" id="informePdfDoc"><span class="ico">📕</span>Descargar en PDF</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PANEL DE FILTROS (colapsado por defecto) ============ -->
+  <div class="filters-panel" id="filtersPanel">
+    <div class="filters-inner">
+      <div class="filters-intro">
+        <div>
+          <h3>Personalizar reporte</h3>
+          <p>Por defecto el reporte incluye todo. Aplicá filtros solo si necesitás un recorte específico.</p>
+        </div>
+        <button class="ghost" id="resetFilters" style="font-size:12px">Restablecer (reporte completo)</button>
+      </div>
+
+      <div class="filters-grid">
+
+        <div class="filter-group">
+          <label class="title">Rango de fechas</label>
+          <div class="date-range">
+            <select>
+              <option>Fecha límite</option>
+              <option>Fecha de inicio</option>
+              <option>Fecha de cierre</option>
+              <option>Última actualización</option>
+            </select>
+            <div class="two-col">
+              <div><span>Desde</span><input type="date"></div>
+              <div><span>Hasta</span><input type="date"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="title">Estado</label>
+          <div class="chip-set">
+            <label class="chip on"><input type="checkbox" checked><span class="dot" style="background:var(--pendiente)"></span>Pendiente</label>
+            <label class="chip on"><input type="checkbox" checked><span class="dot" style="background:var(--en-curso)"></span>En curso</label>
+            <label class="chip"><input type="checkbox"><span class="dot" style="background:var(--en-revision)"></span>En revisión</label>
+            <label class="chip on"><input type="checkbox" checked><span class="dot" style="background:var(--bloqueado)"></span>Bloqueado</label>
+            <label class="chip"><input type="checkbox"><span class="dot" style="background:var(--cerrado)"></span>Cerrado</label>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="title">Prioridad</label>
+          <div class="chip-set">
+            <label class="chip on"><input type="checkbox" checked>Alta</label>
+            <label class="chip on"><input type="checkbox" checked>Media</label>
+            <label class="chip"><input type="checkbox">Baja</label>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="title">Responsable</label>
+          <div class="chip-set chip-set-scroll">
+            <label class="chip"><input type="checkbox">M. Fernández</label>
+            <label class="chip on"><input type="checkbox" checked>J. Ibarra</label>
+            <label class="chip"><input type="checkbox">R. Castro</label>
+            <label class="chip"><input type="checkbox">Alejandro Balbo</label>
+            <label class="chip"><input type="checkbox">Luis Mesones</label>
+            <label class="chip"><input type="checkbox">Karina Leone</label>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="title">Programa</label>
+          <div class="chip-set">
+            <label class="chip on"><input type="checkbox" checked>DNISU</label>
+            <label class="chip"><input type="checkbox">PROCREAR</label>
+            <label class="chip"><input type="checkbox">Concesiones</label>
+            <label class="chip"><input type="checkbox">Institucionales</label>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="title">Dependencia</label>
+          <div class="chip-set chip-set-scroll">
+            <label class="chip"><input type="checkbox">DNISU</label>
+            <label class="chip"><input type="checkbox">PROCREAR</label>
+            <label class="chip on"><input type="checkbox" checked>Concesiones</label>
+            <label class="chip"><input type="checkbox">Auditoría Interna</label>
+            <label class="chip"><input type="checkbox">Gabinete</label>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="title">Etiquetas</label>
+          <div class="chip-set">
+            <label class="chip on"><input type="checkbox" checked>Urgente</label>
+            <label class="chip"><input type="checkbox">Auditoría</label>
+            <label class="chip"><input type="checkbox">Licitación</label>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="title">Expediente</label>
+          <input type="text" placeholder="N° de expediente (opcional)">
+        </div>
+
+        <div class="filter-group">
+          <label class="title">Condiciones especiales</label>
+          <div class="toggle-row">
+            <div class="txt">Solo vencidos<small>Temas/hitos con fecha límite pasada</small></div>
+            <label class="switch"><input type="checkbox" checked><span class="track"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div class="txt">Incluir privados<small>Requiere permisos de Admin</small></div>
+            <label class="switch"><input type="checkbox"><span class="track"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div class="txt">Solo con expediente<small>Excluye temas sin caratular</small></div>
+            <label class="switch"><input type="checkbox"><span class="track"></span></label>
+          </div>
+        </div>
+
+        <div class="filter-group sections-group">
+          <label class="title">Secciones a incluir en el reporte</label>
+          <div class="sections-row">
+            <label><input type="checkbox" checked> Resumen / KPIs</label>
+            <label><input type="checkbox" checked> Temas</label>
+            <label><input type="checkbox" checked> Hitos</label>
+            <label><input type="checkbox"> Expedientes</label>
+            <label><input type="checkbox"> Historial de actividad</label>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="filters-footer">
+        <span class="result-hint"><b>3</b> filtros activos · el reporte tendría <b>24</b> de 61 temas</span>
+        <div class="btn-group">
+          <button class="ghost" id="cancelFilters">Cancelar</button>
+          <button class="primary">Aplicar filtros</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Reporte (igual al actual, sin cambios) ============ -->
+  <div class="reports-grid">
+    <div class="card"><h3>Temas por estado</h3><p class="small-txt">En curso: 18 · Pendiente: 9 · Bloqueado: 4</p></div>
+    <div class="card"><h3>Temas por responsable</h3><p class="small-txt">M. Fernández: 8 · J. Ibarra: 7 · R. Castro: 6</p></div>
+    <div class="card"><h3>Tiempo prom. resolución</h3><p>14 días</p></div>
+    <div class="card"><h3>Temas vencidos</h3><p style="color:var(--vencido)">6</p></div>
+    <div class="card"><h3>Hitos vencidos</h3><p style="color:var(--vencido)">3</p></div>
+    <div class="card"><h3>Expedientes activos</h3><p>21</p></div>
+  </div>
+
+  <div class="note">
+    ⓘ Con filtros aplicados, el botón "Personalizar" queda resaltado y muestra la cantidad activa. Planilla (Excel/PDF) e Informe (Word/PDF) toman siempre el recorte que esté vigente en este panel — completo si no se tocó nada.
+  </div>
+
+</div>
+
+<script>
+  const toggleBtn = document.getElementById('toggleFilters');
+  const panel = document.getElementById('filtersPanel');
+  toggleBtn.addEventListener('click', () => {
+    panel.classList.toggle('open');
+    toggleBtn.classList.toggle('open');
+  });
+  document.getElementById('cancelFilters').addEventListener('click', () => {
+    panel.classList.remove('open');
+    toggleBtn.classList.remove('open');
+  });
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', (e) => {
+      chip.classList.toggle('on');
+    });
+  });
+  // abre el panel por defecto solo para que se vea en el mockup
+  panel.classList.add('open');
+  toggleBtn.classList.add('open');
+
+  const informeArrow = document.getElementById('informeArrow');
+  const informeMenu = document.getElementById('informeMenu');
+  const planillaArrow = document.getElementById('planillaArrow');
+  const planillaMenu = document.getElementById('planillaMenu');
+  informeArrow.addEventListener('click', (e) => {
+    e.stopPropagation();
+    planillaMenu.classList.remove('open');
+    informeMenu.classList.toggle('open');
+  });
+  planillaArrow.addEventListener('click', (e) => {
+    e.stopPropagation();
+    informeMenu.classList.remove('open');
+    planillaMenu.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    if (!informeMenu.contains(e.target) && e.target !== informeArrow) {
+      informeMenu.classList.remove('open');
+    }
+    if (!planillaMenu.contains(e.target) && e.target !== planillaArrow) {
+      planillaMenu.classList.remove('open');
+    }
+  });
+</script>
+</body>
+</html>

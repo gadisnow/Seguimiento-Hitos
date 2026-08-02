@@ -264,11 +264,124 @@
         <div class="section-head split">
           <h2>Reportes</h2>
           <div class="btn-group">
-            <button class="ghost" id="exportPdf">🖨 Imprimir PDF</button>
-            <button class="ghost" id="exportExcel">Excel</button>
-            <button class="ghost" id="exportCsv">CSV</button>
+            <button class="primary toggle-filters" id="toggleReportFilters">
+              ⚙ Personalizar <span class="chev">▾</span>
+            </button>
+            <div class="split-btn" id="planillaSplitBtn">
+              <button type="button" class="primary split-main"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg> Planilla</button>
+              <button type="button" class="primary split-arrow" id="planillaArrow">▾</button>
+              <div class="split-menu" id="planillaMenu">
+                <button type="button" class="split-menu-item" id="planillaExcelBtn"><span class="ico">📗</span>Descargar en Excel (.xlsx)</button>
+                <button type="button" class="split-menu-item" id="planillaPdfBtn"><span class="ico">📕</span>Descargar en PDF</button>
+              </div>
+            </div>
+            <div class="split-btn" id="informeSplitBtn">
+              <button type="button" class="primary split-main"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg> Informe</button>
+              <button type="button" class="primary split-arrow" id="informeArrow">▾</button>
+              <div class="split-menu" id="informeMenu">
+                <button type="button" class="split-menu-item" id="informeWordBtn"><span class="ico">📝</span>Descargar en Word (.docx)</button>
+                <button type="button" class="split-menu-item" id="informePdfBtn"><span class="ico">📕</span>Descargar en PDF</button>
+              </div>
+            </div>
           </div>
         </div>
+
+        <!-- ============ Panel de filtros (colapsado por defecto) ============ -->
+        <div class="filters-panel" id="reportFiltersPanel">
+          <div class="filters-inner">
+            <div class="filters-intro">
+              <div>
+                <h3>Personalizar reporte</h3>
+                <p>Por defecto el reporte incluye todo. Aplicá filtros solo si necesitás un recorte específico.</p>
+              </div>
+              <button type="button" class="ghost" id="resetReportFilters" style="font-size:12px">Restablecer (reporte completo)</button>
+            </div>
+
+            <div class="filters-grid" id="reportFiltersGrid">
+              <div class="filter-group">
+                <label class="title">Rango de fechas</label>
+                <div class="date-range">
+                  <select id="reportDateField">
+                    <option value="fechaLimite">Fecha límite</option>
+                    <option value="fechaInicio">Fecha de inicio</option>
+                    <option value="fechaCierre">Fecha de cierre</option>
+                    <option value="ultimaActualizacion">Última actualización</option>
+                  </select>
+                  <div class="two-col">
+                    <div><span>Desde</span><input type="date" id="reportDateFrom"></div>
+                    <div><span>Hasta</span><input type="date" id="reportDateTo"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="filter-group">
+                <label class="title">Estado</label>
+                <div class="chip-set" id="reportChipsEstado"></div>
+              </div>
+
+              <div class="filter-group">
+                <label class="title">Prioridad</label>
+                <div class="chip-set" id="reportChipsPrioridad"></div>
+              </div>
+
+              <div class="filter-group">
+                <label class="title">Responsable</label>
+                <div class="chip-set chip-set-scroll" id="reportChipsResponsable"></div>
+              </div>
+
+              <div class="filter-group">
+                <label class="title">Dependencia</label>
+                <div class="chip-set chip-set-scroll" id="reportChipsDependencia"></div>
+              </div>
+
+              <div class="filter-group">
+                <label class="title">Etiquetas</label>
+                <div class="chip-set" id="reportChipsEtiqueta"></div>
+              </div>
+
+              <div class="filter-group">
+                <label class="title">Expediente</label>
+                <input type="text" id="reportExpediente" placeholder="N° de expediente (opcional)">
+              </div>
+
+              <div class="filter-group">
+                <label class="title">Condiciones especiales</label>
+                <div class="toggle-row">
+                  <div class="txt">Solo vencidos<small>Temas/hitos con fecha límite pasada</small></div>
+                  <label class="switch"><input type="checkbox" id="reportSoloVencidos"><span class="track"></span></label>
+                </div>
+                <div class="toggle-row" id="reportIncluirPrivadosRow">
+                  <div class="txt">Incluir privados<small>Requiere permisos de Admin</small></div>
+                  <label class="switch"><input type="checkbox" id="reportIncluirPrivados"><span class="track"></span></label>
+                </div>
+                <div class="toggle-row">
+                  <div class="txt">Solo con expediente<small>Excluye temas sin caratular</small></div>
+                  <label class="switch"><input type="checkbox" id="reportSoloConExpediente"><span class="track"></span></label>
+                </div>
+              </div>
+
+              <div class="filter-group sections-group">
+                <label class="title">Secciones a incluir en el reporte</label>
+                <div class="sections-row">
+                  <label><input type="checkbox" id="reportSeccionResumen" checked> Resumen / KPIs</label>
+                  <label><input type="checkbox" id="reportSeccionTemas" checked> Temas</label>
+                  <label><input type="checkbox" id="reportSeccionHitos" checked> Hitos</label>
+                  <label><input type="checkbox" id="reportSeccionExpedientes"> Expedientes</label>
+                  <label><input type="checkbox" id="reportSeccionActividad"> Historial de actividad</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="filters-footer">
+              <span class="result-hint" id="reportFiltersHint"></span>
+              <div class="btn-group">
+                <button type="button" class="ghost" id="cancelReportFilters">Cancelar</button>
+                <button type="button" class="primary" id="applyReportFilters">Aplicar filtros</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="reports-grid" id="reportCards"></div>
       </section>
 
@@ -402,9 +515,6 @@
       </div>
     </form>
   </dialog>
-
-  <!-- Print area (hidden, shown only on print) -->
-  <div id="printArea"></div>
 
   <div class="toast" id="toast"></div>
   <script type="module" src="/src/main.js"></script>
