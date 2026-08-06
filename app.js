@@ -1292,18 +1292,27 @@ const KANBAN_COL_DEFAULT_W = 260;
 
 // Paleta de color de columnas: propiedad independiente del nombre
 // (columnas.color), elegible por el usuario para cualquier columna,
-// incluidas las 5 base. Tonos sugeridos por el manual de marca; el ajuste
-// fino de hex definitivo queda para el rebrand visual completo (fase 6).
+// incluidas las 5 base. Las primeras 5 son la paleta original protegida
+// (Pendiente/En curso/En revision/Bloqueado/Cerrado) — renombrar o
+// reordenar una columna nunca las toca, solo un cambio explicito desde
+// el selector. Las 7 siguientes son complementarias, para columnas
+// nuevas que arma el usuario.
 const COLUMNA_COLOR_PALETTE = [
-  { key: "cool-neutral", label: "Gris frío",      hex: "#71717A" },
-  { key: "orange",       label: "Naranja",        hex: "#F97316" },
-  { key: "orange-light", label: "Naranja claro",  hex: "#FB923C" },
-  { key: "rust",         label: "Rust / marrón",  hex: "#92400E" },
-  { key: "ink-dark",     label: "Ink oscuro",     hex: "#18181B" },
-  { key: "neutral",      label: "Neutro",         hex: "#A1A1AA" }
+  { key: "red",        label: "Rojo",              hex: "#EF4444" },
+  { key: "blue",       label: "Azul",              hex: "#3B82F6" },
+  { key: "violet",     label: "Violeta",           hex: "#8B5CF6" },
+  { key: "amber",      label: "Ámbar",             hex: "#F59E0B" },
+  { key: "green",      label: "Verde",             hex: "#10B981" },
+  { key: "pink",       label: "Rosa",              hex: "#EC4899" },
+  { key: "cyan",       label: "Celeste",           hex: "#06B6D4" },
+  { key: "lime",       label: "Lima",              hex: "#84CC16" },
+  { key: "magenta",    label: "Magenta",           hex: "#D946EF" },
+  { key: "teal",       label: "Verde azulado",     hex: "#14B8A6" },
+  { key: "amber-dark", label: "Ámbar oscuro",      hex: "#B45309" },
+  { key: "warm-gray",  label: "Gris cálido",       hex: "#78716C" }
 ];
 function columnaColorHex(key) {
-  return (COLUMNA_COLOR_PALETTE.find((c) => c.key === key) || COLUMNA_COLOR_PALETTE[5]).hex;
+  return (COLUMNA_COLOR_PALETTE.find((c) => c.key === key) || COLUMNA_COLOR_PALETTE.find((c) => c.key === "warm-gray")).hex;
 }
 function columnaColorGridHtml(selectedKey) {
   return `<div class="tagcolor-grid" role="group" aria-label="Seleccionar color de columna">
@@ -1785,8 +1794,8 @@ function renderBoardMenuColumnas() {
 
 function openEditColumna(col) {
   boardMenuEditingColumna = col
-    ? { id: col.id, nombre: col.nombre, color: col.color || "neutral", isFixed: col.esInicial || col.esFinal, isNew: false }
-    : { id: null, nombre: "", color: "neutral", isFixed: false, isNew: true };
+    ? { id: col.id, nombre: col.nombre, color: col.color || "warm-gray", isFixed: col.esInicial || col.esFinal, isNew: false }
+    : { id: null, nombre: "", color: "warm-gray", isFixed: false, isNew: true };
   boardMenuView = "editColumna";
   renderBoardMenu();
 }

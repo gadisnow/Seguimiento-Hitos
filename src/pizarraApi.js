@@ -10,13 +10,14 @@ function must({ error }) {
   if (error) throw error;
 }
 
-// Columnas por defecto de toda pizarra nueva (ver supabase/migrations/011).
+// Columnas por defecto de toda pizarra nueva (ver supabase/migrations/011
+// y 016 para el remapeo de colores a la paleta original restaurada).
 const COLUMNAS_DEFAULT = [
-  { nombre: "Pendiente", esInicial: true, esFinal: false, color: "cool-neutral" },
-  { nombre: "En curso", esInicial: false, esFinal: false, color: "orange" },
-  { nombre: "En revision", esInicial: false, esFinal: false, color: "orange-light" },
-  { nombre: "Bloqueado", esInicial: false, esFinal: false, color: "rust" },
-  { nombre: "Cerrado", esInicial: false, esFinal: true, color: "ink-dark" }
+  { nombre: "Pendiente", esInicial: true, esFinal: false, color: "red" },
+  { nombre: "En curso", esInicial: false, esFinal: false, color: "blue" },
+  { nombre: "En revision", esInicial: false, esFinal: false, color: "violet" },
+  { nombre: "Bloqueado", esInicial: false, esFinal: false, color: "amber" },
+  { nombre: "Cerrado", esInicial: false, esFinal: true, color: "green" }
 ];
 
 // =====================================================================
@@ -78,7 +79,7 @@ export async function deleteColumna(id) {
 
 // Inserta una columna intermedia nueva (justo antes de la final) via RPC:
 // necesita correrse atomicamente para no chocar con la unicidad de orden.
-export async function addColumnaIntermedia(pizarraId, nombre, color = "neutral") {
+export async function addColumnaIntermedia(pizarraId, nombre, color = "warm-gray") {
   const { data, error } = await supabase.rpc("add_columna_pizarra", {
     p_pizarra_id: pizarraId,
     p_nombre: nombre,
