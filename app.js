@@ -1,5 +1,6 @@
 import * as authApi from "./src/authApi.js";
 import * as dataApi from "./src/dataApi.js";
+import * as pizarraApi from "./src/pizarraApi.js";
 import ExcelJS from "exceljs";
 import { jsPDF } from "jspdf";
 import { autoTable } from "jspdf-autotable";
@@ -228,8 +229,10 @@ function activeUserName() { return state.profile ? state.profile.nombre : state.
 function activeUserId() { return state.profile ? state.profile.id : null; }
 
 // --------- Persistencia / recarga desde Supabase ---------
-async function reloadState() {
-  const data = await dataApi.fetchInitialState();
+// pizarraId: si se pasa, cambia de tablero (selector de pizarras); si se
+// omite, refresca el tablero actualmente cargado (comportamiento historico).
+async function reloadState(pizarraId) {
+  const data = await dataApi.fetchInitialState(pizarraId);
   state.temas = data.temas;
   state.expedientes = data.expedientes;
   state.responsables = data.responsables;
@@ -409,7 +412,11 @@ const els = {
   informeArrow:       $("informeArrow"),
   informeMenu:        $("informeMenu"),
   informeWordBtn:     $("informeWordBtn"),
-  informePdfBtn:      $("informePdfBtn")
+  informePdfBtn:      $("informePdfBtn"),
+  pizarraSwitcher:       $("pizarraSwitcher"),
+  pizarraSwitcherList:   $("pizarraSwitcherList"),
+  pizarraSwitcherCreate: $("pizarraSwitcherCreate"),
+  menuCambiarPizarra:    $("menuCambiarPizarra")
 };
 
 let calCursor = new Date();
@@ -451,9 +458,87 @@ async function boot() {
   state.config.currentUser = profile.nombre;
   state.config.rol = profile.rol;
 
+  let pizarras = [];
+  try { pizarras = await pizarraApi.listMyPizarras(); }
+  catch (e) { console.error(e); }
+
+  const lastId = localStorage.getItem(PIZARRA_LS_KEY);
+  const target = pizarras.length === 1 ? pizarras[0].id : pizarras.find((p) => p.id === lastId)?.id;
+
+  if (target) await enterPizarra(target);
+  else await showPizarraSwitcher();
+}
+
+// =========================================================
+// Selector de pizarras (tableros)
+// =========================================================
+const PIZARRA_LS_KEY = "sgtemas_last_pizarra";
+
+async function enterPizarra(id) {
+  localStorage.setItem(PIZARRA_LS_KEY, id);
+  if (els.pizarraSwitcher) els.pizarraSwitcher.style.display = "none";
   showApp();
-  const ok = await withBusy(reloadState);
-  if (ok) { authApi.touchLastAccess().catch(() => {}); }
+  const ok = await withBusy(() => reloadState(id));
+  if (ok) authApi.touchLastAccess().catch(() => {});
+}
+
+async function showPizarraSwitcher() {
+  const app = document.querySelector(".app");
+  const ls = $("loginScreen");
+  if (app) app.style.display = "none";
+  if (ls) ls.style.display = "none";
+  els.pizarraSwitcher.style.display = "grid";
+  els.pizarraSwitcher.style.placeItems = "center";
+  await renderPizarraSwitcherScreen();
+}
+
+async function renderPizarraSwitcherScreen() {
+  let pizarras = [];
+  try { pizarras = await pizarraApi.listMyPizarras(); }
+  catch (e) { console.error(e); }
+
+  els.pizarraSwitcherList.innerHTML = pizarras.length
+    ? pizarras.map((p) => `
+      <button type="button" class="user-menu-item" data-pizarra-enter="${p.id}" style="justify-content:space-between;width:100%">
+        <span>${escHtml(p.nombre)}</span>
+        <span style="color:var(--muted);font-size:12px">${p.tipo === "colaborativa" ? "Colaborativa" : "Personal"}</span>
+      </button>`).join("")
+    : `<p class="login-sub">Todavia no tenes ninguna pizarra.</p>`;
+
+  els.pizarraSwitcherList.querySelectorAll("[data-pizarra-enter]").forEach((btn) => {
+    btn.addEventListener("click", () => enterPizarra(btn.dataset.pizarraEnter));
+  });
+
+  els.pizarraSwitcherCreate.innerHTML = `
+    <form id="pizarraCreateForm">
+      <label>Nombre de la pizarra nueva<input name="nombre" required placeholder="Ej: Obra Norte" /></label>
+      <label>Tipo
+        <select name="tipo">
+          <option value="personal">Personal (solo yo)</option>
+          <option value="colaborativa">Colaborativa</option>
+        </select>
+      </label>
+      <button class="primary" type="submit" style="width:100%;margin-top:8px">+ Crear pizarra</button>
+    </form>
+    <button type="button" class="user-menu-item danger" id="pizarraSwitcherLogout" style="width:100%;margin-top:8px;justify-content:center">Salir</button>
+  `;
+  document.getElementById("pizarraCreateForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target).entries());
+    const nombre = (data.nombre || "").trim();
+    if (!nombre) return;
+    await withBusy(async () => {
+      const nueva = await pizarraApi.createPizarra({ nombre, tipo: data.tipo });
+      await enterPizarra(nueva.id);
+    });
+  });
+
+  document.getElementById("pizarraSwitcherLogout")?.addEventListener("click", async () => {
+    if (!confirm("Cerrar sesion?")) return;
+    await withBusy(() => authApi.logout());
+    state.profile = null;
+    showLoginScreen();
+  });
 }
 
 function bindEvents() {
@@ -489,6 +574,8 @@ function bindEvents() {
   els.userMenuDropdown.addEventListener("click", (e) => {
     if (e.target.closest(".user-menu-item")) els.userMenu.classList.remove("open");
   });
+
+  els.menuCambiarPizarra?.addEventListener("click", () => showPizarraSwitcher());
 
   $("btnNewTema").addEventListener("click", () => openTemaForm());
   $("btnNewExpediente").addEventListener("click", () => openExpedienteForm());
@@ -659,6 +746,7 @@ function showLoginScreen() {
   const app = document.querySelector(".app");
   if (ls) { ls.style.display = "grid"; ls.style.placeItems = "center"; }
   if (app) app.style.display = "none";
+  if (els.pizarraSwitcher) els.pizarraSwitcher.style.display = "none";
   renderLogin();
 }
 
@@ -667,6 +755,7 @@ function showApp() {
   const app = document.querySelector(".app");
   if (ls) ls.style.display = "none";
   if (app) app.style.display = "";
+  if (els.pizarraSwitcher) els.pizarraSwitcher.style.display = "none";
   updateHeaderForRole();
 }
 
@@ -676,6 +765,7 @@ function showAccessNotice(kind) {
   const app = document.querySelector(".app");
   if (ls) { ls.style.display = "grid"; ls.style.placeItems = "center"; }
   if (app) app.style.display = "none";
+  if (els.pizarraSwitcher) els.pizarraSwitcher.style.display = "none";
   const wrap = $("loginFormWrap");
   if (!wrap) return;
   const isOff = kind === "desactivada";
@@ -893,7 +983,7 @@ function unique(arr) { return [...new Set(arr.filter(Boolean))]; }
 function fillFilterOptions() {
   const visibles = state.temas.filter(isTemaVisible);
   fillSelect(els.fResponsable, unique(visibles.map((t) => t.responsable)), "Responsable");
-  fillSelect(els.fEstado, STATES, "Estado");
+  fillSelect(els.fEstado, state.columnas.slice().sort((a, b) => a.orden - b.orden).map((c) => c.nombre), "Estado");
   fillSelect(els.fPrioridad, ["Alta", "Media", "Baja"], "Prioridad");
   // Solo etiquetas usadas en temas activos (no Cerrado), para no listar etiquetas muertas.
   const etiquetasActivas = unique(
@@ -1058,8 +1148,9 @@ function renderDashboard() {
   const temasActivos = temas.filter((t) => t.estado !== "Cerrado");
   const byResp = countBy(temasActivos, "responsable");
   const byEstado = countBy(temasActivos, "estado");
+  const columnasOrdenNombres = state.columnas.slice().sort((a, b) => a.orden - b.orden).map((c) => c.nombre);
   renderDonut(els.donutResp, byResp, RESP_PALETTE, "donutResp", els.legendResp);
-  renderDonut(els.donutEstado, byEstado, STATES.map((s) => STATE_COLORS[s]), "donutEstado", els.legendEstado, STATES);
+  renderDonut(els.donutEstado, byEstado, columnasOrdenNombres.map((s) => STATE_COLORS[s] || "#94a3b8"), "donutEstado", els.legendEstado, columnasOrdenNombres);
   els.donutRespTotal.textContent = sum(Object.values(byResp));
   els.donutEstadoTotal.textContent = sum(Object.values(byEstado));
 
@@ -1193,44 +1284,26 @@ function renderDonut(canvas, data, palette, key, legendEl, fixedOrder = null) {
 // =========================================================
 // AGENDA — 5-column Kanban / Lista / Calendario
 // =========================================================
-// Ancho de columna: preferencia visual (igual que etiquetasExpandidas), no
-// dato de negocio — se guarda por estado en localStorage.
-const KANBAN_COL_W_KEY = "sgtemas_kanban_col_widths";
+// Ancho de columna: preferencia de tablero (no de usuario) desde fase 2 —
+// se persiste server-side por columna (columnas.ancho_px), ver pizarraApi.
 const KANBAN_COL_MIN_W = 220;
 const KANBAN_COL_MAX_W = 800;
 const KANBAN_COL_DEFAULT_W = 260;
 
-function loadKanbanColWidths() {
-  try { return JSON.parse(localStorage.getItem(KANBAN_COL_W_KEY)) || {}; }
-  catch { return {}; }
-}
-
-function saveKanbanColWidth(estado, width) {
-  const widths = loadKanbanColWidths();
-  widths[estado] = width;
-  localStorage.setItem(KANBAN_COL_W_KEY, JSON.stringify(widths));
-}
-
 function renderAgenda() {
   const temas = getFilteredTemas();
-  const cols = ["Pendiente", "En curso", "En revision", "Bloqueado", "Cerrado"];
-  const labels = {
-    "Pendiente":   "01 · Pendiente",
-    "En curso":    "02 · En curso",
-    "En revision": "03 · En revision",
-    "Bloqueado":   "04 · Bloqueado",
-    "Cerrado":     "05 · Cerrado"
-  };
-  const colWidths = loadKanbanColWidths();
+  const columnasOrdenadas = state.columnas.slice().sort((a, b) => a.orden - b.orden);
 
-  els.agendaKanban.innerHTML = cols.map((estado) => {
-    const items = temas.filter((t) => t.estado === estado);
+  els.agendaKanban.innerHTML = columnasOrdenadas.map((col, idx) => {
+    const items = temas.filter((t) => t.columnaId === col.id);
+    const estado = col.nombre;
     const safe = estado.replace(/\s+/g, "-");
-    const width = clamp(colWidths[estado] || KANBAN_COL_DEFAULT_W, KANBAN_COL_MIN_W, KANBAN_COL_MAX_W);
+    const width = clamp(col.anchoPx || KANBAN_COL_DEFAULT_W, KANBAN_COL_MIN_W, KANBAN_COL_MAX_W);
+    const label = `${String(idx + 1).padStart(2, "0")} · ${estado}`;
     return `
-      <section class="col col-${safe}" data-estado="${estado}" style="--col-w:${width}px">
+      <section class="col col-${safe}" data-estado="${escHtml(estado)}" data-columna-id="${col.id}" style="--col-w:${width}px">
         <div class="col-head">
-          <span>${labels[estado]}</span>
+          <span>${escHtml(label)}</span>
           <span class="col-count">${items.length}</span>
         </div>
         <div class="col-resize-handle" data-resize-col title="Arrastrar para ensanchar"></div>
@@ -1262,7 +1335,7 @@ function renderAgenda() {
               </article>`;
           }).join("")}
         </div>
-        ${puedeEditar() ? `<button class="col-add" data-add-estado="${estado}">+ Agregar tema</button>` : ""}
+        ${puedeEditar() ? `<button class="col-add" data-add-estado="${escHtml(estado)}">+ Agregar tema</button>` : ""}
       </section>`;
   }).join("");
 
@@ -1360,7 +1433,11 @@ function wireColumnResize() {
       if (!handle.hasPointerCapture?.(e.pointerId)) return;
       handle.releasePointerCapture(e.pointerId);
       col.classList.remove("resizing");
-      saveKanbanColWidth(col.dataset.estado, Math.round(col.getBoundingClientRect().width));
+      const width = Math.round(col.getBoundingClientRect().width);
+      const columnaId = col.dataset.columnaId;
+      const columna = state.columnas.find((c) => c.id === columnaId);
+      if (columna) columna.anchoPx = width;
+      pizarraApi.updateColumnaAncho(columnaId, width).catch((err) => console.error(err));
     };
     handle.addEventListener("pointerup", stop);
     handle.addEventListener("pointercancel", stop);
@@ -1404,6 +1481,7 @@ const KMENU_ICONS = {
   etiqueta: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>`,
   copiar: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
   reporte: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>`,
+  columnas: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="10" rx="1"/><rect x="17" y="4" width="4" height="7" rx="1"/></svg>`,
 };
 
 function closeKcardMenu() {
@@ -1538,7 +1616,7 @@ async function duplicarTema(tema) {
 // =========================================================
 // Menu del tablero (boton "⋯" del tabbar): Etiquetas / Actividad
 // =========================================================
-let boardMenuView = "root"; // "root" | "etiquetas" | "editEtiqueta" | "actividad"
+let boardMenuView = "root"; // "root" | "etiquetas" | "editEtiqueta" | "actividad" | "columnas"
 let boardMenuEditing = null; // { id, nombre, color, nombreOriginal } mientras se edita/crea
 let boardMenuEtiquetaFiltro = "";
 let actividadWindowCount = 1; // cuantos bloques de 72hs se muestran
@@ -1569,6 +1647,7 @@ function renderBoardMenu() {
   if (boardMenuView === "etiquetas") renderBoardMenuEtiquetas();
   else if (boardMenuView === "editEtiqueta") renderBoardMenuEditEtiqueta();
   else if (boardMenuView === "actividad") renderBoardMenuActividad();
+  else if (boardMenuView === "columnas") renderBoardMenuColumnas();
   else renderBoardMenuRoot();
 }
 
@@ -1581,6 +1660,9 @@ function renderBoardMenuRoot() {
     <button type="button" class="board-menu-item" data-board-nav="actividad">
       <span class="board-menu-item-ico">${KMENU_ICONS.reloj}</span>Actividad
     </button>
+    ${puedeEditar() ? `<button type="button" class="board-menu-item" data-board-nav="columnas">
+      <span class="board-menu-item-ico">${KMENU_ICONS.columnas}</span>Columnas
+    </button>` : ""}
     <div class="board-menu-sep"></div>
     <button type="button" class="board-menu-item" data-board-goto="reportes">
       <span class="board-menu-item-ico">${KMENU_ICONS.reporte}</span>Reportes
@@ -1603,6 +1685,97 @@ function renderBoardMenuRoot() {
       navigateTo(btn.dataset.boardGoto);
     });
   });
+}
+
+// ---------------- Columnas: gestion (fase 2) ----------------
+function renderBoardMenuColumnas() {
+  els.boardMenuTitle.textContent = "Columnas";
+  const cols = state.columnas.slice().sort((a, b) => a.orden - b.orden);
+  const editable = puedeEditar();
+
+  els.boardMenuBody.innerHTML = `
+    <div class="board-menu-section-title">Columnas de la pizarra</div>
+    <div class="board-label-list">
+      ${cols.map((c, idx) => {
+        const count = state.temas.filter((t) => t.columnaId === c.id).length;
+        const isFixed = c.esInicial || c.esFinal;
+        const canUp = idx > 1;
+        const canDown = idx < cols.length - 2;
+        return `
+        <div class="board-label-row" data-columna-row="${c.id}">
+          <span class="board-label-badge" style="background:var(--border);color:var(--text)">
+            ${escHtml(c.nombre)}${isFixed ? ` · ${c.esInicial ? "Inicial" : "Final"}` : ""}
+          </span>
+          <span style="display:flex;gap:2px;align-items:center">
+            ${editable && !isFixed ? `
+              <button type="button" class="board-label-edit" data-col-up="${c.id}" ${canUp ? "" : "disabled"} title="Subir">↑</button>
+              <button type="button" class="board-label-edit" data-col-down="${c.id}" ${canDown ? "" : "disabled"} title="Bajar">↓</button>
+            ` : ""}
+            ${editable ? `<button type="button" class="board-label-edit" data-col-edit="${c.id}" aria-label="Renombrar columna" title="Renombrar">${KMENU_ICONS.editar}</button>` : ""}
+            ${editable && !isFixed ? `<button type="button" class="board-label-edit" data-col-delete="${c.id}" ${count ? "disabled" : ""} aria-label="Eliminar columna" title="${count ? `Vacia la columna primero (${count} temas)` : "Eliminar columna"}">🗑</button>` : ""}
+          </span>
+        </div>`;
+      }).join("")}
+    </div>
+    ${editable ? `<button type="button" class="board-menu-item board-menu-create" id="boardColumnaCrear">+ Agregar columna</button>` : ""}
+  `;
+
+  els.boardMenuBody.querySelectorAll("[data-col-edit]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const col = cols.find((c) => c.id === btn.dataset.colEdit);
+      const nuevo = prompt("Nuevo nombre de la columna:", col.nombre);
+      if (!nuevo || !nuevo.trim() || nuevo.trim() === col.nombre) return;
+      const ok = await withBusy(async () => {
+        await pizarraApi.renameColumna(col.id, nuevo.trim());
+        await reloadState(state.currentPizarraId);
+      });
+      if (ok) { boardMenuView = "columnas"; renderBoardMenu(); showToast("Columna renombrada"); }
+    });
+  });
+
+  els.boardMenuBody.querySelectorAll("[data-col-delete]:not([disabled])").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const col = cols.find((c) => c.id === btn.dataset.colDelete);
+      if (!confirm(`Eliminar la columna "${col.nombre}"?`)) return;
+      const ok = await withBusy(async () => {
+        await pizarraApi.deleteColumna(col.id);
+        await reloadState(state.currentPizarraId);
+      });
+      if (ok) { boardMenuView = "columnas"; renderBoardMenu(); showToast("Columna eliminada"); }
+    });
+  });
+
+  els.boardMenuBody.querySelectorAll("[data-col-up]:not([disabled])").forEach((btn) => {
+    btn.addEventListener("click", () => moverColumna(btn.dataset.colUp, -1, cols));
+  });
+  els.boardMenuBody.querySelectorAll("[data-col-down]:not([disabled])").forEach((btn) => {
+    btn.addEventListener("click", () => moverColumna(btn.dataset.colDown, 1, cols));
+  });
+
+  document.getElementById("boardColumnaCrear")?.addEventListener("click", async () => {
+    const nombre = prompt("Nombre de la columna nueva:");
+    if (!nombre || !nombre.trim()) return;
+    const ok = await withBusy(async () => {
+      await pizarraApi.addColumnaIntermedia(state.currentPizarraId, nombre.trim());
+      await reloadState(state.currentPizarraId);
+    });
+    if (ok) { boardMenuView = "columnas"; renderBoardMenu(); showToast("Columna agregada"); }
+  });
+}
+
+// Reordena dos columnas intermedias adyacentes (nunca cruza la inicial/final).
+async function moverColumna(id, delta, cols) {
+  const idx = cols.findIndex((c) => c.id === id);
+  const targetIdx = idx + delta;
+  if (targetIdx < 0 || targetIdx >= cols.length) return;
+  if (cols[targetIdx].esInicial || cols[targetIdx].esFinal) return;
+  const reordered = cols.slice();
+  [reordered[idx], reordered[targetIdx]] = [reordered[targetIdx], reordered[idx]];
+  const ok = await withBusy(async () => {
+    await pizarraApi.reorderColumnas(state.currentPizarraId, reordered.map((c) => c.id));
+    await reloadState(state.currentPizarraId);
+  });
+  if (ok) { boardMenuView = "columnas"; renderBoardMenu(); }
 }
 
 // ---------------- Etiquetas: lista ----------------
@@ -2213,7 +2386,7 @@ function renderReportChipSet(container, key) {
   const selected = reportFiltersDraft[key];
   let options;
   if (key === "estados") {
-    options = STATES.map((s) => ({ value: s, label: REPORT_ESTADO_DISPLAY[s] || s, dotClass: `dot-${s.toLowerCase().replace(/\s+/g, "-")}` }));
+    options = state.columnas.slice().sort((a, b) => a.orden - b.orden).map((c) => ({ value: c.nombre, label: REPORT_ESTADO_DISPLAY[c.nombre] || c.nombre, dotClass: `dot-${c.nombre.toLowerCase().replace(/\s+/g, "-")}` }));
   } else if (key === "prioridades") {
     options = ["Alta", "Media", "Baja"].map((p) => ({ value: p, label: p }));
   } else if (key === "responsables") {

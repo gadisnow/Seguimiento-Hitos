@@ -24,12 +24,17 @@ export function getCurrentPizarraId() { return currentPizarraId; }
 
 // =====================================================================
 // Carga inicial: arma el shape de estado que consume la UI actual.
+// Si no se pasa pizarraId explicito (selector de pizarras, fase 2), se
+// resuelve a la primera pizarra visible por RLS (comportamiento fase 1).
 // =====================================================================
-export async function fetchInitialState() {
-  const pizR = await supabase.from("pizarras").select("*").order("created_at", { ascending: true }).limit(1);
-  must(pizR);
-  const pizarra = (pizR.data || [])[0] || null;
-  currentPizarraId = pizarra ? pizarra.id : null;
+export async function fetchInitialState(pizarraId = null) {
+  let targetId = pizarraId;
+  if (!targetId) {
+    const pizR = await supabase.from("pizarras").select("*").order("created_at", { ascending: true }).limit(1);
+    must(pizR);
+    targetId = (pizR.data || [])[0]?.id || null;
+  }
+  currentPizarraId = targetId;
 
   const colR = await supabase.from("columnas").select("*").eq("pizarra_id", currentPizarraId).order("orden", { ascending: true });
   must(colR);

@@ -23,6 +23,20 @@
     </div>
   </div>
 
+  <!-- =================== SELECTOR DE PIZARRAS =================== -->
+  <div class="login-screen" id="pizarraSwitcher" style="display:none">
+    <div class="login-card" style="max-width:480px">
+      <div class="login-logo">
+        <div class="brand-icon" style="width:52px;height:52px;font-size:22px;border-radius:14px;margin:0 auto">N</div>
+      </div>
+      <h1 class="login-title" style="font-size:22px">Tus pizarras</h1>
+      <p class="login-sub">Elegí una pizarra para entrar, o creá una nueva.</p>
+      <div id="pizarraSwitcherList"></div>
+      <div class="user-menu-sep"></div>
+      <div id="pizarraSwitcherCreate"></div>
+    </div>
+  </div>
+
   <div class="app" style="display:none">
     <header class="topbar" id="topbar">
       <div class="topbar-brand">
@@ -53,6 +67,7 @@
               <span id="dropdownLastLogin">Ultima conexion: —</span>
             </div>
             <button class="user-menu-item" id="menuUsuarios" data-view="usuarios" style="display:none">Usuarios</button>
+            <button class="user-menu-item" id="menuCambiarPizarra">Cambiar pizarra</button>
             <button class="user-menu-item" data-view="configuracion">Configuracion</button>
             <button class="user-menu-item" id="darkToggle">
               <span>Modo oscuro</span>
