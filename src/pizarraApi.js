@@ -62,8 +62,14 @@ export async function updateColumnaAncho(id, anchoPx) {
   must(await supabase.from("columnas").update({ ancho_px: anchoPx }).eq("id", id));
 }
 
-export async function renameColumna(id, nombre) {
-  must(await supabase.from("columnas").update({ nombre }).eq("id", id));
+// nombre y color son independientes entre si: pasar solo el que cambia
+// para no pisar el otro (ver bug fase 2: renombrar no debe borrar color).
+export async function updateColumna(id, { nombre, color } = {}) {
+  const patch = {};
+  if (nombre !== undefined) patch.nombre = nombre;
+  if (color !== undefined) patch.color = color;
+  if (Object.keys(patch).length === 0) return;
+  must(await supabase.from("columnas").update(patch).eq("id", id));
 }
 
 export async function deleteColumna(id) {

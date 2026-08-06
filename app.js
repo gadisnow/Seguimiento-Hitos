@@ -1290,6 +1290,33 @@ const KANBAN_COL_MIN_W = 220;
 const KANBAN_COL_MAX_W = 800;
 const KANBAN_COL_DEFAULT_W = 260;
 
+// Paleta de color de columnas: propiedad independiente del nombre
+// (columnas.color), elegible por el usuario para cualquier columna,
+// incluidas las 5 base. Tonos sugeridos por el manual de marca; el ajuste
+// fino de hex definitivo queda para el rebrand visual completo (fase 6).
+const COLUMNA_COLOR_PALETTE = [
+  { key: "cool-neutral", label: "Gris frío",      hex: "#71717A" },
+  { key: "orange",       label: "Naranja",        hex: "#F97316" },
+  { key: "orange-light", label: "Naranja claro",  hex: "#FB923C" },
+  { key: "rust",         label: "Rust / marrón",  hex: "#92400E" },
+  { key: "ink-dark",     label: "Ink oscuro",     hex: "#18181B" },
+  { key: "neutral",      label: "Neutro",         hex: "#A1A1AA" }
+];
+function columnaColorHex(key) {
+  return (COLUMNA_COLOR_PALETTE.find((c) => c.key === key) || COLUMNA_COLOR_PALETTE[5]).hex;
+}
+function columnaColorGridHtml(selectedKey) {
+  return `<div class="tagcolor-grid" role="group" aria-label="Seleccionar color de columna">
+    ${COLUMNA_COLOR_PALETTE.map((c) => {
+      const isSel = c.key === selectedKey;
+      return `<button type="button" class="tagcolor-circle${isSel ? " selected" : ""}" data-columna-color="${c.key}"
+        style="background:${c.hex}" aria-pressed="${isSel}" aria-label="${escHtml(c.label)}" title="${escHtml(c.label)}">
+        ${isSel ? `<span class="tagcolor-check" aria-hidden="true" style="color:#fff">✓</span>` : ""}
+      </button>`;
+    }).join("")}
+  </div>`;
+}
+
 function renderAgenda() {
   const temas = getFilteredTemas();
   const columnasOrdenadas = state.columnas.slice().sort((a, b) => a.orden - b.orden);
@@ -1300,9 +1327,10 @@ function renderAgenda() {
     const safe = estado.replace(/\s+/g, "-");
     const width = clamp(col.anchoPx || KANBAN_COL_DEFAULT_W, KANBAN_COL_MIN_W, KANBAN_COL_MAX_W);
     const label = `${String(idx + 1).padStart(2, "0")} · ${estado}`;
+    const accent = columnaColorHex(col.color);
     return `
-      <section class="col col-${safe}" data-estado="${escHtml(estado)}" data-columna-id="${col.id}" style="--col-w:${width}px">
-        <div class="col-head">
+      <section class="col col-${safe}" data-estado="${escHtml(estado)}" data-columna-id="${col.id}" style="--col-w:${width}px;background:${accent}14">
+        <div class="col-head" style="background:${accent}">
           <span>${escHtml(label)}</span>
           <span class="col-count">${items.length}</span>
         </div>
@@ -1616,7 +1644,7 @@ async function duplicarTema(tema) {
 // =========================================================
 // Menu del tablero (boton "⋯" del tabbar): Etiquetas / Actividad
 // =========================================================
-let boardMenuView = "root"; // "root" | "etiquetas" | "editEtiqueta" | "actividad" | "columnas"
+let boardMenuView = "root"; // "root" | "etiquetas" | "editEtiqueta" | "actividad" | "columnas" | "editColumna"
 let boardMenuEditing = null; // { id, nombre, color, nombreOriginal } mientras se edita/crea
 let boardMenuEtiquetaFiltro = "";
 let actividadWindowCount = 1; // cuantos bloques de 72hs se muestran
@@ -1633,12 +1661,15 @@ function closeBoardMenu() {
   els.boardMenuOverlay.classList.add("hidden");
   boardMenuView = "root";
   boardMenuEditing = null;
+  boardMenuEditingColumna = null;
   boardMenuEtiquetaFiltro = "";
   actividadWindowCount = 1;
 }
 
 function boardMenuGoBack() {
-  boardMenuView = boardMenuView === "editEtiqueta" ? "etiquetas" : "root";
+  boardMenuView = boardMenuView === "editEtiqueta" ? "etiquetas"
+    : boardMenuView === "editColumna" ? "columnas"
+    : "root";
   renderBoardMenu();
 }
 
@@ -1648,6 +1679,7 @@ function renderBoardMenu() {
   else if (boardMenuView === "editEtiqueta") renderBoardMenuEditEtiqueta();
   else if (boardMenuView === "actividad") renderBoardMenuActividad();
   else if (boardMenuView === "columnas") renderBoardMenuColumnas();
+  else if (boardMenuView === "editColumna") renderBoardMenuEditColumna();
   else renderBoardMenuRoot();
 }
 
@@ -1688,6 +1720,8 @@ function renderBoardMenuRoot() {
 }
 
 // ---------------- Columnas: gestion (fase 2) ----------------
+let boardMenuEditingColumna = null; // { id, nombre, color, isFixed, isNew }
+
 function renderBoardMenuColumnas() {
   els.boardMenuTitle.textContent = "Columnas";
   const cols = state.columnas.slice().sort((a, b) => a.orden - b.orden);
@@ -1703,7 +1737,7 @@ function renderBoardMenuColumnas() {
         const canDown = idx < cols.length - 2;
         return `
         <div class="board-label-row" data-columna-row="${c.id}">
-          <span class="board-label-badge" style="background:var(--border);color:var(--text)">
+          <span class="board-label-badge" style="background:${columnaColorHex(c.color)};color:#fff">
             ${escHtml(c.nombre)}${isFixed ? ` · ${c.esInicial ? "Inicial" : "Final"}` : ""}
           </span>
           <span style="display:flex;gap:2px;align-items:center">
@@ -1711,7 +1745,7 @@ function renderBoardMenuColumnas() {
               <button type="button" class="board-label-edit" data-col-up="${c.id}" ${canUp ? "" : "disabled"} title="Subir">↑</button>
               <button type="button" class="board-label-edit" data-col-down="${c.id}" ${canDown ? "" : "disabled"} title="Bajar">↓</button>
             ` : ""}
-            ${editable ? `<button type="button" class="board-label-edit" data-col-edit="${c.id}" aria-label="Renombrar columna" title="Renombrar">${KMENU_ICONS.editar}</button>` : ""}
+            ${editable ? `<button type="button" class="board-label-edit" data-col-edit="${c.id}" aria-label="Editar columna" title="Editar nombre y color">${KMENU_ICONS.editar}</button>` : ""}
             ${editable && !isFixed ? `<button type="button" class="board-label-edit" data-col-delete="${c.id}" ${count ? "disabled" : ""} aria-label="Eliminar columna" title="${count ? `Vacia la columna primero (${count} temas)` : "Eliminar columna"}">🗑</button>` : ""}
           </span>
         </div>`;
@@ -1721,15 +1755,9 @@ function renderBoardMenuColumnas() {
   `;
 
   els.boardMenuBody.querySelectorAll("[data-col-edit]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", () => {
       const col = cols.find((c) => c.id === btn.dataset.colEdit);
-      const nuevo = prompt("Nuevo nombre de la columna:", col.nombre);
-      if (!nuevo || !nuevo.trim() || nuevo.trim() === col.nombre) return;
-      const ok = await withBusy(async () => {
-        await pizarraApi.renameColumna(col.id, nuevo.trim());
-        await reloadState(state.currentPizarraId);
-      });
-      if (ok) { boardMenuView = "columnas"; renderBoardMenu(); showToast("Columna renombrada"); }
+      openEditColumna(col);
     });
   });
 
@@ -1752,14 +1780,62 @@ function renderBoardMenuColumnas() {
     btn.addEventListener("click", () => moverColumna(btn.dataset.colDown, 1, cols));
   });
 
-  document.getElementById("boardColumnaCrear")?.addEventListener("click", async () => {
-    const nombre = prompt("Nombre de la columna nueva:");
-    if (!nombre || !nombre.trim()) return;
+  document.getElementById("boardColumnaCrear")?.addEventListener("click", () => openEditColumna(null));
+}
+
+function openEditColumna(col) {
+  boardMenuEditingColumna = col
+    ? { id: col.id, nombre: col.nombre, color: col.color || "neutral", isFixed: col.esInicial || col.esFinal, isNew: false }
+    : { id: null, nombre: "", color: "neutral", isFixed: false, isNew: true };
+  boardMenuView = "editColumna";
+  renderBoardMenu();
+}
+
+function renderBoardMenuEditColumna() {
+  const draft = boardMenuEditingColumna;
+  els.boardMenuTitle.textContent = draft.isNew ? "Nueva columna" : "Editar columna";
+
+  els.boardMenuBody.innerHTML = `
+    <div class="board-label-preview" id="boardColumnaPreview" style="background:${columnaColorHex(draft.color)}">${escHtml(draft.nombre) || "Columna"}</div>
+    <label class="board-menu-field-label" for="boardColumnaNombre">Nombre</label>
+    <input type="text" class="board-menu-input" id="boardColumnaNombre" value="${escHtml(draft.nombre)}" placeholder="Nombre de la columna" />
+    <div class="board-menu-field-label">Color</div>
+    <div id="boardColumnaColorGrid">${columnaColorGridHtml(draft.color)}</div>
+    <button type="button" class="primary board-menu-save" id="boardColumnaGuardar">Guardar</button>
+  `;
+
+  const nombreInput = document.getElementById("boardColumnaNombre");
+  const preview = document.getElementById("boardColumnaPreview");
+  nombreInput.addEventListener("input", () => {
+    draft.nombre = nombreInput.value;
+    preview.textContent = draft.nombre || "Columna";
+  });
+  nombreInput.focus();
+
+  document.getElementById("boardColumnaColorGrid").querySelectorAll("[data-columna-color]").forEach((tile) => {
+    tile.addEventListener("click", () => {
+      draft.color = tile.dataset.columnaColor;
+      renderBoardMenuEditColumna();
+    });
+  });
+
+  document.getElementById("boardColumnaGuardar").addEventListener("click", async () => {
+    const nombre = nombreInput.value.trim();
+    if (!nombre) { showToast("El nombre de la columna es requerido"); return; }
     const ok = await withBusy(async () => {
-      await pizarraApi.addColumnaIntermedia(state.currentPizarraId, nombre.trim());
+      if (draft.isNew) {
+        await pizarraApi.addColumnaIntermedia(state.currentPizarraId, nombre, draft.color);
+      } else {
+        await pizarraApi.updateColumna(draft.id, { nombre, color: draft.color });
+      }
       await reloadState(state.currentPizarraId);
     });
-    if (ok) { boardMenuView = "columnas"; renderBoardMenu(); showToast("Columna agregada"); }
+    if (ok) {
+      boardMenuView = "columnas";
+      boardMenuEditingColumna = null;
+      renderBoardMenu();
+      showToast(draft.isNew ? "Columna creada" : "Columna actualizada");
+    }
   });
 }
 
