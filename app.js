@@ -1359,7 +1359,7 @@ function renderAgenda() {
                 ${t.etiquetas && t.etiquetas.length ? `<div class="etiquetas-chips">${t.etiquetas.map((et) => etiquetaChipHtml(et, { compact: !etiquetasExpandidas })).join("")}</div>` : ""}
                 <div class="title">${t.privado ? "🔒 " : ""}${escHtml(t.nombre)}</div>
                 <div class="kcard-meta-row">
-                  <span class="meta">${t.id}</span>
+                  <span class="meta mono">${t.id}</span>
                   <span class="meta">${respDisplay(t.responsable)}</span>
                 </div>
                 ${hitoBar}
@@ -2079,12 +2079,12 @@ function renderHitos() {
   const rows = sortTableData(filtered, "tableHitos");
   els.tableHitos.innerHTML = rows.length ? rows.map((h) => `
     <tr class="clickable-row" data-tema="${h.temaId}" title="Clic para abrir el tema">
-      <td>${h.id}</td>
+      <td class="mono">${h.id}</td>
       <td>${escHtml(h.nombre)}</td>
       <td>${escHtml(h.temaNombre)}</td>
       <td>${respDisplay(h.responsable)}</td>
       <td>${badge(h.estado)}</td>
-      <td>${h.expediente || "-"}</td>
+      <td class="mono">${h.expediente || "-"}</td>
       <td>${fmtDateNice(h.fechaInicio)}</td>
       <td><span class="fecha-with-badge"><span>${fmtDateNice(h.fechaLimite)}</span>${diasRestantesBadge(h.fechaLimite, h.estado === "Cerrado" ? h.fechaCierre : null)}</span></td>
     </tr>`).join("") : `<tr><td colspan="8" style="color:var(--muted);text-align:center">Sin hitos.</td></tr>`;
@@ -2383,7 +2383,7 @@ function renderAlertas() {
       <td>${escHtml(a.tema)}</td>
       <td>${a.temaPadre ? escHtml(a.temaPadre) : "-"}</td>
       <td>${respDisplay(a.responsable)}</td>
-      <td>${a.expediente || "-"}</td>
+      <td class="mono">${a.expediente || "-"}</td>
       <td>${fmtDateNice(a.fechaLimite)}</td>
       <td><span class="row-edit-hint">✎ Editar</span></td>
     </tr>`).join("") || `<tr><td colspan="8" style="color:var(--muted);text-align:center">Sin alertas activas.</td></tr>`;

@@ -4,9 +4,11 @@
   --border: #e6ecf3;
   --text: #1f2a44;
   --muted: #6b7a90;
-  --primary: #2547A0;
-  --primary-2: #3B63C4;
-  --primary-soft: #E9EEFA;
+  /* Acento unico de marca: naranja. Reservado para CTAs primarios y
+     estados activos/en progreso — no es decorativo (ver manual de marca). */
+  --primary: #F97316;
+  --primary-2: #EA580C;
+  --primary-soft: #FFEDD5;
   --pendiente: #ef4444;
   --en-curso: #3b82f6;
   --bloqueado: #f59e0b;
@@ -28,8 +30,6 @@ body {
   margin: 0;
   font-family: "Inter", "Segoe UI", system-ui, sans-serif;
   background-color: var(--bg);
-  background-image: radial-gradient(circle, #D6DCE6 1px, transparent 1px);
-  background-size: 15px 15px;
   color: var(--text);
   font-size: 14px;
 }
@@ -65,20 +65,32 @@ a { color: var(--primary); text-decoration: none; }
 
 .brand-icon-sm {
   width: 28px; height: 28px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--primary), var(--primary-2));
-  display: grid; place-items: center;
-  color: white; font-weight: 700;
-  font-size: 13px;
   flex-shrink: 0;
+  display: block;
 }
 
 .brand-name { font-weight: 600; color: var(--text); white-space: nowrap; }
 
+/* Wordmark "notby": Inter ExtraBold, tracking -0.045em, siempre minuscula
+   (ver design/notby-manual-de-marca.html). Selector calificado por tag
+   (h1.wordmark/span.wordmark) para ganarle en especificidad a reglas mas
+   especificas que vienen despues en el archivo (ej. .login-title). */
+h1.wordmark, span.wordmark {
+  font-family: 'Inter', sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  text-transform: lowercase;
+}
+
+/* JetBrains Mono solo para IDs/codigos/datos tabulares, nunca texto corrido. */
+.mono, .id-pill, .exp-numero-cell, .hito-gde-num, .gde-compact-number, code {
+  font-family: 'JetBrains Mono', monospace;
+}
+
 .avatar, .topbar-avatar {
   width: 30px; height: 30px;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--primary-2), #8b5cf6);
+  background: linear-gradient(135deg, #18181B, #2E2E33);
   color: white;
   font-weight: 600;
   display: grid; place-items: center;
@@ -255,6 +267,7 @@ a { color: var(--primary); text-decoration: none; }
   padding: 13px 14px;
   background: transparent;
   border: 0;
+  border-radius: 0;
   border-bottom: 2px solid transparent;
   color: var(--muted);
   font-size: 13px;
@@ -1202,7 +1215,7 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
   overflow-y: auto;
 }
 
-.cal-day.today { border-color: var(--primary); background: #eef0ff; }
+.cal-day.today { border-color: var(--primary); background: #FFEDD5; }
 .cal-day.outside { opacity: 0.45; }
 
 .cal-day .day-num { font-weight: 600; color: var(--text); }
@@ -1936,7 +1949,7 @@ html[data-theme="dark"] .switch .track::before { background: #cbd5e1; }
 
 /* ============== Dark mode ============== */
 html[data-theme="dark"] {
-  --primary: #4C74D8;
+  --primary: #FB923C;
   --bg: #11151F;
   --card: #171B27;
   --border: #262c3a;
@@ -1946,13 +1959,8 @@ html[data-theme="dark"] {
   --en-curso-soft: rgba(59, 130, 246, 0.18);
   --bloqueado-soft: rgba(245, 158, 11, 0.18);
   --cerrado-soft: rgba(16, 185, 129, 0.18);
-  --primary-soft: rgba(99, 102, 241, 0.18);
+  --primary-soft: rgba(251, 146, 60, 0.18);
   --shadow: 0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.5);
-}
-
-html[data-theme="dark"] body {
-  background-image: radial-gradient(circle, #232838 1px, transparent 1px);
-  background-size: 15px 15px;
 }
 
 html[data-theme="dark"] button {
@@ -1980,7 +1988,7 @@ html[data-theme="dark"] .hito-actions button,
 html[data-theme="dark"] .resp-dropdown-addnew { background: transparent; border: 0; }
 
 html[data-theme="dark"] .topbar,
-html[data-theme="dark"] .tabbar { background: var(--card); border-color: var(--border); }
+html[data-theme="dark"] .tabbar { background: var(--card); border-color: #3A4258; }
 
 html[data-theme="dark"] .user-menu-trigger:hover,
 html[data-theme="dark"] .user-menu-item:hover { background: rgba(255,255,255,0.06); }
@@ -2045,7 +2053,7 @@ html[data-theme="dark"] .board-menu-search,
 html[data-theme="dark"] .board-menu-input { background: var(--bg); border-color: var(--border); }
 
 html[data-theme="dark"] .cal-day { background: var(--card); border-color: var(--border); }
-html[data-theme="dark"] .cal-day.today { background: rgba(79,70,229,0.14); border-color: var(--primary); }
+html[data-theme="dark"] .cal-day.today { background: rgba(251,146,60,0.14); border-color: var(--primary); }
 html[data-theme="dark"] .cal-day.outside { opacity: 0.3; }
 
 html[data-theme="dark"] .data-table td { border-bottom-color: var(--border); }
@@ -2298,7 +2306,7 @@ html[data-theme="dark"] .col-En-revision { background: rgba(139,92,246,0.06); }
 }
 
 .gde-preview-code {
-  font-family: monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 12.5px;
   color: var(--text);
   flex: 1;
@@ -2545,7 +2553,7 @@ html[data-theme="dark"] .task-modal-estado-select { background: var(--bg); }
   display: flex; gap: 4px; border-bottom: 1px solid var(--border); padding: 0 18px; flex-shrink: 0;
 }
 .task-tab {
-  border: 0; background: transparent; padding: 10px 14px; font-size: 13px; font-weight: 500;
+  border: 0; border-radius: 0; background: transparent; padding: 10px 14px; font-size: 13px; font-weight: 500;
   color: var(--muted); border-bottom: 2px solid transparent; cursor: pointer;
 }
 .task-tab:hover { color: var(--text); }
@@ -2727,11 +2735,11 @@ html[data-theme="dark"] .gantt-link-dot { fill: #9AA4B8; }
 .hito-item[draggable="true"] { cursor: grab; }
 .hito-item.dragging { opacity: .4; }
 .hito-item.editing {
-  background: rgba(79,70,229,0.06);
+  background: rgba(249,115,22,0.06);
   border-radius: 8px;
   box-shadow: inset 3px 0 0 var(--primary);
 }
-html[data-theme="dark"] .hito-item.editing { background: rgba(99,102,241,0.14); }
+html[data-theme="dark"] .hito-item.editing { background: rgba(251,146,60,0.14); }
 .hito-compact-row { padding: 5px 0; }
 .hito-item.editing .hito-compact-row { padding-left: 7px; }
 .hito-drag-handle {
@@ -3035,20 +3043,17 @@ html[data-theme="dark"] .prog-bar { background: var(--border); }
   font-weight: 500;
 }
 
-.rol-admin   { background: rgba(37,71,160,0.12); color: var(--primary); }
+.rol-admin   { background: rgba(249,115,22,0.12); color: var(--primary); }
 .rol-editor  { background: rgba(59,130,246,0.12); color: #1d4ed8; }
 .rol-viewer  { background: rgba(107,114,128,0.12); color: #374151; }
 
-html[data-theme="dark"] .rol-admin  { background: rgba(76,116,216,0.22); color: #A9C2ED; }
+html[data-theme="dark"] .rol-admin  { background: rgba(251,146,60,0.22); color: #FDBA74; }
 html[data-theme="dark"] .rol-editor { background: rgba(59,130,246,0.22); color: #93c5fd; }
 html[data-theme="dark"] .rol-viewer { background: rgba(148,163,184,0.22); color: #94a3b8; }
 
 .login-card .brand-icon {
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, var(--primary), var(--primary-2));
-  color: white;
-  font-weight: 700;
+  display: block;
+  margin: 0 auto;
 }
 
 html[data-theme="dark"] .login-screen {
