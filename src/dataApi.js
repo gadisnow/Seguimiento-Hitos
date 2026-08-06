@@ -16,24 +16,40 @@ function must({ error }) {
   if (error) throw error;
 }
 
+// Pizarra actualmente cargada. Fase 1 no tiene selector todavia: se resuelve
+// a la primera pizarra visible por RLS en fetchInitialState(). Fase 2 la
+// hara explicita via un selector de pizarras.
+let currentPizarraId = null;
+export function getCurrentPizarraId() { return currentPizarraId; }
+
 // =====================================================================
 // Carga inicial: arma el shape de estado que consume la UI actual.
 // =====================================================================
 export async function fetchInitialState() {
+  const pizR = await supabase.from("pizarras").select("*").order("created_at", { ascending: true }).limit(1);
+  must(pizR);
+  const pizarra = (pizR.data || [])[0] || null;
+  currentPizarraId = pizarra ? pizarra.id : null;
+
+  const colR = await supabase.from("columnas").select("*").eq("pizarra_id", currentPizarraId).order("orden", { ascending: true });
+  must(colR);
+  const columnas = (colR.data || []).map(M.columnaFromRow);
+  const columnaById = Object.fromEntries(columnas.map((c) => [c.id, c]));
+
   const [temasR, hitosR, expR, respR, comR, actR, docR, profR, etqR] = await Promise.all([
-    supabase.from("temas").select("*").order("orden", { ascending: true, nullsFirst: false }).order("id"),
+    supabase.from("temas").select("*").eq("pizarra_id", currentPizarraId).order("orden", { ascending: true, nullsFirst: false }).order("id"),
     supabase.from("hitos").select("*").order("orden", { ascending: true, nullsFirst: false }).order("id"),
-    supabase.from("expedientes").select("*").order("numero"),
-    supabase.from("responsables").select("*").order("nombre"),
+    supabase.from("expedientes").select("*").eq("pizarra_id", currentPizarraId).order("numero"),
+    supabase.from("responsables").select("*").eq("pizarra_id", currentPizarraId).order("nombre"),
     supabase.from("comentarios").select("*").order("created_at", { ascending: true }),
     supabase.from("activity_log").select("*").order("created_at", { ascending: true }),
     supabase.from("documentos").select("*").order("created_at", { ascending: true }),
     supabase.from("profiles").select("*").order("created_at", { ascending: true }),
-    supabase.from("etiquetas").select("*").order("orden", { ascending: true, nullsFirst: false }).order("nombre")
+    supabase.from("etiquetas").select("*").eq("pizarra_id", currentPizarraId).order("orden", { ascending: true, nullsFirst: false }).order("nombre")
   ]);
   for (const r of [temasR, hitosR, expR, respR, comR, actR, docR, profR, etqR]) must(r);
 
-  const temas = (temasR.data || []).map(M.temaFromRow);
+  const temas = (temasR.data || []).map((r) => M.temaFromRow(r, columnaById));
   const temaById = Object.fromEntries(temas.map((t) => [t.id, t]));
 
   (hitosR.data || []).forEach((h) => {
@@ -62,7 +78,7 @@ export async function fetchInitialState() {
   const usuarios = (profR.data || []).map(M.profileToUsuario);
   const etiquetas = (etqR.data || []).map(M.etiquetaFromRow);
 
-  return { temas, expedientes, responsables, documentos, usuarios, etiquetas };
+  return { temas, expedientes, responsables, documentos, usuarios, etiquetas, columnas, pizarraId: currentPizarraId };
 }
 
 // =====================================================================
@@ -82,7 +98,7 @@ export async function logActivity(temaId, event, opts = {}) {
 // Temas
 // =====================================================================
 export async function createTema(ui) {
-  const row = { id: ui.id, codigo: ui.id, ...M.temaToRow(ui), creado_por: currentUserId() };
+  const row = { id: ui.id, codigo: ui.id, ...M.temaToRow(ui), pizarra_id: currentPizarraId, creado_por: currentUserId() };
   must(await supabase.from("temas").insert(row));
 }
 
@@ -94,9 +110,9 @@ export async function deleteTema(id) {
   must(await supabase.from("temas").delete().eq("id", id));
 }
 
-export async function updateTemaEstado(id, estado, extra = {}) {
+export async function updateTemaColumna(id, columnaId, extra = {}) {
   must(await supabase.from("temas")
-    .update({ estado, ultima_actualizacion: today(), ...extra })
+    .update({ columna_id: columnaId, ultima_actualizacion: today(), ...extra })
     .eq("id", id));
 }
 
@@ -140,7 +156,7 @@ export async function reorderHitos(orderedIds) {
 // Expedientes
 // =====================================================================
 export async function createExpediente(ui) {
-  const row = { numero: ui.numero, ...M.expedienteToRow(ui) };
+  const row = { numero: ui.numero, ...M.expedienteToRow(ui), pizarra_id: currentPizarraId };
   must(await supabase.from("expedientes").insert(row));
 }
 
@@ -163,7 +179,7 @@ export async function deleteExpediente(numero) {
 export async function createResponsable(ui) {
   const { data, error } = await supabase
     .from("responsables")
-    .insert(M.responsableToRow(ui))
+    .insert({ ...M.responsableToRow(ui), pizarra_id: currentPizarraId })
     .select()
     .single();
   if (error) throw error;
@@ -272,7 +288,7 @@ export async function deleteDocumento(doc) {
 export async function createEtiqueta(ui) {
   const { data, error } = await supabase
     .from("etiquetas")
-    .insert({ nombre: ui.nombre, color: ui.color, orden: ui.orden ?? null })
+    .insert({ nombre: ui.nombre, color: ui.color, orden: ui.orden ?? null, pizarra_id: currentPizarraId })
     .select()
     .single();
   if (error) throw error;

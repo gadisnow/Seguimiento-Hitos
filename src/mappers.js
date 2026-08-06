@@ -11,7 +11,14 @@ export function toDateStr(v) {
 const orNull = (v) => (v === "" || v === undefined ? null : v);
 
 // ---------------- temas ----------------
-export function temaFromRow(r) {
+// El estado del tema ya no es una columna propia: se deriva de la columna
+// de pizarra a la que pertenece (columna_id). `columnaById` es el mapa
+// {id -> columna} de columnaFromRow para la pizarra actual; `estado` queda
+// como campo de lectura/display (nombre de la columna) para que el resto
+// de la UI (filtros, badges, dashboard) siga funcionando sin cambios —
+// nunca se escribe de vuelta a la base, eso ahora pasa por columna_id.
+export function temaFromRow(r, columnaById = {}) {
+  const columna = columnaById[r.columna_id] || null;
   return {
     id: r.id,
     codigo: r.codigo || r.id,
@@ -20,7 +27,11 @@ export function temaFromRow(r) {
     etiquetas: r.etiquetas || [],
     prioridad: r.prioridad || "Media",
     responsable: r.responsable_text || "",
-    estado: r.estado || "Pendiente",
+    pizarraId: r.pizarra_id,
+    columnaId: r.columna_id,
+    estado: columna ? columna.nombre : "",
+    esInicial: columna ? columna.esInicial : false,
+    esFinal: columna ? columna.esFinal : false,
     expediente: r.expediente_numero || "",
     gde: r.gde_url || "",
     provincia: r.provincia || "",
@@ -49,7 +60,7 @@ export function temaToRow(ui) {
     etiquetas: ui.etiquetas || [],
     prioridad: ui.prioridad || "Media",
     responsable_text: orNull(ui.responsable),
-    estado: ui.estado || "Pendiente",
+    columna_id: ui.columnaId,
     expediente_numero: orNull(ui.expediente),
     gde_url: orNull(ui.gde),
     provincia: orNull(ui.provincia),
@@ -188,6 +199,23 @@ export function activityFromRow(r) {
 // ---------------- etiquetas (catalogo) ----------------
 export function etiquetaFromRow(r) {
   return { id: r.id, nombre: r.nombre || "", color: r.color || "", orden: r.orden };
+}
+
+// ---------------- pizarras / columnas ----------------
+export function pizarraFromRow(r) {
+  return { id: r.id, nombre: r.nombre || "", tipo: r.tipo || "personal", creadorId: r.creador_id, accesorios: r.accesorios || {} };
+}
+
+export function columnaFromRow(r) {
+  return {
+    id: r.id,
+    nombre: r.nombre || "",
+    esInicial: !!r.es_inicial,
+    esFinal: !!r.es_final,
+    color: r.color || "neutral",
+    anchoPx: r.ancho_px,
+    orden: r.orden
+  };
 }
 
 // ---------------- documentos ----------------

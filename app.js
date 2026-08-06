@@ -198,6 +198,7 @@ function defaultReportFilters() {
 let state = {
   config: { currentUser: "", areaDefault: "SSOyS", rol: "Viewer" },
   temas: [], expedientes: [], responsables: [], documentos: [], usuarios: [], etiquetas: [],
+  columnas: [], currentPizarraId: null,
   profile: null,
   reportFilters: defaultReportFilters()
 };
@@ -235,6 +236,8 @@ async function reloadState() {
   state.documentos = data.documentos;
   state.usuarios = data.usuarios;
   state.etiquetas = data.etiquetas;
+  state.columnas = data.columnas;
+  state.currentPizarraId = data.pizarraId;
   renderAll();
 }
 
@@ -1304,9 +1307,10 @@ function bindKanban() {
       const id = dragId; dragId = "";
       const tema = state.temas.find((t) => t.id === id);
       const nuevoEstado = col.dataset.estado;
+      const nuevaColumna = state.columnas.find((c) => c.nombre === nuevoEstado);
       const orderedIds = Array.from(col.querySelectorAll(".kcard")).map((c) => c.dataset.id);
       await withBusy(async () => {
-        if (tema && tema.estado !== nuevoEstado) {
+        if (tema && tema.estado !== nuevoEstado && nuevaColumna) {
           let extra = {};
           if (nuevoEstado === "Cerrado") {
             extra = { fecha_cierre: fmtDate(new Date()), cerrado_por: activeUserName() };
@@ -1315,7 +1319,7 @@ function bindKanban() {
             // los dias restantes vuelvan a contar contra hoy.
             extra = { fecha_cierre: null, cerrado_por: null };
           }
-          await dataApi.updateTemaEstado(id, nuevoEstado, extra);
+          await dataApi.updateTemaColumna(id, nuevaColumna.id, extra);
           await dataApi.logActivity(id, `Cambio a ${nuevoEstado}`);
         }
         await dataApi.reorderTemas(orderedIds);
@@ -1503,7 +1507,10 @@ async function duplicarTema(tema) {
     etiquetas: (tema.etiquetas || []).map((et) => ({ ...et })),
     prioridad: tema.prioridad || "Media",
     responsable: tema.responsable,
+    columnaId: tema.columnaId,
     estado: tema.estado,
+    esInicial: tema.esInicial,
+    esFinal: tema.esFinal,
     expediente: tema.expediente || "",
     gde: tema.gde || "",
     fechaInicio: fmtDate(new Date()),
@@ -1526,7 +1533,7 @@ async function duplicarTema(tema) {
 }
 
 // (reorderColumn / setTemaEstado reemplazados por dataApi.reorderTemas /
-//  dataApi.updateTemaEstado en el handler de drop del Kanban.)
+//  dataApi.updateTemaColumna en el handler de drop del Kanban.)
 
 // =========================================================
 // Menu del tablero (boton "⋯" del tabbar): Etiquetas / Actividad
@@ -3984,6 +3991,10 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
     delete data.numero;
 
     Object.assign(draft, data);
+    // El <select name="estado"> sigue ofreciendo nombres (STATES); se resuelve
+    // a la columna real de la pizarra actual para persistir columna_id.
+    const selCol = state.columnas.find((c) => c.nombre === draft.estado);
+    if (selCol) { draft.columnaId = selCol.id; draft.esInicial = selCol.esInicial; draft.esFinal = selCol.esFinal; }
     draft.ultimaActualizacion = fmtDate(new Date());
     if (draft.estado === "Cerrado") {
       if (!draft.fechaCierre) {
@@ -4028,11 +4039,19 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
 
 function openTemaForm(existing = null, defaultEstado = "Pendiente", opts = {}) {
   const isEdit = Boolean(existing);
+  const defaultCol = state.columnas.find((c) => c.nombre === defaultEstado)
+    || state.columnas.find((c) => c.esInicial)
+    || state.columnas[0]
+    || null;
   const draft = existing || {
     id: nextTemaId(),
     nombre: "", solicitante: "", etiquetas: [],
     prioridad: "Media", responsable: state.config.currentUser,
-    estado: defaultEstado, expediente: "", gde: "",
+    columnaId: defaultCol ? defaultCol.id : null,
+    estado: defaultCol ? defaultCol.nombre : defaultEstado,
+    esInicial: defaultCol ? defaultCol.esInicial : true,
+    esFinal: defaultCol ? defaultCol.esFinal : false,
+    expediente: "", gde: "",
     fechaInicio: fmtDate(new Date()), fechaLimite: fmtDate(new Date()),
     descripcion: "", privado: false,
     hitos: [], comentarios: [], documentos: [],
