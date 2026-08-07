@@ -3995,12 +3995,20 @@ let feedQuillInstance = null;
 let feedMentionCandidates = [];
 let feedPendingMenciones = [];
 
-function buildFeedHtml(draft) {
-  const historial = (draft.historial || []).map((h) => ({ type: "activity", at: h.createdAt || h.at, data: h }));
-  const comentarios = (draft.comentarios || []).map((c) => ({ type: "comment", at: c.createdAt || c.at, data: c }));
-  const merged = [...historial, ...comentarios].sort((a, b) => new Date(a.at) - new Date(b.at));
-  if (!merged.length) return `<p style="color:var(--muted);font-size:12.5px">Todavia no hay actividad en este tema.</p>`;
-  return merged.map((entry) => entry.type === "activity" ? feedActivityEntryHtml(entry.data) : feedCommentEntryHtml(entry.data, draft)).join("");
+// Actividad (log automatico del sistema) y Comentarios (texto libre de
+// usuarios) son dos secciones separadas dentro del mismo panel persistente
+// -- ya no un feed unico mezclado. Un comentario con hitoId sigue apareciendo
+// solo en Comentarios, etiquetado con el hito (ver feedCommentEntryHtml).
+function buildActividadListHtml(draft) {
+  const historial = [...(draft.historial || [])].sort((a, b) => new Date(a.createdAt || a.at) - new Date(b.createdAt || b.at));
+  if (!historial.length) return `<p style="color:var(--muted);font-size:12.5px">Todavia no hay actividad en este tema.</p>`;
+  return historial.map(feedActivityEntryHtml).join("");
+}
+
+function buildComentariosListHtml(draft) {
+  const comentarios = [...(draft.comentarios || [])].sort((a, b) => new Date(a.createdAt || a.at) - new Date(b.createdAt || b.at));
+  if (!comentarios.length) return `<p style="color:var(--muted);font-size:12.5px">Todavia no hay comentarios en este tema.</p>`;
+  return comentarios.map((c) => feedCommentEntryHtml(c, draft)).join("");
 }
 
 function feedActivityEntryHtml(h) {
@@ -4052,9 +4060,15 @@ function buildFeedComposerHtml(draft) {
 function buildFeedPanelHtml(draft) {
   return `
     <aside class="task-feed-panel ${feedPanelVisible ? "" : "hidden"}" id="taskFeedPanel">
-      <div class="task-feed-header"><strong>Actividad</strong></div>
-      <div class="task-feed-list" id="taskFeedList">${buildFeedHtml(draft)}</div>
-      ${buildFeedComposerHtml(draft)}
+      <div class="task-feed-section task-feed-section-actividad">
+        <div class="task-feed-header"><strong>Actividad</strong></div>
+        <div class="task-feed-list" id="taskActividadList">${buildActividadListHtml(draft)}</div>
+      </div>
+      <div class="task-feed-section task-feed-section-comentarios">
+        <div class="task-feed-header"><strong>Comentarios</strong></div>
+        <div class="task-feed-list" id="taskComentariosList">${buildComentariosListHtml(draft)}</div>
+        ${buildFeedComposerHtml(draft)}
+      </div>
     </aside>`;
 }
 
@@ -4072,23 +4086,33 @@ function toggleFeedPanel() {
 // pizarra actual (creador + colaboradores aceptados, via RPC
 // get_board_members) e inserta "@Nombre" como texto en negrita al elegir,
 // acumulando el id en feedPendingMenciones para guardarlo en el comentario.
-async function wireFeedPanel(draft) {
+function wireFeedPanel(draft) {
   document.getElementById("taskFeedToggleBtn")?.addEventListener("click", toggleFeedPanel);
-  const list = document.getElementById("taskFeedList");
-  if (list) list.scrollTop = list.scrollHeight;
+  const actividadList = document.getElementById("taskActividadList");
+  if (actividadList) actividadList.scrollTop = actividadList.scrollHeight;
+  const comentariosList = document.getElementById("taskComentariosList");
+  if (comentariosList) comentariosList.scrollTop = comentariosList.scrollHeight;
 
   const quillContainer = document.getElementById("taskFeedQuill");
   if (!quillContainer) return; // sin permiso de edicion: no hay composer
 
   feedPendingMenciones = [];
+  feedMentionCandidates = [];
   feedQuillInstance = new Quill(quillContainer, {
     theme: "snow",
     placeholder: "Escribi un comentario...",
     modules: { toolbar: [["bold", "italic"], [{ list: "ordered" }, { list: "bullet" }], ["link", "image"]] }
   });
 
-  try { feedMentionCandidates = await pizarraApi.getBoardMembers(state.currentPizarraId); }
-  catch (e) { feedMentionCandidates = []; }
+  // Se pide en segundo plano, sin bloquear el resto del wiring (boton
+  // Comentar incluido): si el usuario comenta antes de que resuelva, las
+  // @menciones simplemente no ofrecen candidatos todavia, pero el guardado
+  // del comentario nunca debe quedar a la espera de esta llamada (ver bug
+  // reportado: el click en "Comentar" se perdia si el listener se
+  // registraba recien despues de este await).
+  pizarraApi.getBoardMembers(state.currentPizarraId)
+    .then((members) => { feedMentionCandidates = members; })
+    .catch(() => { feedMentionCandidates = []; });
 
   const menuEl = document.getElementById("taskFeedMentionMenu");
   feedQuillInstance.on("text-change", () => {
@@ -4148,10 +4172,16 @@ async function wireFeedPanel(draft) {
 }
 
 function refreshTaskFeedPane(draft) {
-  const list = document.getElementById("taskFeedList");
-  if (!list) return;
-  list.innerHTML = buildFeedHtml(draft);
-  list.scrollTop = list.scrollHeight;
+  const actividadList = document.getElementById("taskActividadList");
+  if (actividadList) {
+    actividadList.innerHTML = buildActividadListHtml(draft);
+    actividadList.scrollTop = actividadList.scrollHeight;
+  }
+  const comentariosList = document.getElementById("taskComentariosList");
+  if (comentariosList) {
+    comentariosList.innerHTML = buildComentariosListHtml(draft);
+    comentariosList.scrollTop = comentariosList.scrollHeight;
+  }
 }
 
 // =========================================================
