@@ -5,11 +5,15 @@
   --border: #E4E4E7;
   --text: #18181B;
   --muted: #71717A;
-  /* Acento unico de marca: naranja. Reservado para CTAs primarios y
-     estados activos/en progreso — no es decorativo (ver manual de marca). */
-  --primary: #F97316;
-  --primary-2: #EA580C;
-  --primary-soft: #FFEDD5;
+  /* Acento unico de marca: azul (manual v2.4, desde v2.0 reemplaza al naranja
+     legado). Reservado para CTAs primarios y estados activos/en progreso —
+     no es decorativo (ver design/notby-manual-de-marca.html, 02 — Color).
+     Texto/iconos SOBRE --primary solido van siempre en blanco: el azul tiene
+     menor luminancia que el naranja que reemplazo (~2.9:1 con ink, insuficiente). */
+  --primary: #2563EB;
+  --primary-2: #1D4ED8;
+  --primary-soft: #EFF6FF;
+  --primary-soft-border: #BFDBFE;
   --pendiente: #ef4444;
   --en-curso: #3b82f6;
   --bloqueado: #f59e0b;
@@ -71,6 +75,17 @@ a { color: var(--primary); text-decoration: none; }
   flex-shrink: 0;
   display: block;
 }
+/* 28px cae en el rango 16-32px del manual (version optica): la geometria
+   completa (gap ampliado, radio reducido) requiere el asset optico que
+   todavia no tenemos — se aplica por ahora solo el ajuste de opacidad que
+   el manual da como valor explicito (45% -> 50%). Ver pendientes. */
+.brand-icon-sm rect:nth-child(2) { opacity: .5; }
+/* Ajuste obligatorio de dark mode (ver 02 — Color del manual): el
+   contenedor sube a Ink elevado, el acento pasa a su variante clara, y la
+   tarjeta superior baja de opacidad (acá, de 50% a 33%). */
+html[data-theme="dark"] .brand-icon-sm rect:nth-child(1) { fill: #2E2E33; }
+html[data-theme="dark"] .brand-icon-sm rect:nth-child(2) { opacity: .33; }
+html[data-theme="dark"] .brand-icon-sm rect:nth-child(3) { fill: #60A5FA; }
 
 .brand-name { font-weight: 600; color: var(--text); white-space: nowrap; }
 
@@ -88,6 +103,16 @@ h1.wordmark, span.wordmark {
 /* JetBrains Mono solo para IDs/codigos/datos tabulares, nunca texto corrido. */
 .mono, .id-pill, .exp-numero-cell, .hito-gde-num, .gde-compact-number, code {
   font-family: 'JetBrains Mono', monospace;
+}
+
+/* Sistema de iconos de marca (ver design/notby-manual-de-marca.html, 04 —
+   Iconografia): trazo 1.75px, grid 24x24, currentColor para heredar el color
+   del texto que los rodea. .icon-inline los alinea dentro de una linea de
+   texto o boton (ver helper icon() en app.js). */
+.icon-inline {
+  display: inline-block;
+  vertical-align: -0.2em;
+  flex-shrink: 0;
 }
 
 .avatar, .topbar-avatar {
@@ -1231,7 +1256,7 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
   overflow-y: auto;
 }
 
-.cal-day.today { border-color: var(--primary); background: #FFEDD5; }
+.cal-day.today { border-color: var(--primary); background: var(--primary-soft); }
 .cal-day.outside { opacity: 0.45; }
 
 .cal-day .day-num { font-weight: 600; color: var(--text); }
@@ -1966,7 +1991,12 @@ html[data-theme="dark"] .switch .track::before { background: #cbd5e1; }
 /* ============== Dark mode ============== */
 /* Neutros de marca (modo oscuro): Superficie oscura / Ink elevado / Paper / Gris. */
 html[data-theme="dark"] {
-  --primary: #FB923C;
+  /* Azul claro (#60A5FA): sustituto del azul de marca sobre fondos oscuros
+     (el tono saturado #2563EB pierde legibilidad ahi). --primary-2 en modo
+     oscuro sube de saturacion en vez de oscurecer, como corresponde sobre
+     una superficie oscura. */
+  --primary: #60A5FA;
+  --primary-2: #2563EB;
   --bg: #1C1C1F;
   --card: #2E2E33;
   --border: #3A3A40;
@@ -1976,7 +2006,8 @@ html[data-theme="dark"] {
   --en-curso-soft: rgba(59, 130, 246, 0.18);
   --bloqueado-soft: rgba(245, 158, 11, 0.18);
   --cerrado-soft: rgba(16, 185, 129, 0.18);
-  --primary-soft: rgba(251, 146, 60, 0.18);
+  --primary-soft: rgba(96, 165, 250, 0.18);
+  --primary-soft-border: rgba(96, 165, 250, 0.35);
   --shadow: 0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.5);
 }
 
@@ -2271,7 +2302,7 @@ html[data-theme="dark"] .col-En-revision { background: rgba(139,92,246,0.06); }
 }
 
 .gde-part-input {
-  font-family: monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
   padding: 6px 8px;
   border: 1px solid var(--border);
@@ -2297,7 +2328,7 @@ html[data-theme="dark"] .col-En-revision { background: rgba(139,92,246,0.06); }
 }
 
 .gde-dash-wide {
-  font-family: monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
   letter-spacing: 2px;
   color: var(--primary);
@@ -3086,12 +3117,12 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
 }
 
 .login-form input:focus {
-  outline: 2px solid #F97316;
+  outline: 2px solid #2563EB;
   outline-offset: 1px;
 }
 
 .login-btn {
-  background: #F97316;
+  background: #2563EB;
   color: white;
   border: 0;
   border-radius: 10px;
@@ -3105,7 +3136,7 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
   transition: background .15s;
 }
 
-.login-btn:hover { background: #EA580C; }
+.login-btn:hover { background: #1D4ED8; }
 
 .login-error {
   background: #fef2f2;
@@ -3212,11 +3243,13 @@ html[data-theme="dark"] .prog-bar { background: var(--border); }
   font-weight: 500;
 }
 
-.rol-admin   { background: rgba(249,115,22,0.12); color: var(--primary); }
+/* Admin va en ink solido (no en el acento azul): distingue el rol "toda la
+   pizarra" de Editor, que ya usa azul, sin competir con el significado de
+   "activo/en progreso" que el manual reserva para el acento. */
+.rol-admin   { background: var(--text); color: var(--bg); }
 .rol-editor  { background: rgba(59,130,246,0.12); color: #1d4ed8; }
 .rol-viewer  { background: rgba(107,114,128,0.12); color: #374151; }
 
-html[data-theme="dark"] .rol-admin  { background: rgba(251,146,60,0.22); color: #FDBA74; }
 html[data-theme="dark"] .rol-editor { background: rgba(59,130,246,0.22); color: #93c5fd; }
 html[data-theme="dark"] .rol-viewer { background: rgba(148,163,184,0.22); color: #94a3b8; }
 

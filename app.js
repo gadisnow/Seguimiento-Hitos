@@ -510,7 +510,7 @@ async function renderPizarraSwitcherScreen() {
         <span>${escHtml(p.nombre)}</span>
         <span style="color:var(--muted);font-size:12px">${p.tipo === "colaborativa" ? "Colaborativa" : "Personal"}</span>
       </button>`).join("")
-    : `<p class="login-sub">Todavia no tenes ninguna pizarra.</p>`;
+    : `<p class="login-sub">Todavia no tenes ninguna pizarra. Crea la primera abajo.</p>`;
 
   els.pizarraSwitcherList.querySelectorAll("[data-pizarra-enter]").forEach((btn) => {
     btn.addEventListener("click", () => enterPizarra(btn.dataset.pizarraEnter));
@@ -1515,6 +1515,42 @@ function wireKanbanPanScroll() {
   const stopPan = () => { dragging = false; board.classList.remove("panning"); };
   board.addEventListener("pointerup", stopPan);
   board.addEventListener("pointercancel", stopPan);
+}
+
+// Sistema de iconos de marca — ver design/notby-manual-de-marca.html, seccion
+// 04 (Iconografia). Geometria tomada 1:1 del manual donde existe un icono
+// equivalente; el resto (correo, maletin, llave) se autoro en el mismo
+// lenguaje visual (grid 24x24, trazo 1.75, cabos/uniones redondeados) porque
+// el manual no los cubre explicitamente. Reemplaza los emojis/glifos unicode
+// que se usaban antes como iconos ad hoc.
+const ICONS = {
+  candado: `<rect x="5" y="11" width="14" height="9.5" rx="2.5"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/>`,
+  papelera: `<path d="M4.5 7h15"/><path d="M6.5 7l1 12.5a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1L17.5 7"/><path d="M9.5 7V4.5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V7"/><path d="M10.2 11v6M13.8 11v6"/>`,
+  lapiz: `<path d="M4 20l.9-4 10-10 3.1 3.1-10 10-4 .9z"/><path d="M13.5 6.5l3.1 3.1"/>`,
+  enlace: `<path d="M9.5 14.5l5-5"/><path d="M8 16l-1.5 1.5a3.2 3.2 0 0 1-4.5-4.5L4 11"/><path d="M16 8l1.5-1.5a3.2 3.2 0 0 1 4.5 4.5L20 13"/>`,
+  comentario: `<path d="M4 5.5h16A1.5 1.5 0 0 1 21.5 7v8A1.5 1.5 0 0 1 20 16.5H9l-4.2 3.3a.5.5 0 0 1-.8-.4V16.5H4A1.5 1.5 0 0 1 2.5 15V7A1.5 1.5 0 0 1 4 5.5z"/>`,
+  documento: `<path d="M6 3h7l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M13 3v4h4"/><path d="M8 12h8M8 15.5h8M8 9h3"/>`,
+  alerta: `<path d="M12 3.5 21.3 20H2.7z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="0.9" fill="currentColor" stroke="none"/>`,
+  check: `<path d="M5 12.5l4.5 4.5L19 7"/>`,
+  circulo: `<circle cx="12" cy="12" r="8"/>`,
+  cerrar: `<path d="M6 6l12 12M18 6L6 18"/>`,
+  masOpciones: `<circle cx="6" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="18" cy="12" r="1.4" fill="currentColor" stroke="none"/>`,
+  predecesor: `<path d="M6 6v6a2 2 0 0 0 2 2h9"/><path d="M13.5 11l3.5 3-3.5 3"/>`,
+  espera: `<path d="M7 3h10M7 21h10"/><path d="M8 3c0 3.3 2.6 4.7 4 6-1.4 1.3-4 2.7-4 6M16 3c0 3.3-2.6 4.7-4 6 1.4 1.3 4 2.7 4 6"/>`,
+  usuario: `<circle cx="12" cy="8.2" r="3.7"/><path d="M4.5 20.5c0-4.14 3.36-7 7.5-7s7.5 2.86 7.5 7"/>`,
+  carpeta: `<path d="M3.5 6.5A1.5 1.5 0 0 1 5 5h4l2 2.2h8a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5v-11z"/>`,
+  conectado: `<path d="M10 10V5.5M14 10V5.5"/><rect x="7" y="10" width="10" height="7.5" rx="2.5"/><path d="M12 17.5v3"/>`,
+  adjunto: `<path d="M16.5 6.5l-7.8 7.8a3 3 0 1 0 4.24 4.24l7.4-7.4a5 5 0 1 0-7.07-7.07L5.5 11.83a7 7 0 1 0 9.9 9.9"/>`,
+  reordenar: `<circle cx="9" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="9" cy="18" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="18" r="1.2" fill="currentColor" stroke="none"/>`,
+  chevronAbajo: `<path d="M6 9l6 6 6-6"/>`,
+  correo: `<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 6.5l8 6.5 8-6.5"/>`,
+  maletin: `<rect x="3.5" y="8" width="17" height="11" rx="2"/><path d="M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M3.5 13h17"/>`,
+  llave: `<circle cx="7.5" cy="15.5" r="3.5"/><path d="M10 13l8.5-8.5"/><path d="M15 8l2.5 2.5"/><path d="M17.5 5.5L20 8"/>`,
+  campana: `<path d="M6 9.5a6 6 0 0 1 12 0c0 4.5 1.8 5.8 1.8 5.8H4.2S6 14 6 9.5z"/><path d="M10 18.5a2 2 0 0 0 4 0"/>`,
+  buscar: `<circle cx="10.5" cy="10.5" r="6.5"/><path d="M19.5 19.5l-4.3-4.3"/>`
+};
+function icon(name, size = 16) {
+  return `<svg class="icon-inline" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
 }
 
 // --------- Menu de acciones de la tarjeta Kanban (boton "⋯") ---------
@@ -4008,7 +4044,7 @@ function buildActividadListHtml(draft) {
 
 function buildComentariosListHtml(draft) {
   const comentarios = [...(draft.comentarios || [])].sort((a, b) => new Date(a.createdAt || a.at) - new Date(b.createdAt || b.at));
-  if (!comentarios.length) return `<p style="color:var(--muted);font-size:12.5px">Todavia no hay comentarios en este tema.</p>`;
+  if (!comentarios.length) return `<p style="color:var(--muted);font-size:12.5px">Todavia no hay comentarios en este tema. Escribi el primero abajo.</p>`;
   return comentarios.map((c) => feedCommentEntryHtml(c, draft)).join("");
 }
 
