@@ -865,6 +865,11 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
   border-radius: 10px;
   padding: 6px;
   box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+  animation: contextMenuIn .12s var(--ease-out);
+}
+@keyframes contextMenuIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .kcard-menu-item {
@@ -920,6 +925,7 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
   background: #18181B;
   color: #FAFAFA;
   border-radius: 10px;
+  animation: contextMenuIn .12s var(--ease-out);
   box-shadow: 0 12px 28px rgba(0,0,0,0.35);
   display: flex;
   flex-direction: column;
@@ -2575,8 +2581,10 @@ html[data-theme="dark"] .task-modal-estado-select { background: var(--bg); }
 .task-modal-close {
   background: transparent; border: 0; font-size: 16px; color: var(--muted); cursor: pointer;
   line-height: 1; padding: 4px;
+  transition: color .15s ease, transform .1s ease-out;
 }
 .task-modal-close:hover { color: var(--text); }
+.task-modal-close:active { transform: scale(0.92); }
 
 /* Cuerpo del modal: panel principal (tabs + contenido, crece) al lado del
    panel de Actividad persistente (ancho fijo, se puede ocultar). En pantallas
@@ -2590,6 +2598,7 @@ html[data-theme="dark"] .task-modal-estado-select { background: var(--bg); }
 .task-tab {
   border: 0; border-radius: 0; background: transparent; padding: 10px 14px; font-size: 13px; font-weight: 500;
   color: var(--muted); border-bottom: 2px solid transparent; cursor: pointer;
+  transition: color .15s ease, border-bottom-color .15s ease;
 }
 .task-tab:hover { color: var(--text); }
 .task-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
@@ -2604,7 +2613,14 @@ html[data-theme="dark"] .task-tab.active { border-bottom-color: var(--primary); 
 
 .task-modal-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 16px 18px; }
 .task-pane { display: none; }
-.task-pane.active { display: block; }
+.task-pane.active {
+  display: block;
+  animation: taskPaneIn .15s var(--ease-out);
+}
+@keyframes taskPaneIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
 .task-pane[data-task-pane="documentos"] { min-height: 300px; }
 .task-pane[data-task-pane="general"] { min-height: 420px; }
