@@ -11,9 +11,11 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
+    "dompurify": "^3.4.13",
     "exceljs": "^4.4.0",
     "jspdf": "^4.2.1",
-    "jspdf-autotable": "^5.0.8"
+    "jspdf-autotable": "^5.0.8",
+    "quill": "^2.0.3"
   },
   "devDependencies": {
     "vite": "^5.4.10"

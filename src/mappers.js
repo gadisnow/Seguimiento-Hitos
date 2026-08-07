@@ -188,8 +188,19 @@ export function profileToUsuario(r) {
 }
 
 // ---------------- comentarios / historial ----------------
+// text es HTML ya sanitizado (Quill + DOMPurify en dataApi.createComentario)
+// — se inyecta tal cual al renderizar, nunca con escHtml.
 export function comentarioFromRow(r) {
-  return { id: r.id, by: r.autor_nombre || "", text: r.texto || "", at: toDateStr(r.created_at) };
+  return {
+    id: r.id,
+    userId: r.user_id || null,
+    by: r.autor_nombre || "",
+    text: r.texto || "",
+    at: toDateStr(r.created_at),
+    createdAt: r.created_at || null,
+    hitoId: r.hito_id || null,
+    menciones: r.menciones || []
+  };
 }
 
 export function activityFromRow(r) {

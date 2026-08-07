@@ -4,6 +4,9 @@ import * as pizarraApi from "./src/pizarraApi.js";
 import ExcelJS from "exceljs";
 import { jsPDF } from "jspdf";
 import { autoTable } from "jspdf-autotable";
+import Quill from "quill";
+import "quill/dist/quill.snow.css";
+import DOMPurify from "dompurify";
 
 function simpleHash(str) {
   let h = 0;
@@ -199,7 +202,7 @@ function defaultReportFilters() {
 let state = {
   config: { currentUser: "", areaDefault: "SSOyS", rol: "Viewer" },
   temas: [], expedientes: [], responsables: [], documentos: [], usuarios: [], etiquetas: [],
-  columnas: [], currentPizarraId: null,
+  columnas: [], currentPizarraId: null, pizarraActual: null,
   profile: null,
   reportFilters: defaultReportFilters()
 };
@@ -225,6 +228,10 @@ function getCurrentRol() { return state.profile ? state.profile.rol : "Viewer"; 
 function puedeEditar() { const r = getCurrentRol(); return r === "Admin" || r === "Editor"; }
 function puedeEliminar() { return getCurrentRol() === "Admin"; }
 function esAdmin() { return getCurrentRol() === "Admin"; }
+// Creador de la pizarra ACTUALMENTE cargada (no el rol global Admin): unico
+// que puede marcar temas privados, invitar colaboradores o habilitar
+// accesorios (ver spec fase 3/4).
+function esCreadorPizarra() { return Boolean(state.pizarraActual && state.pizarraActual.creadorId === activeUserId()); }
 function activeUserName() { return state.profile ? state.profile.nombre : state.config.currentUser; }
 function activeUserId() { return state.profile ? state.profile.id : null; }
 
@@ -241,6 +248,7 @@ async function reloadState(pizarraId) {
   state.etiquetas = data.etiquetas;
   state.columnas = data.columnas;
   state.currentPizarraId = data.pizarraId;
+  state.pizarraActual = data.pizarra;
   renderAll();
 }
 
@@ -2090,7 +2098,7 @@ function renderHitos() {
     </tr>`).join("") : `<tr><td colspan="8" style="color:var(--muted);text-align:center">Sin hitos.</td></tr>`;
 
   els.tableHitos.querySelectorAll("[data-tema]").forEach((row) =>
-    row.addEventListener("click", () => openTemaFormById(row.dataset.tema, { activeTab: "hitos" }))
+    row.addEventListener("click", () => openTemaFormById(row.dataset.tema, { activeTab: "general" }))
   );
 }
 
@@ -3203,11 +3211,29 @@ function renderMiniGantt(tema) {
     </div>`;
 }
 
+// Cadena predecesor -> sucesor, visible en la lista: si este hito espera a
+// que otro cierre (predecesor todavia abierto), a que otro ya cerro (cadena
+// resuelta, fechas ya calculadas), y si otros hitos dependen de este.
 function hitoPredecesorChipHtml(hito, hitos) {
-  if (!hito.predecesorId) return `<span class="hito-dep-chip muted">Sin dependencia</span>`;
-  const pred = hitoPorId(hitos, hito.predecesorId);
-  const nombre = pred ? pred.nombre : "(hito eliminado)";
-  return `<span class="hito-dep-chip" title="Depende de: ${escHtml(nombre)}">Depende de: ${escHtml(nombre)}</span>`;
+  const chips = [];
+  if (hito.predecesorId) {
+    const pred = hitoPorId(hitos, hito.predecesorId);
+    const nombre = pred ? pred.nombre : "(hito eliminado)";
+    const predCerrado = pred && pred.estado === "Cerrado";
+    if (hito.estado !== "Cerrado" && !predCerrado) {
+      chips.push(`<span class="hito-dep-chip waiting" title="Este hito arranca cuando se cierre '${escHtml(nombre)}'">⏳ Espera a "${escHtml(nombre)}"</span>`);
+    } else {
+      chips.push(`<span class="hito-dep-chip" title="Depende de: ${escHtml(nombre)}">⛓ Depende de "${escHtml(nombre)}"</span>`);
+    }
+  }
+  const sucesores = hitos.filter((h) => h.predecesorId === hito.id);
+  if (sucesores.length) {
+    const nombres = sucesores.map((s) => s.nombre).join(", ");
+    const label = sucesores.length === 1 ? `"${sucesores[0].nombre}"` : `${sucesores.length} hitos`;
+    chips.push(`<span class="hito-dep-chip successor" title="Dependen de este hito: ${escHtml(nombres)}">↳ Sigue ${escHtml(label)}</span>`);
+  }
+  if (!chips.length) return `<span class="hito-dep-chip muted">Sin dependencia</span>`;
+  return chips.join("");
 }
 
 function tipoVinculoBadgeHtml(hito) {
@@ -3240,6 +3266,7 @@ function renderHitosCompactList(tema, opts = {}) {
       <div class="hito-compact-row ${h.estado === "Cerrado" ? "done" : ""}">
         <div class="hito-compact-top">
           ${readonly ? "" : `<span class="hito-drag-handle" title="Arrastrar para reordenar" aria-hidden="true">⠿</span>`}
+          <span class="hito-status-icon ${h.estado === "Cerrado" ? "done" : ""}" aria-hidden="true" title="${h.estado === "Cerrado" ? "Cerrado" : h.estado}">${h.estado === "Cerrado" ? "✓" : "○"}</span>
           <div class="hito-compact-main">
             <span class="hito-compact-nombre" title="${escHtml(h.nombre)}">${escHtml(h.nombre)}</span>
             ${h.expediente ? `
@@ -3527,7 +3554,10 @@ function restoreTareaFields(draft, snap) {
   draft.etiquetas = (snap.etiquetas || []).map((et) => ({ ...et }));
 }
 
-function buildTareaTabHtml(draft, mode) {
+// Fase 3: General/Hitos/Gantt viven juntos en una unica seccion (no tabs
+// separadas entre si). El expediente GDE se muda a su propia solapa de
+// accesorio condicional (buildExpedienteTabHtml).
+function buildGeneralFieldsHtml(draft, mode) {
   const editable = mode === "edit";
 
   const nombreField = editable
@@ -3543,21 +3573,6 @@ function buildTareaTabHtml(draft, mode) {
         ${editable ? `<button type="button" class="etiqueta-add-btn" id="taskEtiquetaAddBtn" title="Agregar etiqueta">+</button>
         <div class="etiqueta-popover hidden" id="taskEtiquetaPopover"></div>` : ""}
       </div>
-    </div>`;
-
-  const hasExp = Boolean(draft.expediente);
-  const gdeBlock = editable ? `
-    <div class="gde-compact-row">
-      <input type="checkbox" id="taskHasExpChk" ${hasExp ? "checked" : ""} />
-      <span class="gde-compact-number ${hasExp ? "" : "muted"}" id="taskGdeCompactNumber">${hasExp ? escHtml(draft.expediente) : "Sin expediente asociado"}</span>
-      ${hasExp ? `<a href="#" class="gde-link" data-gde-open="${escHtml(draft.expediente)}" title="Abrir en GDE">🔗</a>` : ""}
-      <button type="button" class="gde-compact-expand" id="taskGdeExpandBtn" title="${hasExp ? "Editar expediente" : "Agregar expediente"}">✎</button>
-    </div>
-    <div data-gde-container class="hidden">${buildGdeToggleWidget(draft.expediente || "")}</div>`
-    : `
-    <div class="gde-compact-row">
-      <span class="gde-compact-number ${hasExp ? "" : "muted"}">${hasExp ? escHtml(draft.expediente) : "Sin expediente asociado"}</span>
-      ${hasExp ? `<a href="#" class="gde-link" data-gde-open="${escHtml(draft.expediente)}" title="Abrir en GDE">🔗</a>` : ""}
     </div>`;
 
   const respField = editable
@@ -3594,17 +3609,21 @@ function buildTareaTabHtml(draft, mode) {
     ? `<label>Descripcion<textarea name="descripcion">${escHtml(draft.descripcion || "")}</textarea></label>`
     : `<label>Descripcion<div class="task-view-value" style="white-space:pre-wrap">${draft.descripcion ? escHtml(draft.descripcion) : "-"}</div></label>`;
 
-  const privadoField = editable
-    ? `<label class="task-check-row"><input type="checkbox" name="privado" ${draft.privado ? "checked" : ""} />Tema privado (solo lo puede ver quien lo creo)</label>`
-    : `<div class="task-check-row">${draft.privado ? "🔒 Tema privado (solo lo puede ver quien lo creo)" : "Tema visible para todos"}</div>`;
+  // Solo el creador de la pizarra puede marcar/desmarcar un tema como privado
+  // (el resto solo ve el estado actual, sin control para cambiarlo).
+  const esCreador = esCreadorPizarra();
+  const privadoLabel = "Tema privado (solo lo puede ver el creador de la pizarra)";
+  const privadoField = esCreador
+    ? (editable
+        ? `<label class="task-check-row"><input type="checkbox" name="privado" ${draft.privado ? "checked" : ""} />${privadoLabel}</label>`
+        : `<div class="task-check-row">${draft.privado ? `🔒 ${privadoLabel}` : "Tema visible para todos"}</div>`)
+    : (draft.privado ? `<div class="task-check-row">🔒 ${privadoLabel}</div>` : "");
 
   return `
     <div class="task-section">
       <label>Nombre${nombreField}</label>
       ${etiquetasBlock}
     </div>
-
-    <div class="task-section">${gdeBlock}</div>
 
     <div class="task-grid-3col">
       ${respField}
@@ -3629,42 +3648,10 @@ function buildTareaTabHtml(draft, mode) {
   `;
 }
 
-function wireTareaTabEvents(draft, mode) {
-  els.taskForm.querySelectorAll("[data-gde-open]").forEach((a) => {
-    a.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); openGDE(a.dataset.gdeOpen); });
-  });
-
+function wireGeneralTabEvents(draft, mode) {
   if (mode !== "edit") return;
 
   initRespDropdowns(els.taskForm);
-  const gdeContainer = els.taskForm.querySelector("[data-gde-container]");
-  if (gdeContainer) wireGdeToggleWidget(gdeContainer.querySelector("[data-gde-toggle]"), draft.expediente || "", "pegar", "tarea-");
-
-  const hasExpChk = document.getElementById("taskHasExpChk");
-  const expandBtn = document.getElementById("taskGdeExpandBtn");
-  const compactNumber = document.getElementById("taskGdeCompactNumber");
-  hasExpChk?.addEventListener("change", () => {
-    if (hasExpChk.checked) {
-      gdeContainer?.classList.remove("hidden");
-    } else {
-      gdeContainer?.classList.add("hidden");
-      const hidden = document.getElementById("tarea-gdeNumeroHidden");
-      if (hidden) hidden.value = "";
-      if (compactNumber) { compactNumber.textContent = "Sin expediente asociado"; compactNumber.classList.add("muted"); }
-    }
-  });
-  expandBtn?.addEventListener("click", () => {
-    const willShow = gdeContainer?.classList.contains("hidden");
-    gdeContainer?.classList.toggle("hidden");
-    if (willShow && hasExpChk && !hasExpChk.checked) hasExpChk.checked = true;
-  });
-  ["input", "change"].forEach((evt) => gdeContainer?.addEventListener(evt, () => {
-    const hidden = document.getElementById("tarea-gdeNumeroHidden");
-    if (!compactNumber || !hidden) return;
-    const val = hidden.value.trim();
-    compactNumber.textContent = val || "Sin expediente asociado";
-    compactNumber.classList.toggle("muted", !val);
-  }));
 
   const nombreInput = document.getElementById("taskNombreInput");
   const titleEl = document.getElementById("taskModalTitle");
@@ -3777,21 +3764,34 @@ function wireEtiquetasField(draft) {
 // =========================================================
 // Task modal — Tab "Hitos"
 // =========================================================
-function buildHitosTabHtml(draft, mode) {
+// Hitos + Gantt: sub-bloque propio dentro de la seccion General, en su
+// propio wrapper (#taskHitosGanttWrap) para poder refrescarlo solo a el
+// despues de una mutacion de hitos, sin perder lo que este a medio
+// escribir en los campos generales (nombre/descripcion/etc, otro wrapper).
+function buildHitosGanttSectionHtml(draft, mode) {
   const editable = mode === "edit";
   calcularCascadaHitos(draft.hitos);
+  const totalH = draft.hitos.length;
+  const doneH = draft.hitos.filter((h) => h.estado === "Cerrado").length;
   return `
     <div class="task-section">
-      <div class="task-section-title">Gantt</div>
-      <div id="taskGanttWrap">${renderMiniGantt(draft)}</div>
-    </div>
-
-    <div class="task-section">
-      <div class="task-section-title">Hitos</div>
+      <div class="task-section-title">Hitos${totalH > 0 ? ` (${doneH}/${totalH})` : ""}</div>
       <div class="hito-compact-list" id="taskHitosList">${renderHitosCompactList(draft, { readonly: !editable })}</div>
       ${editable && puedeEditar() ? `<button type="button" class="col-add" id="taskAddHitoBtn" style="margin-top:10px">+ Agregar hito</button>` : ""}
       <div id="taskHitoInlineFormWrap"></div>
     </div>
+
+    <div class="task-section">
+      <div class="task-section-title">Gantt</div>
+      <div id="taskGanttWrap">${renderMiniGantt(draft)}</div>
+    </div>
+  `;
+}
+
+function buildGeneralTabHtml(draft, mode) {
+  return `
+    <div id="taskGeneralFieldsWrap">${buildGeneralFieldsHtml(draft, mode)}</div>
+    <div id="taskHitosGanttWrap">${buildHitosGanttSectionHtml(draft, mode)}</div>
   `;
 }
 
@@ -3843,12 +3843,12 @@ function wireHitosListButtons(draft, mode) {
   });
   list.querySelectorAll("[data-task-edit-hito]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      toggleHitoEditPanel(draft, btn.dataset.taskEditHito, () => refreshTaskHitosPane(draft, mode));
+      toggleHitoEditPanel(draft, btn.dataset.taskEditHito, () => refreshTaskGeneralPane(draft, mode));
     });
   });
   list.querySelectorAll("[data-task-delete-hito]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      deleteHito(draft, btn.dataset.taskDeleteHito, { onSaved: () => refreshTaskHitosPane(draft, mode) });
+      deleteHito(draft, btn.dataset.taskDeleteHito, { onSaved: () => refreshTaskGeneralPane(draft, mode) });
     });
   });
 }
@@ -3894,7 +3894,7 @@ function wireHitoDragReorder(draft, mode) {
       if (!ok) return;
     }
     renderAll();
-    refreshTaskHitosPane(draft, mode);
+    refreshTaskGeneralPane(draft, mode);
   });
 }
 
@@ -3960,83 +3960,298 @@ function wireAddHitoInline(draft) {
       draft.historial.push({ event: "Hito agregado", at: fmtDate(new Date()), by: activeUserName() });
       draft.ultimaActualizacion = fmtDate(new Date());
       renderAll();
-      refreshTaskHitosPane(draft, "edit");
+      refreshTaskGeneralPane(draft, "edit");
     });
   });
 }
 
-function refreshTaskHitosPane(draft, mode) {
-  const pane = els.taskForm.querySelector('.task-pane[data-task-pane="hitos"]');
-  if (!pane) return;
-  pane.innerHTML = buildHitosTabHtml(draft, mode);
+// Refresca SOLO el sub-bloque de hitos+gantt tras una mutacion de hitos
+// (agregar/editar/borrar/reordenar) — nunca el wrapper de campos generales,
+// para no pisar lo que el usuario tenga a medio escribir ahi (nombre,
+// descripcion, etc.) con una mutacion que no los toca.
+function refreshTaskGeneralPane(draft, mode) {
+  const wrap = document.getElementById("taskHitosGanttWrap");
+  if (!wrap) return;
+  wrap.innerHTML = buildHitosGanttSectionHtml(draft, mode);
   wireHitosListButtons(draft, mode);
   wireHitoDragReorder(draft, mode);
   wireGanttZoom(draft);
   if (mode === "edit") wireAddHitoInline(draft);
-  const totalH = draft.hitos.length;
-  const doneH = draft.hitos.filter((h) => h.estado === "Cerrado").length;
-  const tabBtn = els.taskForm.querySelector('.task-tab[data-task-tab="hitos"]');
-  if (tabBtn) tabBtn.textContent = `Hitos${totalH > 0 ? ` (${doneH}/${totalH})` : ""}`;
-  // Every hito mutation also pushes a historial entry — keep Actividad in sync.
-  refreshTaskActividadPane(draft);
+  // Toda mutacion de hitos tambien empuja una entrada de historial — el feed
+  // persistente de Comentarios + Actividad debe reflejarla al toque.
+  refreshTaskFeedPane(draft);
 }
 
 // =========================================================
-// Task modal — Tab "Actividad"
+// Task modal — panel persistente de Comentarios + Actividad (fase 3)
+// No es una tab mas: vive siempre visible al costado del contenido
+// principal, con un boton para ocultarlo/mostrarlo. Combina en un unico
+// feed cronologico los eventos automaticos (activity_log) y los
+// comentarios enriquecidos (Quill), cada uno opcionalmente etiquetado
+// con el hito puntual al que se refiere.
 // =========================================================
-function buildActividadTabHtml(tema) {
-  const historialHtml = (tema.historial || []).map((h) => `
-    <div class="activity-entry">
-      <div class="activity-dot"></div>
-      <div>
-        <div style="font-size:12.5px"><strong>${fmtDateNice(h.at)}</strong> — ${escHtml(h.event)}</div>
-        <div style="font-size:11px;color:var(--muted)">${escHtml(h.by || "sistema")}</div>
-      </div>
-    </div>`).join("") || `<p style="color:var(--muted)">Sin historial.</p>`;
+let feedPanelVisible = localStorage.getItem("sgtemas_feed_visible") !== "0";
+let feedQuillInstance = null;
+let feedMentionCandidates = [];
+let feedPendingMenciones = [];
 
-  const comentariosHtml = (tema.comentarios || []).map((c) => `
-    <div class="activity-entry">
-      <div class="activity-dot"></div>
-      <div>
-        <div style="font-size:12.5px"><strong>${escHtml(c.by)}</strong>: ${escHtml(c.text)}</div>
-        <div style="font-size:11px;color:var(--muted)">${fmtDateNice(c.at)}</div>
-      </div>
-    </div>`).join("");
+function buildFeedHtml(draft) {
+  const historial = (draft.historial || []).map((h) => ({ type: "activity", at: h.createdAt || h.at, data: h }));
+  const comentarios = (draft.comentarios || []).map((c) => ({ type: "comment", at: c.createdAt || c.at, data: c }));
+  const merged = [...historial, ...comentarios].sort((a, b) => new Date(a.at) - new Date(b.at));
+  if (!merged.length) return `<p style="color:var(--muted);font-size:12.5px">Todavia no hay actividad en este tema.</p>`;
+  return merged.map((entry) => entry.type === "activity" ? feedActivityEntryHtml(entry.data) : feedCommentEntryHtml(entry.data, draft)).join("");
+}
 
+function feedActivityEntryHtml(h) {
   return `
-    <div class="activity-log" id="taskActivityLog">${historialHtml}${comentariosHtml}</div>
-    ${puedeEditar() ? `<div class="add-comment"><input id="taskNewComment" placeholder="Agregar comentario..." class="detail-input" /><button type="button" class="primary" id="taskSaveComment">Enviar</button></div>` : ""}
-  `;
+    <div class="feed-entry feed-activity">
+      <div class="activity-dot"></div>
+      <div class="feed-entry-body">
+        <div class="feed-entry-text">${escHtml(h.event)}</div>
+        <div class="feed-entry-date">${escHtml(h.by || "sistema")} · ${fmtDateNice(h.at)}</div>
+      </div>
+    </div>`;
 }
 
-function wireActividadTabEvents(draft) {
-  const btn = document.getElementById("taskSaveComment");
-  if (!btn) return;
-  btn.addEventListener("click", async () => {
-    const input = document.getElementById("taskNewComment");
-    const v = (input?.value || "").trim();
-    if (!v) return;
+// c.text ya es HTML sanitizado (DOMPurify, ver dataApi.createComentario) —
+// se inyecta tal cual, nunca con escHtml.
+function feedCommentEntryHtml(c, draft) {
+  const hito = c.hitoId ? hitoPorId(draft.hitos, c.hitoId) : null;
+  return `
+    <div class="feed-entry feed-comment">
+      ${respAvatarHtml(c.by)}
+      <div class="feed-entry-body">
+        <div class="feed-entry-header">
+          <strong>${escHtml(c.by)}</strong>
+          ${hito ? `<span class="feed-hito-tag" title="Comentario sobre este hito">◆ ${escHtml(hito.nombre)}</span>` : ""}
+          <span class="feed-entry-date">${fmtDateNice(c.at)}</span>
+        </div>
+        <div class="feed-comment-body">${c.text}</div>
+      </div>
+    </div>`;
+}
+
+function buildFeedComposerHtml(draft) {
+  if (!puedeEditar()) return "";
+  const hitoOpts = (draft.hitos || []).map((h) => `<option value="${h.id}">${escHtml(h.nombre)}</option>`).join("");
+  return `
+    <div class="task-feed-composer">
+      <select id="taskFeedHitoSelect" class="task-feed-hito-select">
+        <option value="">Comentario general del tema</option>
+        ${hitoOpts}
+      </select>
+      <div class="task-feed-quill-wrap">
+        <div id="taskFeedQuill"></div>
+        <div class="task-feed-mention-menu hidden" id="taskFeedMentionMenu"></div>
+      </div>
+      <button type="button" class="primary task-feed-send" id="taskFeedSendBtn">Comentar</button>
+    </div>`;
+}
+
+function buildFeedPanelHtml(draft) {
+  return `
+    <aside class="task-feed-panel ${feedPanelVisible ? "" : "hidden"}" id="taskFeedPanel">
+      <div class="task-feed-header"><strong>Actividad</strong></div>
+      <div class="task-feed-list" id="taskFeedList">${buildFeedHtml(draft)}</div>
+      ${buildFeedComposerHtml(draft)}
+    </aside>`;
+}
+
+function toggleFeedPanel() {
+  feedPanelVisible = !feedPanelVisible;
+  localStorage.setItem("sgtemas_feed_visible", feedPanelVisible ? "1" : "0");
+  const panel = document.getElementById("taskFeedPanel");
+  const btn = document.getElementById("taskFeedToggleBtn");
+  if (panel) panel.classList.toggle("hidden", !feedPanelVisible);
+  if (btn) btn.title = feedPanelVisible ? "Ocultar actividad" : "Mostrar actividad";
+}
+
+// @menciones: implementacion liviana (sin plugin de Quill) — detecta "@algo"
+// justo antes del cursor, ofrece candidatos entre los miembros de la
+// pizarra actual (creador + colaboradores aceptados, via RPC
+// get_board_members) e inserta "@Nombre" como texto en negrita al elegir,
+// acumulando el id en feedPendingMenciones para guardarlo en el comentario.
+async function wireFeedPanel(draft) {
+  document.getElementById("taskFeedToggleBtn")?.addEventListener("click", toggleFeedPanel);
+  const list = document.getElementById("taskFeedList");
+  if (list) list.scrollTop = list.scrollHeight;
+
+  const quillContainer = document.getElementById("taskFeedQuill");
+  if (!quillContainer) return; // sin permiso de edicion: no hay composer
+
+  feedPendingMenciones = [];
+  feedQuillInstance = new Quill(quillContainer, {
+    theme: "snow",
+    placeholder: "Escribi un comentario...",
+    modules: { toolbar: [["bold", "italic"], [{ list: "ordered" }, { list: "bullet" }], ["link", "image"]] }
+  });
+
+  try { feedMentionCandidates = await pizarraApi.getBoardMembers(state.currentPizarraId); }
+  catch (e) { feedMentionCandidates = []; }
+
+  const menuEl = document.getElementById("taskFeedMentionMenu");
+  feedQuillInstance.on("text-change", () => {
+    if (!menuEl) return;
+    const sel = feedQuillInstance.getSelection();
+    if (!sel) { menuEl.classList.add("hidden"); return; }
+    const textBefore = feedQuillInstance.getText(0, sel.index);
+    const m = /@([^\s@]{0,30})$/.exec(textBefore);
+    if (!m) { menuEl.classList.add("hidden"); return; }
+    const q = m[1].toLowerCase();
+    const matches = feedMentionCandidates.filter((u) => (u.nombre || "").toLowerCase().includes(q));
+    if (!matches.length) { menuEl.classList.add("hidden"); return; }
+    menuEl.innerHTML = matches.slice(0, 6).map((u) => `<button type="button" class="task-feed-mention-item" data-mention-id="${u.id}" data-mention-nombre="${escHtml(u.nombre)}" data-mention-at="${m[1].length}">${escHtml(u.nombre)}</button>`).join("");
+    menuEl.classList.remove("hidden");
+    menuEl.querySelectorAll("[data-mention-id]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const atLen = Number(btn.dataset.mentionAt);
+        const curSel = feedQuillInstance.getSelection();
+        if (!curSel) return;
+        const from = curSel.index - 1 - atLen;
+        const nombre = btn.dataset.mentionNombre;
+        feedQuillInstance.deleteText(from, atLen + 1);
+        feedQuillInstance.insertText(from, `@${nombre} `, "bold", true);
+        feedQuillInstance.setSelection(from + nombre.length + 2);
+        if (!feedPendingMenciones.includes(btn.dataset.mentionId)) feedPendingMenciones.push(btn.dataset.mentionId);
+        menuEl.classList.add("hidden");
+      });
+    });
+  });
+
+  document.getElementById("taskFeedSendBtn")?.addEventListener("click", async () => {
+    const html = feedQuillInstance.root.innerHTML;
+    const plain = feedQuillInstance.getText().trim();
+    if (!plain) return;
     if (!isPersistedTema(draft)) { showToast("Guarda el tema antes de comentar."); return; }
+    const hitoSelect = document.getElementById("taskFeedHitoSelect");
+    const hitoId = hitoSelect?.value || null;
+    const hito = hitoId ? hitoPorId(draft.hitos, hitoId) : null;
     const currentUser = activeUserName();
+    const menciones = [...feedPendingMenciones];
     const ok = await withBusy(async () => {
-      await dataApi.createComentario(draft.id, v);
-      await dataApi.logActivity(draft.id, `Comentario: "${v.slice(0, 40)}"`);
+      await dataApi.createComentario(draft.id, html, { hitoId, menciones });
+      await dataApi.logActivity(draft.id, hito ? `Comentario en hito "${hito.nombre}"` : "Comentario agregado", { hitoId });
     });
     if (!ok) return;
+    const now = new Date().toISOString();
     draft.comentarios = draft.comentarios || [];
-    draft.comentarios.push({ by: currentUser, text: v, at: fmtDate(new Date()) });
+    draft.comentarios.push({ by: currentUser, text: DOMPurify.sanitize(html), at: fmtDate(new Date()), createdAt: now, hitoId, menciones });
     draft.ultimaActualizacion = fmtDate(new Date());
-    draft.historial.push({ event: `Comentario: "${v.slice(0, 40)}"`, at: fmtDate(new Date()), by: currentUser });
+    draft.historial.push({ event: hito ? `Comentario en hito "${hito.nombre}"` : "Comentario agregado", at: fmtDate(new Date()), createdAt: now, by: currentUser });
+    feedQuillInstance.setContents([]);
+    feedPendingMenciones = [];
+    if (hitoSelect) hitoSelect.value = "";
     renderAll();
-    refreshTaskActividadPane(draft);
+    refreshTaskFeedPane(draft);
   });
 }
 
-function refreshTaskActividadPane(draft) {
-  const pane = els.taskForm.querySelector('.task-pane[data-task-pane="actividad"]');
-  if (!pane) return;
-  pane.innerHTML = buildActividadTabHtml(draft);
-  wireActividadTabEvents(draft);
+function refreshTaskFeedPane(draft) {
+  const list = document.getElementById("taskFeedList");
+  if (!list) return;
+  list.innerHTML = buildFeedHtml(draft);
+  list.scrollTop = list.scrollHeight;
+}
+
+// =========================================================
+// Task modal — solapas de accesorios condicionales (fase 3: Expediente y
+// Planillas, solo si la pizarra activa los tiene habilitados). Mapa no es
+// una solapa del tema (vive a nivel tema pero fuera del modal, fase 5).
+// =========================================================
+function accesorioHabilitado(key) {
+  return Boolean(state.pizarraActual?.accesorios?.[key]?.enabled);
+}
+
+function accesoriosDisponiblesParaConectar() {
+  return [
+    { key: "expediente", label: "Expediente" },
+    { key: "planillas", label: "Planillas" }
+  ].filter((a) => !accesorioHabilitado(a.key));
+}
+
+// Habilitar accesorios por pizarra todavia no existe (fases 4/5) — placeholder
+// simple que no bloquea el resto de esta fase, tal como pidio el usuario.
+function openConectarAccesorioModal() {
+  const disponibles = accesoriosDisponiblesParaConectar();
+  els.dynamicForm.innerHTML = `
+    <h3>Conectar un accesorio</h3>
+    <p style="color:var(--muted);font-size:13px;margin:8px 0 16px">
+      ${escHtml(disponibles.map((a) => a.label).join(", "))} todavia no se pueden conectar desde aca — la
+      habilitacion de accesorios por pizarra se configura desde ajustes de la pizarra en una proxima fase.
+    </p>
+    <div class="btn-group" style="justify-content:flex-end">
+      <button type="button" class="primary" id="conectarAccesorioOk">Entendido</button>
+    </div>
+  `;
+  els.modalForm.showModal();
+  document.getElementById("conectarAccesorioOk").addEventListener("click", () => els.modalForm.close());
+}
+
+function buildExpedienteTabHtml(draft, mode) {
+  const editable = mode === "edit";
+  const hasExp = Boolean(draft.expediente);
+  return editable ? `
+    <div class="gde-compact-row">
+      <input type="checkbox" id="taskHasExpChk" ${hasExp ? "checked" : ""} />
+      <span class="gde-compact-number ${hasExp ? "" : "muted"}" id="taskGdeCompactNumber">${hasExp ? escHtml(draft.expediente) : "Sin expediente asociado"}</span>
+      ${hasExp ? `<a href="#" class="gde-link" data-gde-open="${escHtml(draft.expediente)}" title="Abrir en GDE">🔗</a>` : ""}
+      <button type="button" class="gde-compact-expand" id="taskGdeExpandBtn" title="${hasExp ? "Editar expediente" : "Agregar expediente"}">✎</button>
+    </div>
+    <div data-gde-container class="hidden">${buildGdeToggleWidget(draft.expediente || "")}</div>`
+    : `
+    <div class="gde-compact-row">
+      <span class="gde-compact-number ${hasExp ? "" : "muted"}">${hasExp ? escHtml(draft.expediente) : "Sin expediente asociado"}</span>
+      ${hasExp ? `<a href="#" class="gde-link" data-gde-open="${escHtml(draft.expediente)}" title="Abrir en GDE">🔗</a>` : ""}
+    </div>`;
+}
+
+function wireExpedienteTabEvents(draft, mode) {
+  els.taskForm.querySelectorAll('.task-pane[data-task-pane="expediente"] [data-gde-open]').forEach((a) => {
+    a.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); openGDE(a.dataset.gdeOpen); });
+  });
+  if (mode !== "edit") return;
+  const gdeContainer = els.taskForm.querySelector('.task-pane[data-task-pane="expediente"] [data-gde-container]');
+  if (gdeContainer) wireGdeToggleWidget(gdeContainer.querySelector("[data-gde-toggle]"), draft.expediente || "", "pegar", "tarea-");
+
+  const hasExpChk = document.getElementById("taskHasExpChk");
+  const expandBtn = document.getElementById("taskGdeExpandBtn");
+  const compactNumber = document.getElementById("taskGdeCompactNumber");
+  hasExpChk?.addEventListener("change", () => {
+    if (hasExpChk.checked) {
+      gdeContainer?.classList.remove("hidden");
+    } else {
+      gdeContainer?.classList.add("hidden");
+      const hidden = document.getElementById("tarea-gdeNumeroHidden");
+      if (hidden) hidden.value = "";
+      if (compactNumber) { compactNumber.textContent = "Sin expediente asociado"; compactNumber.classList.add("muted"); }
+    }
+  });
+  expandBtn?.addEventListener("click", () => {
+    const willShow = gdeContainer?.classList.contains("hidden");
+    gdeContainer?.classList.toggle("hidden");
+    if (willShow && hasExpChk && !hasExpChk.checked) hasExpChk.checked = true;
+  });
+  ["input", "change"].forEach((evt) => gdeContainer?.addEventListener(evt, () => {
+    const hidden = document.getElementById("tarea-gdeNumeroHidden");
+    if (!compactNumber || !hidden) return;
+    const val = hidden.value.trim();
+    compactNumber.textContent = val || "Sin expediente asociado";
+    compactNumber.classList.toggle("muted", !val);
+  }));
+}
+
+// Planillas queda config-only por ahora (fase 5): sin sync real, solo
+// muestra el link vinculado a la pizarra si ya existe.
+function buildPlanillasTabHtml() {
+  const url = state.pizarraActual?.accesorios?.planillas?.url;
+  return `
+    <div class="task-section">
+      <p style="color:var(--muted);font-size:13px">Todavia no hay datos sincronizados de una planilla para este tema.</p>
+      ${url
+        ? `<p style="font-size:13px">Planilla vinculada a esta pizarra: <a href="${escHtml(url)}" target="_blank" rel="noopener" class="link">${escHtml(url)}</a></p>`
+        : `<p style="color:var(--muted);font-size:12.5px">Esta pizarra todavia no tiene una planilla vinculada.</p>`}
+    </div>`;
 }
 
 // =========================================================
@@ -4122,21 +4337,22 @@ function wireTaskModalTabs() {
       tab.classList.add("active");
       const pane = els.taskForm.querySelector(`.task-pane[data-task-pane="${tab.dataset.taskTab}"]`);
       if (pane) pane.classList.add("active");
-      if (tab.dataset.taskTab === "tarea") autoResizeTextarea(document.getElementById("taskNombreInput"));
+      if (tab.dataset.taskTab === "general") autoResizeTextarea(document.getElementById("taskNombreInput"));
     });
   });
 }
 
 // El modal unifica vista (readonly) y edicion. `initialMode` decide con que modo
 // abre; "Editar"/"Cancelar" alternan entre ambos sin cerrar la ventana ni perder
-// los tabs Hitos/Actividad/Documentos ya cargados (esos se persisten al toque,
-// no dependen de Guardar/Cancelar del tab Tarea).
+// los tabs Documentos/accesorios ya cargados (esos se persisten al toque, no
+// dependen de Guardar/Cancelar de la seccion General). El panel de Actividad
+// no es una tab — vive siempre visible, ver buildFeedPanelHtml.
 function renderTaskFormShell(draft, isEdit, initialMode) {
   let mode = initialMode || (isEdit ? "view" : "edit");
   let tareaSnapshot = mode === "edit" ? snapshotTareaFields(draft) : null;
 
   function currentTab() {
-    return els.taskForm.querySelector(".task-tab.active")?.dataset.taskTab || "tarea";
+    return els.taskForm.querySelector(".task-tab.active")?.dataset.taskTab || "general";
   }
 
   function footerHtml() {
@@ -4180,51 +4396,61 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
   }
 
   function render(tab) {
-    const activeTab = tab || "tarea";
-    const totalH = draft.hitos.length;
-    const doneH = draft.hitos.filter((h) => h.estado === "Cerrado").length;
+    const activeTab = tab || "general";
     const editable = mode === "edit";
+    const accesoriosTabs = [];
+    if (accesorioHabilitado("expediente")) accesoriosTabs.push({ key: "expediente", label: "🔌 Expediente" });
+    if (accesorioHabilitado("planillas")) accesoriosTabs.push({ key: "planillas", label: "🔌 Planillas" });
+    const puedeConectarAccesorio = esCreadorPizarra() && accesoriosDisponiblesParaConectar().length > 0;
 
     els.taskForm.innerHTML = `
       <div class="task-modal-header">
         <div class="task-modal-title-block">
           <span class="id-pill">${escHtml(draft.id)}</span>
           <h3 class="task-modal-title" id="taskModalTitle">${escHtml(draft.nombre) || "Nuevo tema"}</h3>
-          ${draft.privado ? `<span class="id-pill" title="Solo visible para quien lo creo">🔒</span>` : ""}
+          ${draft.privado ? `<span class="id-pill" title="Solo visible para el creador de la pizarra">🔒</span>` : ""}
         </div>
         <div class="task-modal-header-actions">
           ${editable
             ? `<select name="estado" class="task-modal-estado-select">${STATES.map((s) => `<option ${draft.estado === s ? "selected" : ""}>${s}</option>`).join("")}</select>`
             : badge(draft.estado)}
+          <button type="button" class="task-feed-toggle-btn" id="taskFeedToggleBtn" title="${feedPanelVisible ? "Ocultar actividad" : "Mostrar actividad"}" aria-label="Mostrar u ocultar actividad">💬</button>
           <button type="button" class="task-modal-close" id="taskModalCloseBtn" aria-label="Cerrar">✕</button>
         </div>
       </div>
 
-      <div class="task-modal-tabs">
-        <button type="button" class="task-tab ${activeTab === "tarea" ? "active" : ""}" data-task-tab="tarea">Tarea</button>
-        <button type="button" class="task-tab ${activeTab === "hitos" ? "active" : ""}" data-task-tab="hitos">Hitos${totalH > 0 ? ` (${doneH}/${totalH})` : ""}</button>
-        <button type="button" class="task-tab ${activeTab === "actividad" ? "active" : ""}" data-task-tab="actividad">Actividad</button>
-        <button type="button" class="task-tab ${activeTab === "documentos" ? "active" : ""}" data-task-tab="documentos">Documentos${draft.documentos.length ? ` (${draft.documentos.length})` : ""}</button>
-      </div>
+      <div class="task-modal-body">
+        <div class="task-modal-main">
+          <div class="task-modal-tabs">
+            <button type="button" class="task-tab ${activeTab === "general" ? "active" : ""}" data-task-tab="general">General</button>
+            <button type="button" class="task-tab ${activeTab === "documentos" ? "active" : ""}" data-task-tab="documentos">Documentos${draft.documentos.length ? ` (${draft.documentos.length})` : ""}</button>
+            ${accesoriosTabs.map((a) => `<button type="button" class="task-tab ${activeTab === a.key ? "active" : ""}" data-task-tab="${a.key}">${a.label}</button>`).join("")}
+            ${puedeConectarAccesorio ? `<button type="button" class="task-tab-add" id="taskConectarAccesorioBtn" title="Conectar un accesorio">+</button>` : ""}
+          </div>
 
-      <div class="task-modal-content">
-        <div class="task-pane ${activeTab === "tarea" ? "active" : ""}" data-task-pane="tarea">${buildTareaTabHtml(draft, mode)}</div>
-        <div class="task-pane ${activeTab === "hitos" ? "active" : ""}" data-task-pane="hitos">${buildHitosTabHtml(draft, mode)}</div>
-        <div class="task-pane ${activeTab === "actividad" ? "active" : ""}" data-task-pane="actividad">${buildActividadTabHtml(draft)}</div>
-        <div class="task-pane ${activeTab === "documentos" ? "active" : ""}" data-task-pane="documentos">${buildDocumentosTabHtml(draft)}</div>
+          <div class="task-modal-content">
+            <div class="task-pane ${activeTab === "general" ? "active" : ""}" data-task-pane="general">${buildGeneralTabHtml(draft, mode)}</div>
+            <div class="task-pane ${activeTab === "documentos" ? "active" : ""}" data-task-pane="documentos">${buildDocumentosTabHtml(draft)}</div>
+            ${accesorioHabilitado("expediente") ? `<div class="task-pane ${activeTab === "expediente" ? "active" : ""}" data-task-pane="expediente">${buildExpedienteTabHtml(draft, mode)}</div>` : ""}
+            ${accesorioHabilitado("planillas") ? `<div class="task-pane ${activeTab === "planillas" ? "active" : ""}" data-task-pane="planillas">${buildPlanillasTabHtml()}</div>` : ""}
+          </div>
+        </div>
+        ${buildFeedPanelHtml(draft)}
       </div>
 
       <div class="task-modal-footer ${editable ? "" : "footer-view"}">${footerHtml()}</div>
     `;
 
     wireTaskModalTabs();
-    wireTareaTabEvents(draft, mode);
+    wireGeneralTabEvents(draft, mode);
     wireHitosListButtons(draft, mode);
     wireHitoDragReorder(draft, mode);
     wireGanttZoom(draft);
     if (editable) wireAddHitoInline(draft);
-    wireActividadTabEvents(draft);
     wireDocumentosTabEvents(draft);
+    if (accesorioHabilitado("expediente")) wireExpedienteTabEvents(draft, mode);
+    wireFeedPanel(draft);
+    document.getElementById("taskConectarAccesorioBtn")?.addEventListener("click", openConectarAccesorioModal);
 
     document.getElementById("taskModalCloseBtn").addEventListener("click", () => els.modalTask.close());
     wireFooterEvents();
@@ -4242,7 +4468,12 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
     if (!nombreVal) { showToast("El nombre del tema es requerido"); return; }
     const data = Object.fromEntries(new FormData(els.taskForm).entries());
     data.responsable = resp;
-    data.privado = els.taskForm.querySelector('[name="privado"]')?.checked || false;
+    // El checkbox de privacidad solo existe en el DOM para el creador de la
+    // pizarra (ver buildGeneralFieldsHtml) — si no esta, se preserva el valor
+    // actual en vez de asumir false (evita que un editor no-creador lo
+    // desmarque sin querer al no tener control para tocarlo).
+    const privadoChk = els.taskForm.querySelector('[name="privado"]');
+    data.privado = privadoChk ? privadoChk.checked : draft.privado;
     const hasExp = document.getElementById("taskHasExpChk")?.checked;
     const gdeHidden = document.getElementById("tarea-gdeNumeroHidden");
     data.expediente = hasExp ? (gdeHidden ? gdeHidden.value.trim() : (draft.expediente || "")) : "";
@@ -4292,7 +4523,7 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
     }
   };
 
-  render("tarea");
+  render("general");
 }
 
 function openTemaForm(existing = null, defaultEstado = "Pendiente", opts = {}) {
@@ -4438,7 +4669,7 @@ function openHitoForm(tema, existing = null, opts = {}) {
     tema.ultimaActualizacion = fmtDate(new Date());
     els.modalForm.close();
     renderAll();
-    if (opts.onSaved) opts.onSaved(); else openTemaFormById(tema.id, { activeTab: "hitos" });
+    if (opts.onSaved) opts.onSaved(); else openTemaFormById(tema.id, { activeTab: "general" });
   };
   els.modalForm.showModal();
 }
@@ -4456,7 +4687,7 @@ async function deleteHito(tema, hitoId, opts = {}) {
   tema.historial.push({ event: `Hito ${hitoId} eliminado`, at: fmtDate(new Date()), by: activeUserName() });
   tema.ultimaActualizacion = fmtDate(new Date());
   renderAll();
-  if (opts.onSaved) opts.onSaved(); else openTemaFormById(tema.id, { activeTab: "hitos" });
+  if (opts.onSaved) opts.onSaved(); else openTemaFormById(tema.id, { activeTab: "general" });
 }
 
 // =========================================================

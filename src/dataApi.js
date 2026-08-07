@@ -4,6 +4,7 @@
 import { supabase } from "./supabaseClient.js";
 import { currentUserId, currentUserName } from "./authApi.js";
 import * as M from "./mappers.js";
+import DOMPurify from "dompurify";
 
 function today() {
   const d = new Date();
@@ -28,13 +29,18 @@ export function getCurrentPizarraId() { return currentPizarraId; }
 // resuelve a la primera pizarra visible por RLS (comportamiento fase 1).
 // =====================================================================
 export async function fetchInitialState(pizarraId = null) {
-  let targetId = pizarraId;
-  if (!targetId) {
+  let pizarraRow = null;
+  if (pizarraId) {
+    const pizR = await supabase.from("pizarras").select("*").eq("id", pizarraId).maybeSingle();
+    must(pizR);
+    pizarraRow = pizR.data || null;
+  } else {
     const pizR = await supabase.from("pizarras").select("*").order("created_at", { ascending: true }).limit(1);
     must(pizR);
-    targetId = (pizR.data || [])[0]?.id || null;
+    pizarraRow = (pizR.data || [])[0] || null;
   }
-  currentPizarraId = targetId;
+  currentPizarraId = pizarraRow ? pizarraRow.id : null;
+  const pizarra = pizarraRow ? M.pizarraFromRow(pizarraRow) : null;
 
   const colR = await supabase.from("columnas").select("*").eq("pizarra_id", currentPizarraId).order("orden", { ascending: true });
   must(colR);
@@ -83,7 +89,7 @@ export async function fetchInitialState(pizarraId = null) {
   const usuarios = (profR.data || []).map(M.profileToUsuario);
   const etiquetas = (etqR.data || []).map(M.etiquetaFromRow);
 
-  return { temas, expedientes, responsables, documentos, usuarios, etiquetas, columnas, pizarraId: currentPizarraId };
+  return { temas, expedientes, responsables, documentos, usuarios, etiquetas, columnas, pizarraId: currentPizarraId, pizarra };
 }
 
 // =====================================================================
@@ -210,12 +216,16 @@ export async function deleteResponsable(id, fullName) {
 // =====================================================================
 // Comentarios
 // =====================================================================
-export async function createComentario(temaId, texto) {
+// texto llega como HTML de Quill; se sanitiza aca (no en el render) para
+// que quede sanitizado en el origen sin importar desde donde se lea despues.
+export async function createComentario(temaId, texto, { hitoId = null, menciones = [] } = {}) {
   must(await supabase.from("comentarios").insert({
     tema_id: temaId,
+    hito_id: hitoId,
+    menciones,
     user_id: currentUserId(),
     autor_nombre: currentUserName(),
-    texto
+    texto: DOMPurify.sanitize(texto)
   }));
 }
 

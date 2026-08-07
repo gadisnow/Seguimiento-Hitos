@@ -56,6 +56,14 @@ export async function renamePizarra(id, nombre) {
   must(await supabase.from("pizarras").update({ nombre }).eq("id", id));
 }
 
+// Creador + colaboradores aceptados de la pizarra (id/nombre/email) — usado
+// para armar la lista de candidatos a @mencionar en comentarios.
+export async function getBoardMembers(pizarraId) {
+  const { data, error } = await supabase.rpc("get_board_members", { p_pizarra_id: pizarraId });
+  if (error) throw error;
+  return data || [];
+}
+
 // =====================================================================
 // Columnas
 // =====================================================================
