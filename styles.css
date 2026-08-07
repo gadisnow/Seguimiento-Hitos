@@ -18,6 +18,8 @@
   --pendiente-soft: #fee2e2;
   --en-curso-soft: #dbeafe;
   --bloqueado-soft: #fef3c7;
+  /* Curva fuerte para entradas/salidas de paneles (modales, drawers). */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --cerrado-soft: #d1fae5;
   --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.05);
   --radius: 14px;
@@ -2503,8 +2505,33 @@ dialog#modalTask {
   width: min(1280px, 97vw);
   max-height: 90vh;
   box-shadow: 0 30px 60px rgba(15,23,42,0.2);
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity .2s var(--ease-out), transform .2s var(--ease-out),
+              overlay .2s var(--ease-out) allow-discrete,
+              display .2s var(--ease-out) allow-discrete;
 }
-dialog#modalTask::backdrop { background: rgba(15,23,42,0.78); }
+dialog#modalTask:not([open]) {
+  opacity: 0;
+  transform: scale(0.96);
+}
+@starting-style {
+  dialog#modalTask[open] {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+dialog#modalTask::backdrop {
+  background: rgba(15,23,42,0.78);
+  transition: background .2s var(--ease-out),
+              overlay .2s var(--ease-out) allow-discrete,
+              display .2s var(--ease-out) allow-discrete;
+}
+@starting-style {
+  dialog#modalTask[open]::backdrop {
+    background: rgba(15,23,42,0);
+  }
+}
 html[data-theme="dark"] dialog#modalTask { background: var(--card); color: var(--text); }
 
 /* El dialogo cap a 90vh; el form ocupa esa altura como columna flex para que
@@ -2964,6 +2991,25 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
   z-index: 300;
 }
 
+#pizarraSwitcher {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .2s var(--ease-out), visibility .2s var(--ease-out);
+}
+#pizarraSwitcher.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+#pizarraSwitcher .login-card {
+  transform: scale(0.96);
+  transition: transform .2s var(--ease-out);
+}
+#pizarraSwitcher.open .login-card {
+  transform: scale(1);
+}
+
 .login-card {
   background: white;
   border-radius: 20px;
@@ -3158,3 +3204,27 @@ html[data-theme="dark"] .rol-viewer { background: rgba(148,163,184,0.22); color:
 
 /* La pantalla de login/selector de pizarras ya no cambia con el tema
    (ver nota en .login-title mas arriba) — sin overrides dark aca. */
+
+/* ============== Reduced motion ==============
+   Se conserva el fade de opacidad (ayuda a entender que algo aparecio/
+   desaparecio) y se elimina el scale/transform del modal de tema y del
+   selector de pizarras. */
+@media (prefers-reduced-motion: reduce) {
+  dialog#modalTask,
+  dialog#modalTask:not([open]) {
+    transform: none;
+  }
+  dialog#modalTask {
+    transition: opacity .2s ease,
+                overlay .2s ease allow-discrete,
+                display .2s ease allow-discrete;
+  }
+  @starting-style {
+    dialog#modalTask[open] { transform: none; }
+  }
+
+  #pizarraSwitcher .login-card,
+  #pizarraSwitcher.open .login-card {
+    transform: none;
+  }
+}

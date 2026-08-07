@@ -484,7 +484,7 @@ const PIZARRA_LS_KEY = "sgtemas_last_pizarra";
 
 async function enterPizarra(id) {
   localStorage.setItem(PIZARRA_LS_KEY, id);
-  if (els.pizarraSwitcher) els.pizarraSwitcher.style.display = "none";
+  if (els.pizarraSwitcher) els.pizarraSwitcher.classList.remove("open");
   showApp();
   const ok = await withBusy(() => reloadState(id));
   if (ok) authApi.touchLastAccess().catch(() => {});
@@ -495,8 +495,7 @@ async function showPizarraSwitcher() {
   const ls = $("loginScreen");
   if (app) app.style.display = "none";
   if (ls) ls.style.display = "none";
-  els.pizarraSwitcher.style.display = "grid";
-  els.pizarraSwitcher.style.placeItems = "center";
+  els.pizarraSwitcher.classList.add("open");
   await renderPizarraSwitcherScreen();
 }
 
@@ -754,7 +753,7 @@ function showLoginScreen() {
   const app = document.querySelector(".app");
   if (ls) { ls.style.display = "grid"; ls.style.placeItems = "center"; }
   if (app) app.style.display = "none";
-  if (els.pizarraSwitcher) els.pizarraSwitcher.style.display = "none";
+  if (els.pizarraSwitcher) els.pizarraSwitcher.classList.remove("open");
   renderLogin();
 }
 
@@ -763,7 +762,7 @@ function showApp() {
   const app = document.querySelector(".app");
   if (ls) ls.style.display = "none";
   if (app) app.style.display = "";
-  if (els.pizarraSwitcher) els.pizarraSwitcher.style.display = "none";
+  if (els.pizarraSwitcher) els.pizarraSwitcher.classList.remove("open");
   updateHeaderForRole();
 }
 
@@ -773,7 +772,7 @@ function showAccessNotice(kind) {
   const app = document.querySelector(".app");
   if (ls) { ls.style.display = "grid"; ls.style.placeItems = "center"; }
   if (app) app.style.display = "none";
-  if (els.pizarraSwitcher) els.pizarraSwitcher.style.display = "none";
+  if (els.pizarraSwitcher) els.pizarraSwitcher.classList.remove("open");
   const wrap = $("loginFormWrap");
   if (!wrap) return;
   const isOff = kind === "desactivada";
