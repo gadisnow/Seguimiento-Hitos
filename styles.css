@@ -1,9 +1,10 @@
 :root {
-  --bg: #FCFCFD;
+  /* Neutros de marca (modo claro): Paper / Linea / Ink / Gris. */
+  --bg: #FAFAFA;
   --card: #ffffff;
-  --border: #e6ecf3;
-  --text: #1f2a44;
-  --muted: #6b7a90;
+  --border: #E4E4E7;
+  --text: #18181B;
+  --muted: #71717A;
   /* Acento unico de marca: naranja. Reservado para CTAs primarios y
      estados activos/en progreso — no es decorativo (ver manual de marca). */
   --primary: #F97316;
@@ -565,7 +566,7 @@ button {
   white-space: nowrap;
 }
 
-html[data-theme="dark"] .clickable-row:hover { background: #1e293b !important; }
+html[data-theme="dark"] .clickable-row:hover { background: rgba(255,255,255,0.04) !important; }
 
 /* badges & state */
 .badge {
@@ -1733,7 +1734,7 @@ dialog#modalNewResp::backdrop { background: rgba(15,23,42,0.6); }
   bottom: 28px;
   left: 50%;
   transform: translateX(-50%) translateY(16px);
-  background: #1e293b;
+  background: #18181B;
   color: #fff;
   padding: 10px 20px;
   border-radius: 10px;
@@ -1948,13 +1949,14 @@ html[data-theme="dark"] .switch .track::before { background: #cbd5e1; }
 }
 
 /* ============== Dark mode ============== */
+/* Neutros de marca (modo oscuro): Superficie oscura / Ink elevado / Paper / Gris. */
 html[data-theme="dark"] {
   --primary: #FB923C;
-  --bg: #11151F;
-  --card: #171B27;
-  --border: #262c3a;
-  --text: #EDEFF4;
-  --muted: #8891A1;
+  --bg: #1C1C1F;
+  --card: #2E2E33;
+  --border: #3A3A40;
+  --text: #FAFAFA;
+  --muted: #71717A;
   --pendiente-soft: rgba(239, 68, 68, 0.18);
   --en-curso-soft: rgba(59, 130, 246, 0.18);
   --bloqueado-soft: rgba(245, 158, 11, 0.18);
@@ -1988,7 +1990,7 @@ html[data-theme="dark"] .hito-actions button,
 html[data-theme="dark"] .resp-dropdown-addnew { background: transparent; border: 0; }
 
 html[data-theme="dark"] .topbar,
-html[data-theme="dark"] .tabbar { background: var(--card); border-color: #3A4258; }
+html[data-theme="dark"] .tabbar { background: var(--card); border-color: var(--border); }
 
 html[data-theme="dark"] .user-menu-trigger:hover,
 html[data-theme="dark"] .user-menu-item:hover { background: rgba(255,255,255,0.06); }
@@ -2001,7 +2003,7 @@ html[data-theme="dark"] .toggle-switch.on { background: var(--primary); }
 html[data-theme="dark"] input,
 html[data-theme="dark"] select,
 html[data-theme="dark"] textarea {
-  background: #0f172a;
+  background: var(--card);
   color: var(--text);
   border-color: var(--border);
 }
@@ -2015,12 +2017,12 @@ html[data-theme="dark"] #newRespForm select,
 html[data-theme="dark"] .form-card input,
 html[data-theme="dark"] .form-card select,
 html[data-theme="dark"] .form-card textarea {
-  background: #0f172a;
+  background: var(--card);
   color: var(--text);
   border-color: var(--border);
 }
 
-html[data-theme="dark"] .search-wrap input { background: #0f172a; }
+html[data-theme="dark"] .search-wrap input { background: var(--card); }
 html[data-theme="dark"] .pill { background: var(--card); }
 html[data-theme="dark"] .icon-btn { background: var(--card); border-color: var(--border); }
 html[data-theme="dark"] .ghost { background: var(--card); }
@@ -2076,7 +2078,7 @@ html[data-theme="dark"] .alert-item.lvl-amarillo { background: rgba(245,158,11,0
 
 html[data-theme="dark"] .drawer { background: var(--card); }
 html[data-theme="dark"] .drawer-head { border-bottom-color: var(--border); }
-html[data-theme="dark"] .right-rail { background: #0f172a; border-color: var(--border); }
+html[data-theme="dark"] .right-rail { background: var(--card); border-color: var(--border); }
 
 html[data-theme="dark"] .resp-dropdown-panel { background: var(--card); border-color: var(--border); }
 html[data-theme="dark"] .resp-dropdown-trigger { background: var(--card); border-color: var(--border); }
@@ -2320,8 +2322,8 @@ html[data-theme="dark"] .col-En-revision { background: rgba(139,92,246,0.06); }
   flex-shrink: 0;
 }
 
-html[data-theme="dark"] .gde-part-input { background: #1e293b; }
-html[data-theme="dark"] .gde-preview-row { background: #0f172a; }
+html[data-theme="dark"] .gde-part-input { background: var(--card); }
+html[data-theme="dark"] .gde-preview-row { background: var(--card); }
 
 /* ============== GDE block ============== */
 .gde-block {
@@ -2457,13 +2459,13 @@ html[data-theme="dark"] .dtab { color: var(--muted); }
 html[data-theme="dark"] .dtab.active { color: var(--primary); }
 
 html[data-theme="dark"] .detail-input {
-  background: #0f172a;
+  background: var(--card);
   border-color: var(--border);
   color: var(--text);
 }
 
 html[data-theme="dark"] .gde-block {
-  background: #0f172a;
+  background: var(--card);
   border-color: var(--border);
 }
 
@@ -2720,10 +2722,10 @@ html[data-theme="dark"] .gantt-scroll::-webkit-scrollbar-thumb:hover { backgroun
 .gantt-link-dot { fill: var(--muted); }
 .gantt-link-dot.alerta { fill: #dc2626; }
 
-html[data-theme="dark"] .gantt-labels { background: #242B3F; border-right-color: #3A4258; }
-html[data-theme="dark"] .gantt-layout { border-color: #3A4258; }
+html[data-theme="dark"] .gantt-labels { background: var(--card); border-right-color: var(--border); }
+html[data-theme="dark"] .gantt-layout { border-color: var(--border); }
 html[data-theme="dark"] .gantt-label-spacer,
-html[data-theme="dark"] .gantt-row-label { border-bottom-color: #3A4258; }
+html[data-theme="dark"] .gantt-row-label { border-bottom-color: var(--border); }
 html[data-theme="dark"] .gantt-grid-line { stroke: #4A5470; }
 html[data-theme="dark"] .gantt-link { stroke: #9AA4B8; }
 html[data-theme="dark"] .gantt-link-dot { fill: #9AA4B8; }
@@ -2775,7 +2777,7 @@ html[data-theme="dark"] .hito-item.editing { background: rgba(251,146,60,0.14); 
   border: 1px solid var(--primary); border-radius: 5px; padding: 0 4px;
 }
 .hito-fecha-rango { font-size: 9.5px; color: var(--muted); white-space: nowrap; }
-html[data-theme="dark"] .hito-dep-chip { background: #2E3650; border-color: #3A4258; }
+html[data-theme="dark"] .hito-dep-chip { background: var(--card); border-color: var(--border); }
 
 .hito-alert-badge {
   font-size: 9.5px; font-weight: 600; border-radius: 999px; padding: 1px 6px; white-space: nowrap;
@@ -2879,16 +2881,20 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
 
 .login-logo { margin-bottom: 16px; }
 
+/* La pantalla de login/selector de pizarras es fija: siempre fondo oscuro
+   + tarjeta blanca + texto ink, sin importar el tema claro/oscuro del
+   resto de la app (por eso los colores de aca van hardcodeados, no por
+   variable — ver html[data-theme="dark"] mas abajo, que ya no la toca). */
 .login-title {
   font-size: 20px;
   font-weight: 700;
-  color: var(--text);
+  color: #18181B;
   margin-bottom: 4px;
 }
 
 .login-sub {
   font-size: 13px;
-  color: var(--muted);
+  color: #71717A;
   margin: 0 0 28px;
 }
 
@@ -2902,27 +2908,27 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
   display: grid;
   gap: 4px;
   font-size: 12.5px;
-  color: var(--muted);
+  color: #71717A;
 }
 
 .login-form input {
-  border: 1px solid var(--border);
+  border: 1px solid #E4E4E7;
   border-radius: 8px;
   padding: 10px 12px;
   font-size: 14px;
-  color: var(--text);
-  background: white;
+  color: #18181B;
+  background: #ffffff;
   font-family: inherit;
   width: 100%;
 }
 
 .login-form input:focus {
-  outline: 2px solid var(--primary);
+  outline: 2px solid #F97316;
   outline-offset: 1px;
 }
 
 .login-btn {
-  background: var(--primary);
+  background: #F97316;
   color: white;
   border: 0;
   border-radius: 10px;
@@ -2936,7 +2942,7 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
   transition: background .15s;
 }
 
-.login-btn:hover { background: var(--primary-2); }
+.login-btn:hover { background: #EA580C; }
 
 .login-error {
   background: #fef2f2;
@@ -3056,31 +3062,5 @@ html[data-theme="dark"] .rol-viewer { background: rgba(148,163,184,0.22); color:
   margin: 0 auto;
 }
 
-html[data-theme="dark"] .login-screen {
-  background: linear-gradient(135deg, #020617 0%, #0f172a 60%, #020617 100%);
-}
-
-html[data-theme="dark"] .login-card {
-  background: var(--card);
-  color: var(--text);
-}
-
-html[data-theme="dark"] .login-title { color: var(--text); }
-
-html[data-theme="dark"] .login-form input {
-  background: #0f172a;
-  color: var(--text);
-  border-color: var(--border);
-}
-
-html[data-theme="dark"] .login-error {
-  background: rgba(239,68,68,0.1);
-  border-color: rgba(239,68,68,0.3);
-  color: #fca5a5;
-}
-
-html[data-theme="dark"] .login-success {
-  background: rgba(16,185,129,0.1);
-  border-color: rgba(16,185,129,0.3);
-  color: #6ee7b7;
-}
+/* La pantalla de login/selector de pizarras ya no cambia con el tema
+   (ver nota en .login-title mas arriba) — sin overrides dark aca. */
