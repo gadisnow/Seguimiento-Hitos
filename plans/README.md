@@ -10,6 +10,7 @@ Auditoría base: modal de detalle de tema (`dialog#modalTask`) y transiciones de
 | 004 | [Fade al cambiar de tab en el modal de tema](004-tabs-modal-tema-crossfade.md) | LOW-MEDIUM | DONE |
 | 005 | [Transiciones en .task-tab y press feedback en .task-modal-close](005-task-tab-close-feedback.md) | LOW | DONE |
 | 006 | [Entrada animada para kcard-menu y board-menu](006-menus-contextuales-entrada.md) | LOW | DONE |
+| 007 | [Highlight en la tarjeta que cambió de columna](007-highlight-tarjeta-movida.md) | MEDIUM-HIGH (alcance reducido) | DONE |
 
 ## Orden de ejecución
 
@@ -18,9 +19,8 @@ Auditoría base: modal de detalle de tema (`dialog#modalTask`) y transiciones de
 2. **002** — reusa el token de 001, independiente en el resto.
 3. **003** — depende de que 001 y 002 ya existan en el CSS (neutraliza el `transform` que ambos introducen).
 
-**Lote 2** (retoques CSS chicos, todos independientes entre sí y de 001/002, solo reusan `--ease-out`):
+**Lote 2** (commit `a6a72cf`, retoques CSS chicos, todos independientes entre sí y de 001/002, solo reusan `--ease-out`):
 4. **004**, **005**, **006** — sin dependencias entre ellos, se pueden aplicar en cualquier orden.
 
-## Pendientes (lote 3, no planificado todavía)
-
-- Tarjetas/columnas del tablero teletransportan al reordenar (`renderAgenda()` hace `innerHTML=` completo) — recomendado empezar con un highlight liviano antes de un FLIP completo. Mayor esfuerzo (requiere cambios en JS, no solo CSS) — plan aparte cuando se decida encararlo.
+**Lote 3** (drag & drop del tablero, reusa `--ease-out`):
+5. **007** — versión liviana (highlight, no FLIP completo) del problema de que las tarjetas "teletransportan" al soltarlas en una columna nueva. Un FLIP real (animar con `transform` la distancia entre la posición antes/después) queda pendiente como trabajo futuro si se decide encararlo — es una refactor mayor de `renderAgenda()`, no un plan de animación acotado.

@@ -781,6 +781,13 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
 .kcard:hover { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
 .kcard:active { cursor: grabbing; }
 .kcard.dragging { opacity: 0.4; }
+.kcard.landed {
+  animation: kcardLanded .5s var(--ease-out);
+}
+@keyframes kcardLanded {
+  from { box-shadow: 0 0 0 2px var(--primary); }
+  to   { box-shadow: 0 1px 2px rgba(15,23,42,0.04); }
+}
 
 /* Nombres largos deben crecer en altura (wrap), nunca ensanchar la tarjeta
    ni la columna — necesario ademas de min-width:0 para el caso de una

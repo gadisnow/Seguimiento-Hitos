@@ -1441,6 +1441,8 @@ function bindKanban() {
         }
         await dataApi.reorderTemas(orderedIds);
         await reloadState();
+        const landedCard = els.agendaKanban.querySelector(`.kcard[data-id="${id}"]`);
+        if (landedCard) landedCard.classList.add("landed");
       });
     });
   });
