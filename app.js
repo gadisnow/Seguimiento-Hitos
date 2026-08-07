@@ -1310,13 +1310,17 @@ const COLUMNA_COLOR_PALETTE = [
   { key: "violet",     label: "Violeta",           hex: "#8B5CF6" },
   { key: "amber",      label: "Ámbar",             hex: "#F59E0B" },
   { key: "green",      label: "Verde",             hex: "#10B981" },
-  { key: "pink",       label: "Rosa",              hex: "#EC4899" },
-  { key: "cyan",       label: "Celeste",           hex: "#06B6D4" },
-  { key: "lime",       label: "Lima",              hex: "#84CC16" },
-  { key: "magenta",    label: "Magenta",           hex: "#D946EF" },
-  { key: "teal",       label: "Verde azulado",     hex: "#14B8A6" },
-  { key: "amber-dark", label: "Ámbar oscuro",      hex: "#B45309" },
-  { key: "warm-gray",  label: "Gris cálido",       hex: "#78716C" }
+  // Complementarios rediseñados en el manual v2.4 (misma familia OKLCH que
+  // la base, contraste >=3:1 con texto blanco en los 7). Las keys se
+  // mantienen iguales a las viejas para que las columnas ya guardadas en
+  // Supabase (guardan la key, no el hex) recoloreen solas sin migracion.
+  { key: "pink",       label: "Rosa",              hex: "#DB2777" },
+  { key: "cyan",       label: "Celeste",           hex: "#0891B2" },
+  { key: "lime",       label: "Lima",              hex: "#4D7C0F" },
+  { key: "magenta",    label: "Fucsia",            hex: "#C026D3" },
+  { key: "teal",       label: "Índigo",            hex: "#4F46E5" },
+  { key: "amber-dark", label: "Marrón",            hex: "#92400E" },
+  { key: "warm-gray",  label: "Gris",              hex: "#71717A" }
 ];
 function columnaColorHex(key) {
   return (COLUMNA_COLOR_PALETTE.find((c) => c.key === key) || COLUMNA_COLOR_PALETTE.find((c) => c.key === "warm-gray")).hex;
