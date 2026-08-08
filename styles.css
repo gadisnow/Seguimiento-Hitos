@@ -1238,23 +1238,36 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
   min-height: 0;
 }
 
+/* Encabezado compartido por las 4 vistas (Mes/3 dias/semana laboral/semana
+   completa usan el mismo .cal-weekday) — achicado a proposito para dejarle
+   mas alto disponible a las filas de dias en meses de 6 semanas, ver nota
+   en .cal-day mas abajo. Al ser una sola clase compartida, el ajuste ya
+   queda parejo en las 4 vistas sin duplicar nada. */
 .cal-weekday {
   text-align: center;
-  font-size: 11.5px;
+  font-size: 10.5px;
   color: var(--muted);
-  padding: 6px 0;
+  padding: 3px 0;
   font-weight: 600;
 }
 
+/* min-height:0 (no un valor fijo) es a proposito: el grid tiene filas 1fr
+   que reparten el alto disponible de .cal-grid entre 5 o 6 semanas segun
+   el mes. Con un min-height fijo mas alto que esa porcion, un mes de 6
+   semanas empuja el grid entero mas alla del alto de .main.main-fill y
+   la ultima fila queda cortada/fuera de la tarjeta (bug reportado). Al
+   dejar que 1fr reparta libremente, cada fila usa lo que le toca y, en el
+   caso raro de que ni así entre el contenido, overflow-y:auto scrollea
+   solo esa celda en vez de romper el layout general. */
 .cal-day {
   background: #f9fbfe;
   border: 1px solid var(--border);
   border-radius: 8px;
-  min-height: 120px;
-  padding: 7px;
-  font-size: 11.5px;
+  min-height: 0;
+  padding: 5px 6px;
+  font-size: 11px;
   display: grid;
-  gap: 4px;
+  gap: 3px;
   align-content: start;
   overflow-y: auto;
 }
@@ -1262,14 +1275,14 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
 .cal-day.today { border-color: var(--primary); background: var(--primary-soft); }
 .cal-day.outside { opacity: 0.45; }
 
-.cal-day .day-num { font-weight: 600; color: var(--text); margin-bottom: 1px; }
+.cal-day .day-num { font-weight: 600; color: var(--text); }
 
 .cal-event {
   border-radius: 6px;
-  padding: 4px 7px;
+  padding: 3px 6px;
   color: white;
-  font-size: 11px;
-  line-height: 1.35;
+  font-size: 10.5px;
+  line-height: 1.3;
   cursor: grab;
   white-space: nowrap;
   overflow: hidden;
