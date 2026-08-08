@@ -1256,7 +1256,7 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
   display: grid;
   gap: 4px;
   align-content: start;
-  overflow: visible;
+  overflow-y: auto;
 }
 
 .cal-day.today { border-color: var(--primary); background: var(--primary-soft); }
@@ -1276,9 +1276,13 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
   text-overflow: ellipsis;
 }
 
-/* "+X mas" al estilo Google Calendar: el dia cap sus eventos visibles
-   (CAL_DAY_MAX_VISIBLE en app.js) en vez de comprimir/hacer scroll interno;
-   el resto se ve en el popover que abre este boton (openCalDayPopover). */
+/* "+X mas" al estilo Google Calendar — solo en la vista Mes, donde las
+   celdas son chicas (dayCell() ahi cap a CAL_DAY_MAX_VISIBLE, ver app.js);
+   3 dias/semana laboral/semana completa pasan Infinity y muestran todo,
+   porque esas celdas tienen mucho mas alto disponible. El resto de un dia
+   con "+X mas" se ve en el popover que abre este boton (openCalDayPopover);
+   el overflow-y:auto de .cal-day queda como red de seguridad para el caso
+   raro de un dia con demasiados eventos incluso sin cap. */
 .cal-more {
   border: 0;
   background: transparent;

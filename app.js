@@ -2222,10 +2222,10 @@ function renderCalendar() {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const weekdays = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"];
     let html = weekdays.map((w) => `<div class="cal-weekday">${w}</div>`).join("");
-    for (let i = 0; i < startWeekday; i++) html += dayCell(new Date(year, month, 1 - (startWeekday - i)), true, events, today);
-    for (let d = 1; d <= daysInMonth; d++) html += dayCell(new Date(year, month, d), false, events, today);
+    for (let i = 0; i < startWeekday; i++) html += dayCell(new Date(year, month, 1 - (startWeekday - i)), true, events, today, CAL_DAY_MAX_VISIBLE);
+    for (let d = 1; d <= daysInMonth; d++) html += dayCell(new Date(year, month, d), false, events, today, CAL_DAY_MAX_VISIBLE);
     const fill = (7 - ((startWeekday + daysInMonth) % 7)) % 7;
-    for (let i = 1; i <= fill; i++) html += dayCell(new Date(year, month + 1, i), true, events, today);
+    for (let i = 1; i <= fill; i++) html += dayCell(new Date(year, month + 1, i), true, events, today, CAL_DAY_MAX_VISIBLE);
     const weeks = (startWeekday + daysInMonth + fill) / 7;
     els.calGrid.style.gridTemplateColumns = "repeat(7, 1fr)";
     els.calGrid.style.gridTemplateRows = `auto repeat(${weeks}, 1fr)`;
@@ -2235,7 +2235,7 @@ function renderCalendar() {
     els.calTitle.textContent = calendarTitle(days);
     const weekdayNames = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"];
     let html = days.map((d) => `<div class="cal-weekday">${weekdayNames[(d.getDay() + 6) % 7]}</div>`).join("");
-    html += days.map((d) => dayCell(d, false, events, today)).join("");
+    html += days.map((d) => dayCell(d, false, events, today, Infinity)).join("");
     els.calGrid.style.gridTemplateColumns = `repeat(${days.length}, 1fr)`;
     els.calGrid.style.gridTemplateRows = "auto 1fr";
     els.calGrid.innerHTML = html;
@@ -2323,10 +2323,10 @@ function calEventHtml(e, draggable) {
   return `<div class="cal-event ev-${(e.estado || "pendiente").toLowerCase().replace(/\s+/g,"-")}" ${draggable ? `draggable="true"` : ""} data-tema="${e.id}" title="${escHtml(e.nombre)}">${escHtml(e.nombre)}</div>`;
 }
 
-function dayCell(d, outside, events, todayStr) {
+function dayCell(d, outside, events, todayStr, maxVisible) {
   const date = fmtDate(d);
   const dayEvents = events.filter((e) => e.fecha === date);
-  const visible = dayEvents.slice(0, CAL_DAY_MAX_VISIBLE);
+  const visible = dayEvents.slice(0, maxVisible);
   const extra = dayEvents.length - visible.length;
   return `
     <div class="cal-day ${outside ? "outside" : ""} ${date === todayStr ? "today" : ""}" data-date="${date}">
