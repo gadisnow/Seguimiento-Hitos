@@ -2241,10 +2241,10 @@ function renderCalendar() {
     els.calGrid.innerHTML = html;
   }
 
-  bindCalGrid();
+  bindCalGrid(events);
 }
 
-function bindCalGrid() {
+function bindCalGrid(events) {
   els.calGrid.querySelectorAll("[data-tema]").forEach((n) =>
     n.addEventListener("click", () => openTemaFormById(n.dataset.tema))
   );
@@ -2263,15 +2263,76 @@ function bindCalGrid() {
       });
     });
   });
+  els.calGrid.querySelectorAll("[data-cal-more]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openCalDayPopover(btn, btn.dataset.calMore, events);
+    });
+  });
+}
+
+// Popover "+X mas" de un dia del calendario (mes) — mismo patron que
+// openKcardMenu/openBoardMenu: overlay + panel fijo, se desmontan al cerrar.
+let activeCalDayPopover = null;
+
+function closeCalDayPopover() {
+  if (!activeCalDayPopover) return;
+  const { overlay, panel, onKeydown } = activeCalDayPopover;
+  overlay.remove();
+  panel.remove();
+  document.removeEventListener("keydown", onKeydown);
+  activeCalDayPopover = null;
+}
+
+function openCalDayPopover(btn, date, events) {
+  closeCalDayPopover();
+  const dayEvents = events.filter((e) => e.fecha === date);
+  const label = new Date(date + "T00:00:00").toLocaleDateString("es", { day: "numeric", month: "long" });
+
+  const overlay = document.createElement("div");
+  overlay.className = "cal-day-popover-overlay";
+  const panel = document.createElement("div");
+  panel.className = "cal-day-popover";
+  panel.innerHTML = `
+    <div class="cal-day-popover-head">${escHtml(label)}</div>
+    <div class="cal-day-popover-list">${dayEvents.map((e) => calEventHtml(e, false)).join("")}</div>
+  `;
+
+  document.body.appendChild(overlay);
+  document.body.appendChild(panel);
+
+  const btnRect = btn.getBoundingClientRect();
+  const panelWidth = 240;
+  const left = Math.min(btnRect.left, window.innerWidth - panelWidth - 12);
+  panel.style.left = `${Math.max(12, left)}px`;
+  panel.style.top = `${Math.min(btnRect.bottom + 4, window.innerHeight - 12)}px`;
+
+  const onKeydown = (e) => { if (e.key === "Escape") closeCalDayPopover(); };
+  document.addEventListener("keydown", onKeydown);
+  overlay.addEventListener("click", closeCalDayPopover);
+  panel.querySelectorAll("[data-tema]").forEach((n) =>
+    n.addEventListener("click", () => { closeCalDayPopover(); openTemaFormById(n.dataset.tema); })
+  );
+
+  activeCalDayPopover = { overlay, panel, onKeydown };
+}
+
+const CAL_DAY_MAX_VISIBLE = 3;
+
+function calEventHtml(e, draggable) {
+  return `<div class="cal-event ev-${(e.estado || "pendiente").toLowerCase().replace(/\s+/g,"-")}" ${draggable ? `draggable="true"` : ""} data-tema="${e.id}" title="${escHtml(e.nombre)}">${escHtml(e.nombre)}</div>`;
 }
 
 function dayCell(d, outside, events, todayStr) {
   const date = fmtDate(d);
   const dayEvents = events.filter((e) => e.fecha === date);
+  const visible = dayEvents.slice(0, CAL_DAY_MAX_VISIBLE);
+  const extra = dayEvents.length - visible.length;
   return `
     <div class="cal-day ${outside ? "outside" : ""} ${date === todayStr ? "today" : ""}" data-date="${date}">
       <div class="day-num">${d.getDate()}</div>
-      ${dayEvents.map((e) => `<div class="cal-event ev-${(e.estado || "pendiente").toLowerCase().replace(/\s+/g,"-")}" draggable="true" data-tema="${e.id}" title="${escHtml(e.nombre)}">${escHtml(e.nombre)}</div>`).join("")}
+      ${visible.map((e) => calEventHtml(e, true)).join("")}
+      ${extra > 0 ? `<button type="button" class="cal-more" data-cal-more="${date}">+${extra} más</button>` : ""}
     </div>`;
 }
 
