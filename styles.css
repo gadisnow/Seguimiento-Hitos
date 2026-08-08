@@ -1336,10 +1336,11 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
 }
 .cal-day-popover-list { display: grid; gap: 5px; }
 .cal-day-popover-list .cal-event {
+  /* Mismo tamano de letra que .cal-event en la celda normal (10.5px) --
+     solo se libera white-space para que el nombre completo pueda ocupar
+     mas de una linea en vez de truncarse con "...". */
   white-space: normal;
   cursor: pointer;
-  font-size: 12px;
-  padding: 6px 8px;
 }
 
 .ev-pendiente { background: var(--pendiente); }

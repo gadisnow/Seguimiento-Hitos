@@ -2305,7 +2305,16 @@ function openCalDayPopover(btn, date, events) {
   const panelWidth = 240;
   const left = Math.min(btnRect.left, window.innerWidth - panelWidth - 12);
   panel.style.left = `${Math.max(12, left)}px`;
-  panel.style.top = `${Math.min(btnRect.bottom + 4, window.innerHeight - 12)}px`;
+
+  // Se mide despues de insertar (respeta el max-height:320px real segun
+  // cuantos eventos tenga el dia) para decidir si abre hacia abajo o, si no
+  // entra en el espacio restante de la ventana, hacia arriba del boton.
+  const panelHeight = panel.offsetHeight;
+  const spaceBelow = window.innerHeight - btnRect.bottom;
+  const openUpward = spaceBelow < panelHeight + 12 && btnRect.top - panelHeight - 12 > 0;
+  panel.style.top = openUpward
+    ? `${Math.max(12, btnRect.top - panelHeight - 4)}px`
+    : `${Math.min(btnRect.bottom + 4, window.innerHeight - panelHeight - 12)}px`;
 
   const onKeydown = (e) => { if (e.key === "Escape") closeCalDayPopover(); };
   document.addEventListener("keydown", onKeydown);
