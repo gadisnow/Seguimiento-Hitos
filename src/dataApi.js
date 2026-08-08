@@ -218,23 +218,44 @@ export async function deleteResponsable(id, fullName) {
 // =====================================================================
 // texto llega como HTML de Quill; se sanitiza aca (no en el render) para
 // que quede sanitizado en el origen sin importar desde donde se lea despues.
-// Devuelve la fila creada (con id) para que la UI pueda pintarla de una
-// sin esperar a un refetch completo, y para poder editarla despues.
+//
+// El id se genera aca (no via RETURNING de Postgres) a proposito: con RLS,
+// un insert().select() exige que la fila insertada TAMBIEN cumpla la
+// politica de SELECT para poder devolverla -- y comentarios_select exige
+// can_view_tema(), que en un tema privado es mas estricta que can_edit_board()
+// (la que exige comentarios_insert): un Editor colaborador (no creador de
+// la pizarra) puede comentar un tema privado pero NO verlo listado ahi
+// via esa politica, asi que el insert quedaba en la tabla pero el
+// select-back fallaba, el catch de withBusy lo mostraba como error, y en
+// la UI parecia que el comentario "no se guardaba en ningun lado" (bug
+// reportado). Generando el id en el cliente evitamos depender del
+// RETURNING por completo: el insert es liso y llano, igual que siempre.
 export async function createComentario(temaId, texto, { hitoId = null, menciones = [] } = {}) {
-  const { data, error } = await supabase.from("comentarios").insert({
+  const id = crypto.randomUUID();
+  const userId = currentUserId();
+  const autorNombre = currentUserName();
+  const textoLimpio = DOMPurify.sanitize(texto);
+  must(await supabase.from("comentarios").insert({
+    id,
     tema_id: temaId,
     hito_id: hitoId,
     menciones,
-    user_id: currentUserId(),
-    autor_nombre: currentUserName(),
-    texto: DOMPurify.sanitize(texto)
-  }).select().single();
-  if (error) throw error;
-  return M.comentarioFromRow(data);
+    user_id: userId,
+    autor_nombre: autorNombre,
+    texto: textoLimpio
+  }));
+  return {
+    id, userId, hitoId, menciones,
+    by: autorNombre,
+    text: textoLimpio,
+    at: today(),
+    createdAt: new Date().toISOString()
+  };
 }
 
-// El autor edita su propio comentario (o un Admin, ver puedeEditarComentario
-// en app.js) — solo se toca texto, nunca autor/fecha/menciones originales.
+// El autor edita su propio comentario (o el creador de la pizarra, ver
+// puedeEditarComentario en app.js — mismo criterio que comentarios_delete)
+// — solo se toca texto, nunca autor/fecha/menciones originales.
 export async function updateComentario(id, texto) {
   must(await supabase.from("comentarios").update({ texto: DOMPurify.sanitize(texto) }).eq("id", id));
 }

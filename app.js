@@ -4124,8 +4124,13 @@ let feedPendingMenciones = [];
 let editingComentarioId = null;
 let editCommentQuillInstance = null;
 
+// Mismo criterio que la politica RLS comentarios_delete (y la nueva
+// comentarios_update): el autor, o el creador de ESTA pizarra puntual —
+// no el rol global Admin, que es un concepto distinto en este proyecto
+// (ver esCreadorPizarra). Si no coincide con el server, el update queda
+// bloqueado por RLS aunque el boton se muestre.
 function puedeEditarComentario(c) {
-  return Boolean(c.id) && (c.userId === activeUserId() || esAdmin());
+  return Boolean(c.id) && (c.userId === activeUserId() || esCreadorPizarra());
 }
 
 // Actividad (log automatico del sistema) y Comentarios (texto libre de
