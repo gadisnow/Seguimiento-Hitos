@@ -3104,15 +3104,19 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
   margin: 0 0 28px;
 }
 
-/* Filas de "Tus pizarras" — clases propias (no .user-menu-item) para no
-   heredar el color de texto reactivo al tema del resto de la app. */
+/* Filas de "Tus pizarras" — clases propias (no .user-menu-item), TODAS
+   calificadas con #pizarraSwitcher. No alcanza con ser una clase nueva:
+   html[data-theme="dark"] button/input/select (mas abajo) matchean por
+   TIPO de elemento sin importar la clase, y su especificidad (0,1,2) le
+   gana a una clase sola (0,1,0/0,1,1). Calificar con el ID sube a (1,x,x),
+   que gana siempre sin importar cuantas clases tenga la regla de dark mode. */
 #pizarraSwitcherList {
   display: flex;
   flex-direction: column;
   gap: 6px;
   text-align: left;
 }
-.pizarra-row {
+#pizarraSwitcher .pizarra-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3125,11 +3129,11 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
   cursor: pointer;
   transition: border-color .15s ease, background .15s ease;
 }
-.pizarra-row:hover { border-color: #2563EB; background: #EFF6FF; }
-.pizarra-row-main { display: flex; align-items: center; gap: 9px; min-width: 0; color: #71717A; }
-.pizarra-row:hover .pizarra-row-main { color: #2563EB; }
-.pizarra-row-nombre { font-size: 14px; font-weight: 600; color: #18181B; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pizarra-row-type {
+#pizarraSwitcher .pizarra-row:hover { border-color: #2563EB; background: #EFF6FF; }
+#pizarraSwitcher .pizarra-row-main { display: flex; align-items: center; gap: 9px; min-width: 0; color: #71717A; }
+#pizarraSwitcher .pizarra-row:hover .pizarra-row-main { color: #2563EB; }
+#pizarraSwitcher .pizarra-row-nombre { font-size: 14px; font-weight: 600; color: #18181B; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#pizarraSwitcher .pizarra-row-type {
   flex-shrink: 0;
   font-size: 11px;
   font-weight: 600;
@@ -3139,18 +3143,18 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
   padding: 3px 9px;
   border-radius: 999px;
 }
-.pizarra-row:hover .pizarra-row-type { color: #2563EB; border-color: #BFDBFE; background: #ffffff; }
+#pizarraSwitcher .pizarra-row:hover .pizarra-row-type { color: #2563EB; border-color: #BFDBFE; background: #ffffff; }
 
 /* Form de crear pizarra + boton de salir — mismos colores fijos que
    .login-form/.login-btn (no se reusan esas clases porque el form de
    crear va DESPUES de la lista, con su propio margen/separador). */
-.pizarra-create-form {
+#pizarraSwitcher .pizarra-create-form {
   margin-top: 18px;
   padding-top: 18px;
   border-top: 1px solid #E4E4E7;
   text-align: left;
 }
-.pizarra-create-form label {
+#pizarraSwitcher .pizarra-create-form label {
   display: grid;
   gap: 5px;
   font-size: 12px;
@@ -3158,8 +3162,8 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
   color: #71717A;
   margin-bottom: 10px;
 }
-.pizarra-create-form input,
-.pizarra-create-form select {
+#pizarraSwitcher .pizarra-create-form input,
+#pizarraSwitcher .pizarra-create-form select {
   border: 1px solid #E4E4E7;
   border-radius: 8px;
   padding: 9px 11px;
@@ -3168,12 +3172,12 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
   background: #ffffff;
   font-family: inherit;
 }
-.pizarra-create-form input:focus,
-.pizarra-create-form select:focus {
+#pizarraSwitcher .pizarra-create-form input:focus,
+#pizarraSwitcher .pizarra-create-form select:focus {
   outline: 2px solid #2563EB;
   outline-offset: 1px;
 }
-.pizarra-create-btn {
+#pizarraSwitcher .pizarra-create-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3190,8 +3194,8 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
   cursor: pointer;
   transition: background .15s;
 }
-.pizarra-create-btn:hover { background: #1D4ED8; }
-.pizarra-logout-btn {
+#pizarraSwitcher .pizarra-create-btn:hover { background: #1D4ED8; }
+#pizarraSwitcher .pizarra-logout-btn {
   display: block;
   width: 100%;
   margin-top: 14px;
@@ -3205,7 +3209,7 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
   cursor: pointer;
   transition: background .15s;
 }
-.pizarra-logout-btn:hover { background: #FEF2F2; }
+#pizarraSwitcher .pizarra-logout-btn:hover { background: #FEF2F2; }
 
 .login-form {
   display: grid;
