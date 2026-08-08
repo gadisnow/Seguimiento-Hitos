@@ -2690,18 +2690,23 @@ html[data-theme="dark"] .etiqueta-popover input[type="text"] { background: var(-
    Selector calificado con #taskForm textarea para ganarle en especificidad
    a la regla generica #taskForm textarea (linea ~2661). */
 #taskForm textarea.task-modal-title-input {
-  flex: 1; min-width: 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em;
+  flex: 1; min-width: 0; min-height: 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em;
   border: 1px solid transparent; border-radius: 8px; padding: 5px 8px; margin: -5px 0 -5px -8px;
   resize: none; overflow: hidden; background: transparent; color: var(--text); line-height: 1.35;
 }
 #taskForm textarea.task-modal-title-input:hover { background: var(--bg); }
 #taskForm textarea.task-modal-title-input:focus { border-color: var(--primary); background: var(--card); outline: none; }
+/* html[data-theme="dark"] #taskForm textarea (linea ~2673) tiene mas
+   selectores de tipo que esta regla y le gana en especificidad al fondo de
+   reposo si no se recalifica igual aca. */
+html[data-theme="dark"] #taskForm textarea.task-modal-title-input { background: transparent; }
 .task-modal-edit-pencil {
   border: none; background: none; cursor: pointer; color: var(--muted);
   padding: 6px; border-radius: 6px; display: flex; flex-shrink: 0;
 }
 .task-modal-edit-pencil:hover { background: var(--bg); color: var(--text); }
 .task-modal-edit-pencil:active { transform: scale(.97); }
+html[data-theme="dark"] .task-modal-edit-pencil { color: var(--muted); }
 .task-modal-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
 .lock-btn {
@@ -2714,26 +2719,32 @@ html[data-theme="dark"] .etiqueta-popover input[type="text"] { background: var(-
 .lock-btn.locked { color: var(--text); border-color: var(--text); }
 .lock-btn.static { cursor: default; }
 .lock-btn:active { transform: scale(0.97); }
-html[data-theme="dark"] .lock-btn { background: var(--bg); }
+/* html[data-theme="dark"] button (linea ~2089) tiene mas selectores de tipo
+   que una clase sola y le gana el color de reposo; se recalifica igual. */
+html[data-theme="dark"] .lock-btn { background: var(--bg); color: var(--muted); }
+html[data-theme="dark"] .lock-btn.locked { color: var(--text); }
 
-.task-modal-estado-select {
+/* Calificado con #taskForm (igual que #taskForm select generico, linea
+   ~2662) para no perder por especificidad — una clase sola (0,1,0) pierde
+   contra "#taskForm select" (1,0,1) aunque venga despues en el archivo. */
+#taskForm .task-modal-estado-select {
   border: 1px solid var(--border); border-radius: 9px; padding: 8px 10px;
   font-size: 12.5px; font-weight: 600; background: white; color: var(--text);
 }
-html[data-theme="dark"] .task-modal-estado-select { background: var(--bg); }
+html[data-theme="dark"] #taskForm .task-modal-estado-select { background: var(--bg); }
 /* Estado en el header con el color semantico real (STATE_COLORS), no el azul
    de marca — mismos hex que .b-* (ver linea ~610), duplicados a proposito
    porque son reglas de contextos distintos (badge vs. <select>). */
-.task-modal-estado-select[data-estado="Pendiente"] { background: var(--pendiente-soft); color: #b91c1c; border-color: transparent; }
-.task-modal-estado-select[data-estado="En curso"] { background: var(--en-curso-soft); color: #1d4ed8; border-color: transparent; }
-.task-modal-estado-select[data-estado="En revision"] { background: var(--en-revision-soft); color: #6d28d9; border-color: transparent; }
-.task-modal-estado-select[data-estado="Bloqueado"] { background: var(--bloqueado-soft); color: #b45309; border-color: transparent; }
-.task-modal-estado-select[data-estado="Cerrado"] { background: var(--cerrado-soft); color: #047857; border-color: transparent; }
-html[data-theme="dark"] .task-modal-estado-select[data-estado="Pendiente"] { background: rgba(239,68,68,0.2); color: #fca5a5; }
-html[data-theme="dark"] .task-modal-estado-select[data-estado="En curso"] { background: rgba(59,130,246,0.2); color: #93c5fd; }
-html[data-theme="dark"] .task-modal-estado-select[data-estado="En revision"] { background: rgba(139,92,246,0.2); color: #c4b5fd; }
-html[data-theme="dark"] .task-modal-estado-select[data-estado="Bloqueado"] { background: rgba(245,158,11,0.2); color: #fcd34d; }
-html[data-theme="dark"] .task-modal-estado-select[data-estado="Cerrado"] { background: rgba(16,185,129,0.2); color: #6ee7b7; }
+#taskForm .task-modal-estado-select[data-estado="Pendiente"] { background: var(--pendiente-soft); color: #b91c1c; border-color: transparent; }
+#taskForm .task-modal-estado-select[data-estado="En curso"] { background: var(--en-curso-soft); color: #1d4ed8; border-color: transparent; }
+#taskForm .task-modal-estado-select[data-estado="En revision"] { background: var(--en-revision-soft); color: #6d28d9; border-color: transparent; }
+#taskForm .task-modal-estado-select[data-estado="Bloqueado"] { background: var(--bloqueado-soft); color: #b45309; border-color: transparent; }
+#taskForm .task-modal-estado-select[data-estado="Cerrado"] { background: var(--cerrado-soft); color: #047857; border-color: transparent; }
+html[data-theme="dark"] #taskForm .task-modal-estado-select[data-estado="Pendiente"] { background: rgba(239,68,68,0.2); color: #fca5a5; }
+html[data-theme="dark"] #taskForm .task-modal-estado-select[data-estado="En curso"] { background: rgba(59,130,246,0.2); color: #93c5fd; }
+html[data-theme="dark"] #taskForm .task-modal-estado-select[data-estado="En revision"] { background: rgba(139,92,246,0.2); color: #c4b5fd; }
+html[data-theme="dark"] #taskForm .task-modal-estado-select[data-estado="Bloqueado"] { background: rgba(245,158,11,0.2); color: #fcd34d; }
+html[data-theme="dark"] #taskForm .task-modal-estado-select[data-estado="Cerrado"] { background: rgba(16,185,129,0.2); color: #6ee7b7; }
 
 .task-modal-close {
   background: transparent; border: 0; color: var(--muted); cursor: pointer;
@@ -3155,6 +3166,7 @@ html[data-theme="dark"] .hito-item.editing { background: rgba(251,146,60,0.14); 
 }
 .hito-comment-btn:hover { background: var(--primary-soft); color: var(--primary); }
 .hito-comment-btn:active { transform: scale(.97); }
+html[data-theme="dark"] .hito-comment-btn { color: var(--muted); }
 @media (hover: hover) and (pointer: fine) {
   .hito-comment-btn { transition: background-color .12s var(--ease-out), color .12s var(--ease-out); }
 }
