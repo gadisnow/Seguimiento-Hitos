@@ -1553,7 +1553,14 @@ const ICONS = {
   maletin: `<rect x="3.5" y="8" width="17" height="11" rx="2"/><path d="M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M3.5 13h17"/>`,
   llave: `<circle cx="7.5" cy="15.5" r="3.5"/><path d="M10 13l8.5-8.5"/><path d="M15 8l2.5 2.5"/><path d="M17.5 5.5L20 8"/>`,
   campana: `<path d="M6 9.5a6 6 0 0 1 12 0c0 4.5 1.8 5.8 1.8 5.8H4.2S6 14 6 9.5z"/><path d="M10 18.5a2 2 0 0 0 4 0"/>`,
-  buscar: `<circle cx="10.5" cy="10.5" r="6.5"/><path d="M19.5 19.5l-4.3-4.3"/>`
+  buscar: `<circle cx="10.5" cy="10.5" r="6.5"/><path d="M19.5 19.5l-4.3-4.3"/>`,
+  // Navegacion nucleo (manual, 04 — Iconografia): Hitos y Alertas reutilizan
+  // Prioridad y Notificacion (campana, ya definida arriba); Expedientes
+  // reutiliza "documento" (identico al icono "Expediente" del manual).
+  dashboardGrid: `<rect x="3.5" y="3.5" width="7.5" height="7.5" rx="2"/><rect x="13" y="3.5" width="7.5" height="7.5" rx="2"/><rect x="3.5" y="13" width="7.5" height="7.5" rx="2"/><rect x="13" y="13" width="7.5" height="7.5" rx="2"/>`,
+  temasBarras: `<rect x="3.5" y="4.5" width="4.5" height="15" rx="2"/><rect x="9.75" y="4.5" width="4.5" height="10" rx="2"/><rect x="16" y="4.5" width="4.5" height="13" rx="2"/>`,
+  prioridad: `<path d="M6 21V4"/><path d="M6 4.5h10.5a1 1 0 0 1 .8 1.6l-2.6 3.4 2.6 3.4a1 1 0 0 1-.8 1.6H6"/>`,
+  calendario: `<rect x="3.5" y="5" width="17" height="15.5" rx="4"/><path d="M3.5 10h17"/><path d="M8 3v4"/><path d="M16 3v4"/>`
 };
 function icon(name, size = 16) {
   return `<svg class="icon-inline" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
