@@ -506,18 +506,21 @@ async function renderPizarraSwitcherScreen() {
 
   els.pizarraSwitcherList.innerHTML = pizarras.length
     ? pizarras.map((p) => `
-      <button type="button" class="user-menu-item" data-pizarra-enter="${p.id}" style="justify-content:space-between;width:100%">
-        <span>${escHtml(p.nombre)}</span>
-        <span style="color:var(--muted);font-size:12px">${p.tipo === "colaborativa" ? "Colaborativa" : "Personal"}</span>
+      <button type="button" class="pizarra-row" data-pizarra-enter="${p.id}">
+        <span class="pizarra-row-main">
+          ${icon(p.tipo === "colaborativa" ? "pizarraColaborativa" : "usuario", 18)}
+          <span class="pizarra-row-nombre">${escHtml(p.nombre)}</span>
+        </span>
+        <span class="pizarra-row-type">${p.tipo === "colaborativa" ? "Colaborativa" : "Personal"}</span>
       </button>`).join("")
-    : `<p class="login-sub">Todavia no tenes ninguna pizarra. Crea la primera abajo.</p>`;
+    : `<p class="login-sub" style="margin-bottom:8px">Todavia no tenes ninguna pizarra. Crea la primera abajo.</p>`;
 
   els.pizarraSwitcherList.querySelectorAll("[data-pizarra-enter]").forEach((btn) => {
     btn.addEventListener("click", () => enterPizarra(btn.dataset.pizarraEnter));
   });
 
   els.pizarraSwitcherCreate.innerHTML = `
-    <form id="pizarraCreateForm">
+    <form id="pizarraCreateForm" class="pizarra-create-form">
       <label>Nombre de la pizarra nueva<input name="nombre" required placeholder="Ej: Obra Norte" /></label>
       <label>Tipo
         <select name="tipo">
@@ -525,9 +528,9 @@ async function renderPizarraSwitcherScreen() {
           <option value="colaborativa">Colaborativa</option>
         </select>
       </label>
-      <button class="primary" type="submit" style="width:100%;margin-top:8px">+ Crear pizarra</button>
+      <button class="pizarra-create-btn" type="submit">${icon("dashboardGrid", 15)} Crear pizarra</button>
     </form>
-    <button type="button" class="user-menu-item danger" id="pizarraSwitcherLogout" style="width:100%;margin-top:8px;justify-content:center">Salir</button>
+    <button type="button" class="pizarra-logout-btn" id="pizarraSwitcherLogout">Salir</button>
   `;
   document.getElementById("pizarraCreateForm").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -1554,6 +1557,8 @@ const ICONS = {
   llave: `<circle cx="7.5" cy="15.5" r="3.5"/><path d="M10 13l8.5-8.5"/><path d="M15 8l2.5 2.5"/><path d="M17.5 5.5L20 8"/>`,
   campana: `<path d="M6 9.5a6 6 0 0 1 12 0c0 4.5 1.8 5.8 1.8 5.8H4.2S6 14 6 9.5z"/><path d="M10 18.5a2 2 0 0 0 4 0"/>`,
   buscar: `<circle cx="10.5" cy="10.5" r="6.5"/><path d="M19.5 19.5l-4.3-4.3"/>`,
+  // Colaboracion y roles (manual): pizarra personal reutiliza "usuario".
+  pizarraColaborativa: `<circle cx="8.5" cy="8.5" r="3"/><circle cx="16" cy="9.5" r="2.4"/><path d="M3.5 20c0-3.6 2.6-5.8 5-5.8s5 2.2 5 5.8"/><path d="M14.3 14.7c2 .3 3.7 2.1 3.7 5.3"/>`,
   // Navegacion nucleo (manual, 04 — Iconografia): Hitos y Alertas reutilizan
   // Prioridad y Notificacion (campana, ya definida arriba); Expedientes
   // reutiliza "documento" (identico al icono "Expediente" del manual).

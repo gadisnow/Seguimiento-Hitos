@@ -3085,8 +3085,12 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
 
 /* La pantalla de login/selector de pizarras es fija: siempre fondo oscuro
    + tarjeta blanca + texto ink, sin importar el tema claro/oscuro del
-   resto de la app (por eso los colores de aca van hardcodeados, no por
-   variable — ver html[data-theme="dark"] mas abajo, que ya no la toca). */
+   resto de la app — por eso todos los colores de esta seccion van
+   hardcodeados, nunca por variable ni por clases genericas (.primary,
+   .user-menu-item, input/button sin calificar) que las reglas de dark mode
+   mas abajo SI pisan por especificidad. Ver bug reportado: el selector de
+   pizarras se veia distinto en dark mode porque sus filas y su form
+   usaban esas clases genericas. */
 .login-title {
   font-size: 20px;
   font-weight: 700;
@@ -3099,6 +3103,109 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
   color: #71717A;
   margin: 0 0 28px;
 }
+
+/* Filas de "Tus pizarras" — clases propias (no .user-menu-item) para no
+   heredar el color de texto reactivo al tema del resto de la app. */
+#pizarraSwitcherList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+.pizarra-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  border: 1px solid #E4E4E7;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 11px 13px;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
+}
+.pizarra-row:hover { border-color: #2563EB; background: #EFF6FF; }
+.pizarra-row-main { display: flex; align-items: center; gap: 9px; min-width: 0; color: #71717A; }
+.pizarra-row:hover .pizarra-row-main { color: #2563EB; }
+.pizarra-row-nombre { font-size: 14px; font-weight: 600; color: #18181B; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pizarra-row-type {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #71717A;
+  background: #FAFAFA;
+  border: 1px solid #E4E4E7;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.pizarra-row:hover .pizarra-row-type { color: #2563EB; border-color: #BFDBFE; background: #ffffff; }
+
+/* Form de crear pizarra + boton de salir — mismos colores fijos que
+   .login-form/.login-btn (no se reusan esas clases porque el form de
+   crear va DESPUES de la lista, con su propio margen/separador). */
+.pizarra-create-form {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid #E4E4E7;
+  text-align: left;
+}
+.pizarra-create-form label {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #71717A;
+  margin-bottom: 10px;
+}
+.pizarra-create-form input,
+.pizarra-create-form select {
+  border: 1px solid #E4E4E7;
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 14px;
+  color: #18181B;
+  background: #ffffff;
+  font-family: inherit;
+}
+.pizarra-create-form input:focus,
+.pizarra-create-form select:focus {
+  outline: 2px solid #2563EB;
+  outline-offset: 1px;
+}
+.pizarra-create-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+  background: #2563EB;
+  color: #ffffff;
+  border: 0;
+  border-radius: 10px;
+  padding: 11px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+}
+.pizarra-create-btn:hover { background: #1D4ED8; }
+.pizarra-logout-btn {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  padding: 8px;
+  color: #DC2626;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .15s;
+}
+.pizarra-logout-btn:hover { background: #FEF2F2; }
 
 .login-form {
   display: grid;
@@ -3113,7 +3220,12 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
   color: #71717A;
 }
 
-.login-form input {
+/* #loginScreen calificando el selector (no solo .login-form/.login-btn) es
+   a proposito: le da mas especificidad que las reglas globales de dark mode
+   (html[data-theme="dark"] input/button, mas abajo), que si no terminan
+   pisando estos colores fijos aunque el login sea la pantalla previa al
+   login y en teoria nunca deberia reaccionar al tema. */
+#loginScreen .login-form input {
   border: 1px solid #E4E4E7;
   border-radius: 8px;
   padding: 10px 12px;
@@ -3124,12 +3236,12 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
   width: 100%;
 }
 
-.login-form input:focus {
+#loginScreen .login-form input:focus {
   outline: 2px solid #2563EB;
   outline-offset: 1px;
 }
 
-.login-btn {
+#loginScreen .login-btn {
   background: #2563EB;
   color: white;
   border: 0;
@@ -3144,7 +3256,7 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
   transition: background .15s;
 }
 
-.login-btn:hover { background: #1D4ED8; }
+#loginScreen .login-btn:hover { background: #1D4ED8; }
 
 .login-error {
   background: #fef2f2;
@@ -3164,9 +3276,9 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
   font-size: 13px;
 }
 
-.login-link {
+#loginScreen .login-link {
   font-size: 13px;
-  color: var(--primary);
+  color: #2563EB;
   cursor: pointer;
   text-align: center;
   margin-top: 4px;
@@ -3177,7 +3289,7 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
   padding: 4px;
 }
 
-.login-link:hover { text-decoration: underline; }
+#loginScreen .login-link:hover { text-decoration: underline; }
 
 .search-count {
   position: absolute;
