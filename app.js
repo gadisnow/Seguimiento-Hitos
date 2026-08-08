@@ -84,7 +84,7 @@ function tagColorGridHtml(selectedName) {
       const isSel = c.name === selectedName;
       return `<button type="button" class="tagcolor-circle${isSel ? " selected" : ""}" data-tag-color="${c.name}"
         style="background:${set.bg}" aria-pressed="${isSel}" aria-label="${escHtml(c.name)}" title="${escHtml(c.name)}">
-        ${isSel ? `<span class="tagcolor-check" aria-hidden="true" style="color:${set.text}">✓</span>` : ""}
+        ${isSel ? `<span class="tagcolor-check" aria-hidden="true" style="color:${set.text}">${icon("check", 12)}</span>` : ""}
       </button>`;
     }).join("")}
   </div>`;
@@ -94,7 +94,7 @@ function etiquetaChipHtml(et, opts = {}) {
   const { bg, text } = resolveTagColor(et.color);
   return `<span class="etiqueta-chip${opts.compact ? " compact" : ""}" style="background:${bg};color:${text}" title="${escHtml(et.nombre)}">
     ${opts.compact ? "" : escHtml(et.nombre)}
-    ${opts.removable ? `<button type="button" class="etiqueta-chip-remove" data-etiqueta-remove="${opts.index}" aria-label="Quitar etiqueta">✕</button>` : ""}
+    ${opts.removable ? `<button type="button" class="etiqueta-chip-remove" data-etiqueta-remove="${opts.index}" aria-label="Quitar etiqueta">${icon("cerrar", 12)}</button>` : ""}
   </span>`;
 }
 
@@ -1072,12 +1072,12 @@ function isKnownResp(singleName) {
 }
 
 function respDisplay(name) {
-  if (!name || !name.trim()) return `<span class="resp-unassigned">⚠ Sin responsable</span>`;
+  if (!name || !name.trim()) return `<span class="resp-unassigned">${icon("alerta", 12)} Sin responsable</span>`;
   return name.split(",").map((s) => {
     const p = s.trim();
     if (!p) return "";
     if (!isKnownResp(p)) {
-      return `<span class="resp-unknown" title="No registrado en la base de responsables">⚠ ${escHtml(p)}</span>`;
+      return `<span class="resp-unknown" title="No registrado en la base de responsables">${icon("alerta", 12)} ${escHtml(p)}</span>`;
     }
     return escHtml(p);
   }).filter(Boolean).join(", ");
@@ -1212,7 +1212,7 @@ function renderDashboard() {
   const alerts = buildAlerts(temas).sort((a, b) => b.nivel - a.nivel);
   const alertCount = alerts.length;
   if (els.notifDot) els.notifDot.textContent = alertCount;
-  const nivelIcon = { 4: "⛔", 3: "⚠", 2: "•", 1: "•" };
+  const nivelIcon = { 4: icon("alerta"), 3: icon("alerta"), 2: icon("circulo"), 1: icon("circulo") };
   const nivelClass = { 4: "rojo", 3: "naranja", 2: "amarillo", 1: "amarillo" };
   els.alertList.innerHTML = alerts.slice(0, 5).map((a) => `
     <div class="alert-item lvl-${nivelClass[a.nivel]}">
@@ -1331,7 +1331,7 @@ function columnaColorGridHtml(selectedKey) {
       const isSel = c.key === selectedKey;
       return `<button type="button" class="tagcolor-circle${isSel ? " selected" : ""}" data-columna-color="${c.key}"
         style="background:${c.hex}" aria-pressed="${isSel}" aria-label="${escHtml(c.label)}" title="${escHtml(c.label)}">
-        ${isSel ? `<span class="tagcolor-check" aria-hidden="true" style="color:#fff">✓</span>` : ""}
+        ${isSel ? `<span class="tagcolor-check" aria-hidden="true" style="color:#fff">${icon("check", 12)}</span>` : ""}
       </button>`;
     }).join("")}
   </div>`;
@@ -1366,9 +1366,9 @@ function renderAgenda() {
               </div>` : "";
             return `
               <article class="kcard" draggable="true" data-id="${t.id}">
-                <button type="button" class="kcard-actions-btn" draggable="false" data-kcard-menu-btn title="Acciones" aria-label="Acciones">⋯</button>
+                <button type="button" class="kcard-actions-btn" draggable="false" data-kcard-menu-btn title="Acciones" aria-label="Acciones">${icon("masOpciones", 14)}</button>
                 ${t.etiquetas && t.etiquetas.length ? `<div class="etiquetas-chips">${t.etiquetas.map((et) => etiquetaChipHtml(et, { compact: !etiquetasExpandidas })).join("")}</div>` : ""}
-                <div class="title">${t.privado ? "🔒 " : ""}${escHtml(t.nombre)}</div>
+                <div class="title">${t.privado ? `${icon("candado", 12)} ` : ""}${escHtml(t.nombre)}</div>
                 <div class="kcard-meta-row">
                   <span class="meta mono">${t.id}</span>
                   <span class="meta">${respDisplay(t.responsable)}</span>
@@ -1547,6 +1547,8 @@ const ICONS = {
   adjunto: `<path d="M16.5 6.5l-7.8 7.8a3 3 0 1 0 4.24 4.24l7.4-7.4a5 5 0 1 0-7.07-7.07L5.5 11.83a7 7 0 1 0 9.9 9.9"/>`,
   reordenar: `<circle cx="9" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="9" cy="18" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="18" r="1.2" fill="currentColor" stroke="none"/>`,
   chevronAbajo: `<path d="M6 9l6 6 6-6"/>`,
+  ajustes: `<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M21 12h-2.5M5.5 12H3M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8M18.4 18.4l-1.8-1.8M7.4 7.4L5.6 5.6"/>`,
+  lista: `<circle cx="5" cy="7" r="1" fill="currentColor" stroke="none"/><path d="M8.5 7h11.5"/><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><path d="M8.5 12h11.5"/><circle cx="5" cy="17" r="1" fill="currentColor" stroke="none"/><path d="M8.5 17h11.5"/>`,
   correo: `<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 6.5l8 6.5 8-6.5"/>`,
   maletin: `<rect x="3.5" y="8" width="17" height="11" rx="2"/><path d="M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M3.5 13h17"/>`,
   llave: `<circle cx="7.5" cy="15.5" r="3.5"/><path d="M10 13l8.5-8.5"/><path d="M15 8l2.5 2.5"/><path d="M17.5 5.5L20 8"/>`,
@@ -1804,7 +1806,7 @@ function renderBoardMenuColumnas() {
               <button type="button" class="board-label-edit" data-col-down="${c.id}" ${canDown ? "" : "disabled"} title="Bajar">↓</button>
             ` : ""}
             ${editable ? `<button type="button" class="board-label-edit" data-col-edit="${c.id}" aria-label="Editar columna" title="Editar nombre y color">${KMENU_ICONS.editar}</button>` : ""}
-            ${editable && !isFixed ? `<button type="button" class="board-label-edit" data-col-delete="${c.id}" ${count ? "disabled" : ""} aria-label="Eliminar columna" title="${count ? `Vacia la columna primero (${count} temas)` : "Eliminar columna"}">🗑</button>` : ""}
+            ${editable && !isFixed ? `<button type="button" class="board-label-edit" data-col-delete="${c.id}" ${count ? "disabled" : ""} aria-label="Eliminar columna" title="${count ? `Vacia la columna primero (${count} temas)` : "Eliminar columna"}">${icon("papelera", 14)}</button>` : ""}
           </span>
         </div>`;
       }).join("")}
@@ -2434,7 +2436,7 @@ function renderAlertas() {
       <td>${respDisplay(a.responsable)}</td>
       <td class="mono">${a.expediente || "-"}</td>
       <td>${fmtDateNice(a.fechaLimite)}</td>
-      <td><span class="row-edit-hint">✎ Editar</span></td>
+      <td><span class="row-edit-hint">${icon("lapiz", 12)} Editar</span></td>
     </tr>`).join("") || `<tr><td colspan="8" style="color:var(--muted);text-align:center">Sin alertas activas.</td></tr>`;
 
   els.tableAlertas.querySelectorAll("[data-tema]").forEach((row) =>
@@ -2721,7 +2723,7 @@ function openExpedienteDrawer(numero) {
     <article class="card" style="margin-top:8px"><h4 style="margin-bottom:8px">Hitos</h4>${hitos.length ? hitos.map((h) => `<p>· ${h.temaId}: ${escHtml(h.nombre)} ${badge(h.estado)}</p>`).join("") : "<p style='color:var(--muted)'>Sin hitos.</p>"}</article>
     <article class="card" style="margin-top:8px"><h4 style="margin-bottom:8px">Documentos</h4><div id="expDocList">${ex.documentos.length ? ex.documentos.map(renderDocItem).join("") : "<p style='color:var(--muted)'>Sin documentos.</p>"}</div></article>
     <article class="card" style="margin-top:8px"><h4 style="margin-bottom:8px">Historial</h4>${ex.historial.length ? ex.historial.map((h) => `<p>${fmtDateNice(h.at)} · ${escHtml(h.event)}</p>`).join("") : "<p style='color:var(--muted)'>Sin historial.</p>"}</article>
-    <article class="card" style="margin-top:8px"><h4 style="margin-bottom:8px">Responsables</h4>${responsables.map((r) => `<p>👤 ${escHtml(r)}</p>`).join("")}</article>
+    <article class="card" style="margin-top:8px"><h4 style="margin-bottom:8px">Responsables</h4>${responsables.map((r) => `<p>${icon("usuario", 14)} ${escHtml(r)}</p>`).join("")}</article>
   `;
   els.drawer.classList.add("open");
   els.drawerOverlay.classList.add("open");
@@ -2763,7 +2765,7 @@ function buildRespSelector(currentValue) {
       <div class="resp-dropdown">
         <button type="button" class="resp-dropdown-trigger">
           <span class="resp-dropdown-label ${placeholderClass}">${displayLabel}</span>
-          <span class="resp-dropdown-arrow">▾</span>
+          <span class="resp-dropdown-arrow">${icon("chevronAbajo", 12)}</span>
         </button>
         <div class="resp-dropdown-panel">
           <div class="resp-dropdown-options">${opts}</div>
@@ -3262,16 +3264,16 @@ function hitoPredecesorChipHtml(hito, hitos) {
     const nombre = pred ? pred.nombre : "(hito eliminado)";
     const predCerrado = pred && pred.estado === "Cerrado";
     if (hito.estado !== "Cerrado" && !predCerrado) {
-      chips.push(`<span class="hito-dep-chip waiting" title="Este hito arranca cuando se cierre '${escHtml(nombre)}'">⏳ Espera a "${escHtml(nombre)}"</span>`);
+      chips.push(`<span class="hito-dep-chip waiting" title="Este hito arranca cuando se cierre '${escHtml(nombre)}'">${icon("espera", 12)} Espera a "${escHtml(nombre)}"</span>`);
     } else {
-      chips.push(`<span class="hito-dep-chip" title="Depende de: ${escHtml(nombre)}">⛓ Depende de "${escHtml(nombre)}"</span>`);
+      chips.push(`<span class="hito-dep-chip" title="Depende de: ${escHtml(nombre)}">${icon("predecesor", 12)} Depende de "${escHtml(nombre)}"</span>`);
     }
   }
   const sucesores = hitos.filter((h) => h.predecesorId === hito.id);
   if (sucesores.length) {
     const nombres = sucesores.map((s) => s.nombre).join(", ");
     const label = sucesores.length === 1 ? `"${sucesores[0].nombre}"` : `${sucesores.length} hitos`;
-    chips.push(`<span class="hito-dep-chip successor" title="Dependen de este hito: ${escHtml(nombres)}">↳ Sigue ${escHtml(label)}</span>`);
+    chips.push(`<span class="hito-dep-chip successor" title="Dependen de este hito: ${escHtml(nombres)}">${icon("predecesor", 12)} Sigue ${escHtml(label)}</span>`);
   }
   if (!chips.length) return `<span class="hito-dep-chip muted">Sin dependencia</span>`;
   return chips.join("");
@@ -3286,15 +3288,15 @@ function tipoVinculoBadgeHtml(hito) {
 function hitoAlertBadgesHtml(hito) {
   const out = [];
   if (hito.__alertaFueraDeSecuencia) {
-    out.push(`<span class="hito-alert-badge alert-dura" title="El hito queda antes de que su propio disparador ocurra — contradice el vinculo elegido">⛔ Fuera de secuencia</span>`);
+    out.push(`<span class="hito-alert-badge alert-dura" title="El hito queda antes de que su propio disparador ocurra — contradice el vinculo elegido">${icon("alerta", 12)} Fuera de secuencia</span>`);
   }
   if (hito.__alertaDesfasajeAlto) {
     const signo = hito.__desfasajeDias > 0 ? "+" : "";
-    out.push(`<span class="hito-alert-badge alert-desfasaje" title="Desfasaje de ${signo}${hito.__desfasajeDias}d contra el ancla del predecesor">⚠ Desfasaje ${signo}${hito.__desfasajeDias}d</span>`);
+    out.push(`<span class="hito-alert-badge alert-desfasaje" title="Desfasaje de ${signo}${hito.__desfasajeDias}d contra el ancla del predecesor">${icon("alerta", 12)} Desfasaje ${signo}${hito.__desfasajeDias}d</span>`);
   }
   if (hito.__critico) {
     const c = hito.__critico;
-    out.push(`<span class="hito-alert-badge alert-critico" title="Aun en el mejor escenario no se llega a '${escHtml(c.hitoObjetivoNombre)}' (${fmtDateNice(c.fechaComprometida)}): se excede por ${c.excesoDias}d">🔥 Crítico</span>`);
+    out.push(`<span class="hito-alert-badge alert-critico" title="Aun en el mejor escenario no se llega a '${escHtml(c.hitoObjetivoNombre)}' (${fmtDateNice(c.fechaComprometida)}): se excede por ${c.excesoDias}d">${icon("alerta", 12)} Crítico</span>`);
   }
   return out.join("");
 }
@@ -3306,8 +3308,8 @@ function renderHitosCompactList(tema, opts = {}) {
     <div class="hito-item" data-hito-id="${h.id}" ${readonly ? "" : `draggable="true"`}>
       <div class="hito-compact-row ${h.estado === "Cerrado" ? "done" : ""}">
         <div class="hito-compact-top">
-          ${readonly ? "" : `<span class="hito-drag-handle" title="Arrastrar para reordenar" aria-hidden="true">⠿</span>`}
-          <span class="hito-status-icon ${h.estado === "Cerrado" ? "done" : ""}" aria-hidden="true" title="${h.estado === "Cerrado" ? "Cerrado" : h.estado}">${h.estado === "Cerrado" ? "✓" : "○"}</span>
+          ${readonly ? "" : `<span class="hito-drag-handle" title="Arrastrar para reordenar" aria-hidden="true">${icon("reordenar", 14)}</span>`}
+          <span class="hito-status-icon ${h.estado === "Cerrado" ? "done" : ""}" aria-hidden="true" title="${h.estado === "Cerrado" ? "Cerrado" : h.estado}">${h.estado === "Cerrado" ? icon("check", 12) : icon("circulo", 12)}</span>
           <div class="hito-compact-main">
             <span class="hito-compact-nombre" title="${escHtml(h.nombre)}">${escHtml(h.nombre)}</span>
             ${h.expediente ? `
@@ -3321,8 +3323,8 @@ function renderHitosCompactList(tema, opts = {}) {
             ${badge(h.estado)}
             ${readonly ? "" : `
             <div class="hito-actions">
-              ${puedeEditar() ? `<button type="button" data-task-edit-hito="${h.id}" title="Editar" aria-expanded="false">✎</button>` : ""}
-              ${puedeEliminar() ? `<button type="button" class="danger" data-task-delete-hito="${h.id}" title="Eliminar">🗑</button>` : ""}
+              ${puedeEditar() ? `<button type="button" data-task-edit-hito="${h.id}" title="Editar" aria-expanded="false">${icon("lapiz", 14)}</button>` : ""}
+              ${puedeEliminar() ? `<button type="button" class="danger" data-task-delete-hito="${h.id}" title="Eliminar">${icon("papelera", 14)}</button>` : ""}
             </div>`}
           </div>
         </div>
@@ -3368,7 +3370,7 @@ function buildHitoEditPanelHtml(tema, hito) {
           <button type="button" class="primary" id="hitoPanelSaveBtn-${hito.id}">Guardar</button>
         </div>
       </div>
-      ${hito.__critico ? `<div class="hito-panel-critico-banner">🔥 <strong>Crítico:</strong> aun en el mejor escenario no se llega a "${escHtml(hito.__critico.hitoObjetivoNombre)}" (${fmtDateNice(hito.__critico.fechaComprometida)}) — se excede por ${hito.__critico.excesoDias}d.</div>` : ""}
+      ${hito.__critico ? `<div class="hito-panel-critico-banner">${icon("alerta", 14)} <strong>Crítico:</strong> aun en el mejor escenario no se llega a "${escHtml(hito.__critico.hitoObjetivoNombre)}" (${fmtDateNice(hito.__critico.fechaComprometida)}) — se excede por ${hito.__critico.excesoDias}d.</div>` : ""}
       <div id="hitoPanelError-${hito.id}" class="hito-panel-error hidden"></div>
 
       <div class="hito-panel-grid-2col">
@@ -3657,8 +3659,8 @@ function buildGeneralFieldsHtml(draft, mode) {
   const privadoField = esCreador
     ? (editable
         ? `<label class="task-check-row"><input type="checkbox" name="privado" ${draft.privado ? "checked" : ""} />${privadoLabel}</label>`
-        : `<div class="task-check-row">${draft.privado ? `🔒 ${privadoLabel}` : "Tema visible para todos"}</div>`)
-    : (draft.privado ? `<div class="task-check-row">🔒 ${privadoLabel}</div>` : "");
+        : `<div class="task-check-row">${draft.privado ? `${icon("candado", 14)} ${privadoLabel}` : "Tema visible para todos"}</div>`)
+    : (draft.privado ? `<div class="task-check-row">${icon("candado", 14)} ${privadoLabel}</div>` : "");
 
   return `
     <div class="task-section">
@@ -3962,7 +3964,7 @@ function wireAddHitoInline(draft) {
           <label>Vencimiento<input type="date" id="inlineHitoFecha" value="${fmtDate(new Date())}" /></label>
           <label>Estado<select id="inlineHitoEstado">${STATES.map((s) => `<option>${s}</option>`).join("")}</select></label>
         </div>
-        <p class="gde-own-inherited">Sin dependencia ni responsable propio por ahora — se configuran despues desde ✎ Editar.</p>
+        <p class="gde-own-inherited">Sin dependencia ni responsable propio por ahora — se configuran despues desde Editar.</p>
         <div class="btn-group">
           <button type="button" class="primary" id="inlineHitoSaveBtn">Guardar hito</button>
           <button type="button" class="ghost" id="inlineHitoCancelBtn">Cancelar</button>
@@ -4266,14 +4268,14 @@ function buildExpedienteTabHtml(draft, mode) {
     <div class="gde-compact-row">
       <input type="checkbox" id="taskHasExpChk" ${hasExp ? "checked" : ""} />
       <span class="gde-compact-number ${hasExp ? "" : "muted"}" id="taskGdeCompactNumber">${hasExp ? escHtml(draft.expediente) : "Sin expediente asociado"}</span>
-      ${hasExp ? `<a href="#" class="gde-link" data-gde-open="${escHtml(draft.expediente)}" title="Abrir en GDE">🔗</a>` : ""}
-      <button type="button" class="gde-compact-expand" id="taskGdeExpandBtn" title="${hasExp ? "Editar expediente" : "Agregar expediente"}">✎</button>
+      ${hasExp ? `<a href="#" class="gde-link" data-gde-open="${escHtml(draft.expediente)}" title="Abrir en GDE">${icon("enlace", 12)}</a>` : ""}
+      <button type="button" class="gde-compact-expand" id="taskGdeExpandBtn" title="${hasExp ? "Editar expediente" : "Agregar expediente"}">${icon("lapiz", 12)}</button>
     </div>
     <div data-gde-container class="hidden">${buildGdeToggleWidget(draft.expediente || "")}</div>`
     : `
     <div class="gde-compact-row">
       <span class="gde-compact-number ${hasExp ? "" : "muted"}">${hasExp ? escHtml(draft.expediente) : "Sin expediente asociado"}</span>
-      ${hasExp ? `<a href="#" class="gde-link" data-gde-open="${escHtml(draft.expediente)}" title="Abrir en GDE">🔗</a>` : ""}
+      ${hasExp ? `<a href="#" class="gde-link" data-gde-open="${escHtml(draft.expediente)}" title="Abrir en GDE">${icon("enlace", 12)}</a>` : ""}
     </div>`;
 }
 
@@ -4334,7 +4336,7 @@ function renderDocItem(d) {
   const nombre = d && d.nombre ? d.nombre : String(d || "");
   const id = d && d.id ? d.id : "";
   return `<div class="doc-item">
-    <span>📄 ${escHtml(nombre)}</span>
+    <span>${icon("documento", 14)} ${escHtml(nombre)}</span>
     ${id ? `<a href="#" class="link" data-doc-download="${id}" style="margin-left:8px">Ver / descargar</a>` : ""}
   </div>`;
 }
@@ -4360,7 +4362,7 @@ function buildDocumentosTabHtml(tema) {
     : `<p style="color:var(--muted)">Sin documentos adjuntos.</p>`;
   return `
     <div id="taskDocList">${docHtml}</div>
-    ${puedeEditar() ? `<button type="button" class="col-add" id="taskUploadDocBtn" style="margin-top:10px">⤴ Adjuntar documento</button>` : ""}
+    ${puedeEditar() ? `<button type="button" class="col-add" id="taskUploadDocBtn" style="margin-top:10px">${icon("adjunto", 14)} Adjuntar documento</button>` : ""}
   `;
 }
 
@@ -4470,8 +4472,8 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
     const activeTab = tab || "general";
     const editable = mode === "edit";
     const accesoriosTabs = [];
-    if (accesorioHabilitado("expediente")) accesoriosTabs.push({ key: "expediente", label: "🔌 Expediente" });
-    if (accesorioHabilitado("planillas")) accesoriosTabs.push({ key: "planillas", label: "🔌 Planillas" });
+    if (accesorioHabilitado("expediente")) accesoriosTabs.push({ key: "expediente", label: `${icon("conectado", 12)} Expediente` });
+    if (accesorioHabilitado("planillas")) accesoriosTabs.push({ key: "planillas", label: `${icon("conectado", 12)} Planillas` });
     const puedeConectarAccesorio = esCreadorPizarra() && accesoriosDisponiblesParaConectar().length > 0;
 
     els.taskForm.innerHTML = `
@@ -4479,14 +4481,14 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
         <div class="task-modal-title-block">
           <span class="id-pill">${escHtml(draft.id)}</span>
           <h3 class="task-modal-title" id="taskModalTitle">${escHtml(draft.nombre) || "Nuevo tema"}</h3>
-          ${draft.privado ? `<span class="id-pill" title="Solo visible para el creador de la pizarra">🔒</span>` : ""}
+          ${draft.privado ? `<span class="id-pill" title="Solo visible para el creador de la pizarra">${icon("candado", 12)}</span>` : ""}
         </div>
         <div class="task-modal-header-actions">
           ${editable
             ? `<select name="estado" class="task-modal-estado-select">${STATES.map((s) => `<option ${draft.estado === s ? "selected" : ""}>${s}</option>`).join("")}</select>`
             : badge(draft.estado)}
-          <button type="button" class="task-feed-toggle-btn" id="taskFeedToggleBtn" title="${feedPanelVisible ? "Ocultar actividad" : "Mostrar actividad"}" aria-label="Mostrar u ocultar actividad">💬</button>
-          <button type="button" class="task-modal-close" id="taskModalCloseBtn" aria-label="Cerrar">✕</button>
+          <button type="button" class="task-feed-toggle-btn" id="taskFeedToggleBtn" title="${feedPanelVisible ? "Ocultar actividad" : "Mostrar actividad"}" aria-label="Mostrar u ocultar actividad">${icon("comentario", 16)}</button>
+          <button type="button" class="task-modal-close" id="taskModalCloseBtn" aria-label="Cerrar">${icon("cerrar", 14)}</button>
         </div>
       </div>
 
@@ -4655,7 +4657,7 @@ function openHitoForm(tema, existing = null, opts = {}) {
       </label>
       <label>Duración propia (días)<input type="number" name="duracionPropia" value="${existing?.duracionPropia ?? 4}" min="1" step="1" /></label>
     </div>
-    ${existing?.predecesorId ? `<p class="gde-own-inherited">Este hito depende de otro — para tocar la dependencia usá ✎ en el tab Hitos del tema.</p>` : ""}
+    ${existing?.predecesorId ? `<p class="gde-own-inherited">Este hito depende de otro — para tocar la dependencia usá el tab Hitos del tema.</p>` : ""}
     <label>Descripcion<textarea name="descripcion">${escHtml(existing?.descripcion || "")}</textarea></label>
     <label style="display:flex;flex-direction:row;align-items:center;gap:8px;font-size:13px;color:var(--text)">
       <input type="checkbox" id="hitoOwnExpChk" ${hasOwnExp ? "checked" : ""} style="width:auto" />
@@ -4664,7 +4666,7 @@ function openHitoForm(tema, existing = null, opts = {}) {
     <p id="hitoExpInherited" class="gde-own-inherited ${hasOwnExp ? "hidden" : ""}">${tema.expediente ? `Sin expediente propio · hereda ${escHtml(tema.expediente)} del tema` : "Sin expediente propio · el tema tampoco tiene expediente asociado"}</p>
     <div id="hitoExpWrap" class="${hasOwnExp ? "" : "hidden"}">${buildGdeToggleWidget(existing?.expediente || "")}</div>
     <div class="btn-group">
-      ${isEdit && puedeEliminar() ? `<button type="button" class="ghost" id="hitoDeleteBtn" style="color:#dc2626;margin-right:auto">🗑 Eliminar</button>` : ""}
+      ${isEdit && puedeEliminar() ? `<button type="button" class="ghost" id="hitoDeleteBtn" style="color:#dc2626;margin-right:auto">${icon("papelera", 14)} Eliminar</button>` : ""}
       <button class="primary" value="submit">Guardar</button>
       <button class="ghost" type="button" id="hitoCancelBtn">Cancelar</button>
     </div>
@@ -4844,7 +4846,7 @@ function buildGdeWidget(existingNumero, idPrefix = "") {
       <div class="gde-preview-row">
         <span class="gde-preview-label">Número completo:</span>
         <code id="${idPrefix}gdePreviewCode" class="gde-preview-code">${escHtml(existingNumero || "—")}</code>
-        <button type="button" id="${idPrefix}btnGdeWidgetOpen" class="action gde-form-btn">🔗 Buscar en GDE</button>
+        <button type="button" id="${idPrefix}btnGdeWidgetOpen" class="action gde-form-btn">${icon("enlace", 14)} Buscar en GDE</button>
       </div>
       <input type="hidden" name="numero" id="${idPrefix}gdeNumeroHidden" value="${escHtml(existingNumero || "")}" />
     </fieldset>`;
@@ -4906,7 +4908,7 @@ function renderGdeModeBody(wrap, mode, numero, idPrefix = "") {
     body.innerHTML = `
       <div class="gde-paste-row">
         <input type="text" class="gde-paste-input" id="${idPrefix}gdePasteInput" placeholder="EX-2024-106335934--APN-SOP#MEC" value="${escHtml(numero || "")}" />
-        <button type="button" class="action gde-form-btn" id="${idPrefix}btnGdeVerificar">🔗 Verificar</button>
+        <button type="button" class="action gde-form-btn" id="${idPrefix}btnGdeVerificar">${icon("enlace", 14)} Verificar</button>
       </div>
       <div class="gde-preview-row">
         <span class="gde-preview-label">Número completo:</span>
@@ -5046,7 +5048,7 @@ function renderResponsables() {
         <td>${r.usuarioGDE || "<span style='color:var(--muted)'>—</span>"}</td>
         <td style="text-align:center">${stats.temas}</td>
         <td style="text-align:center">${stats.hitos}</td>
-        <td><button class="ghost" data-resp-edit="${r.id}" style="font-size:12.5px">✎ Editar</button></td>
+        <td><button class="ghost" data-resp-edit="${r.id}" style="font-size:12.5px">${icon("lapiz", 12)} Editar</button></td>
       </tr>`;
     }).join("");
     els.tbodyResponsables.querySelectorAll("[data-resp-edit]").forEach((btn) => {
@@ -5062,15 +5064,15 @@ function renderResponsables() {
     const color = RESP_PALETTE[idx % RESP_PALETTE.length];
     return `
       <div class="resp-card" data-resp-id="${r.id}">
-        <button type="button" class="resp-card-edit" data-resp-edit="${r.id}" title="Editar">✎</button>
+        <button type="button" class="resp-card-edit" data-resp-edit="${r.id}" title="Editar">${icon("lapiz", 14)}</button>
         <div class="resp-card-head">
           <div class="resp-avatar-lg" style="background:${color}">${initials}</div>
           <div class="resp-info">
             <div class="resp-name">${escHtml(fullName)}</div>
-            ${r.email ? `<div class="resp-email">✉ ${escHtml(r.email)}</div>` : `<div class="resp-email" style="color:#c0c9d8">Sin correo</div>`}
-            ${r.cargo ? `<div class="resp-dep">💼 ${escHtml(r.cargo)}</div>` : ""}
-            ${r.dependencia ? `<div class="resp-dep">📁 ${escHtml(r.dependencia)}</div>` : ""}
-            ${r.usuarioGDE ? `<div class="resp-dep">🔑 GDE: ${escHtml(r.usuarioGDE)}</div>` : ""}
+            ${r.email ? `<div class="resp-email">${icon("correo", 12)} ${escHtml(r.email)}</div>` : `<div class="resp-email" style="color:#c0c9d8">Sin correo</div>`}
+            ${r.cargo ? `<div class="resp-dep">${icon("maletin", 12)} ${escHtml(r.cargo)}</div>` : ""}
+            ${r.dependencia ? `<div class="resp-dep">${icon("carpeta", 12)} ${escHtml(r.dependencia)}</div>` : ""}
+            ${r.usuarioGDE ? `<div class="resp-dep">${icon("llave", 12)} GDE: ${escHtml(r.usuarioGDE)}</div>` : ""}
           </div>
         </div>
         <hr class="resp-divider" />
