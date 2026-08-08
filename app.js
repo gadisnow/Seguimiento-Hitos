@@ -1565,11 +1565,24 @@ const ICONS = {
   dashboardGrid: `<rect x="3.5" y="3.5" width="7.5" height="7.5" rx="2"/><rect x="13" y="3.5" width="7.5" height="7.5" rx="2"/><rect x="3.5" y="13" width="7.5" height="7.5" rx="2"/><rect x="13" y="13" width="7.5" height="7.5" rx="2"/>`,
   temasBarras: `<rect x="3.5" y="4.5" width="4.5" height="15" rx="2"/><rect x="9.75" y="4.5" width="4.5" height="10" rx="2"/><rect x="16" y="4.5" width="4.5" height="13" rx="2"/>`,
   prioridad: `<path d="M6 21V4"/><path d="M6 4.5h10.5a1 1 0 0 1 .8 1.6l-2.6 3.4 2.6 3.4a1 1 0 0 1-.8 1.6H6"/>`,
-  calendario: `<rect x="3.5" y="5" width="17" height="15.5" rx="4"/><path d="M3.5 10h17"/><path d="M8 3v4"/><path d="M16 3v4"/>`
+  calendario: `<rect x="3.5" y="5" width="17" height="15.5" rx="4"/><path d="M3.5 10h17"/><path d="M8 3v4"/><path d="M16 3v4"/>`,
+  // Rediseno de la ventana de detalle (mockup notby-tarea v2.5): iconos nuevos
+  // copiados verbatim del mockup aprobado, el resto de esa pantalla reusa
+  // iconos ya existentes arriba (lista, prioridad, comentario, candado,
+  // predecesor, espera, enlace).
+  candadoAbierto: `<rect x="5" y="11" width="14" height="9.5" rx="2.5"/><path d="M8 11V7.5a4 4 0 0 1 7-2.4"/>`,
+  ganttBarras: `<rect x="3.5" y="5" width="10" height="3" rx="1.5"/><rect x="7.5" y="10.5" width="13" height="3" rx="1.5"/><rect x="4.5" y="16" width="8" height="3" rx="1.5"/>`,
+  historial: `<path d="M4.5 12a7.5 7.5 0 1 0 2.3-5.4"/><path d="M4.5 5.5v4h4"/><path d="M12 8.5v3.8l2.6 1.6"/>`,
+  imagen: `<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M4 16.3l4.5-4.8 3.2 3.6 3-3.3L20.5 17"/>`
 };
 function icon(name, size = 16) {
   return `<svg class="icon-inline" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
 }
+// El toolbar de Quill (composer de comentarios) trae sus propios SVG por
+// defecto; se pisa solo el de "adjuntar imagen" para que use el trazo del
+// manual de marca (unico icono de ese toolbar explicitamente pedido en el
+// rediseno v2.5 — bold/italic/listas/enlace quedan con el default de Quill).
+Quill.import("ui/icons").image = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${ICONS.imagen}</svg>`;
 
 // --------- Menu de acciones de la tarjeta Kanban (boton "⋯") ---------
 let activeKcardMenu = null;
@@ -3403,6 +3416,7 @@ function renderHitosCompactList(tema, opts = {}) {
           <div class="hito-compact-side">
             ${respAvatarHtml(h.responsable || tema.responsable)}
             ${badge(h.estado)}
+            ${puedeEditar() ? `<button type="button" class="hito-comment-btn" data-hito-comment="${h.id}" title="Comentar en este hito">${icon("comentario", 15)}</button>` : ""}
             ${readonly ? "" : `
             <div class="hito-actions">
               ${puedeEditar() ? `<button type="button" data-task-edit-hito="${h.id}" title="Editar" aria-expanded="false">${icon("lapiz", 14)}</button>` : ""}
@@ -3682,23 +3696,102 @@ function restoreTareaFields(draft, snap) {
 // Fase 3: General/Hitos/Gantt viven juntos en una unica seccion (no tabs
 // separadas entre si). El expediente GDE se muda a su propia solapa de
 // accesorio condicional (buildExpedienteTabHtml).
-function buildGeneralFieldsHtml(draft, mode) {
+// Etiquetas: bloque siempre visible (no va dentro de ningun acordeon, ver
+// mockup v2.5), separado del titulo que ahora vive en el header del modal.
+function buildEtiquetasBlockHtml(draft, mode) {
   const editable = mode === "edit";
-
-  const nombreField = editable
-    ? `<textarea name="nombre" id="taskNombreInput" class="task-nombre-input" rows="1" required>${escHtml(draft.nombre || "")}</textarea>`
-    : `<span class="task-nombre-view">${escHtml(draft.nombre || "-")}</span>`;
-
   const etiquetasChips = (draft.etiquetas || []).map((et, i) => etiquetaChipHtml(et, editable ? { removable: true, index: i } : {})).join("");
-  const etiquetasBlock = `
-    <div class="etiquetas-field">
-      <span class="etiquetas-field-label">Etiquetas</span>
-      <div class="etiquetas-row" id="taskEtiquetasRow">
-        <div class="etiquetas-chips" id="taskEtiquetasChips">${etiquetasChips || (editable ? "" : `<span style="color:var(--muted);font-size:12.5px">-</span>`)}</div>
-        ${editable ? `<button type="button" class="etiqueta-add-btn" id="taskEtiquetaAddBtn" title="Agregar etiqueta">+</button>
-        <div class="etiqueta-popover hidden" id="taskEtiquetaPopover"></div>` : ""}
+  return `
+    <div class="task-section">
+      <div class="etiquetas-field">
+        <span class="etiquetas-field-label">Etiquetas</span>
+        <div class="etiquetas-row" id="taskEtiquetasRow">
+          <div class="etiquetas-chips" id="taskEtiquetasChips">${etiquetasChips || (editable ? "" : `<span style="color:var(--muted);font-size:12.5px">-</span>`)}</div>
+          ${editable ? `<button type="button" class="etiqueta-add-btn" id="taskEtiquetaAddBtn" title="Agregar etiqueta">+</button>
+          <div class="etiqueta-popover hidden" id="taskEtiquetaPopover"></div>` : ""}
+        </div>
       </div>
     </div>`;
+}
+
+// Persistencia de acordeones abiertos/cerrados (Datos/Hitos/Gantt), mismo
+// patron que feedPanelVisible: prefijo "sgtemas_", string "1"/"0" en
+// localStorage, default abierto. Se lee directo de localStorage (no en una
+// variable de modulo) porque el bloque Hitos+Gantt se re-renderiza aparte
+// (ver refreshTaskGeneralPane) y necesita el mismo estado sin sincronizar
+// dos fuentes de verdad.
+function isAccordionOpen(key) {
+  return localStorage.getItem(`sgtemas_acc_${key}`) !== "0";
+}
+function setAccordionOpen(key, open) {
+  localStorage.setItem(`sgtemas_acc_${key}`, open ? "1" : "0");
+}
+function accordionHeadHtml(key, iconName, label, metaText) {
+  return `
+    <button type="button" class="task-accordion-head" data-accordion-head="${key}">
+      <span class="task-accordion-icon">${icon(iconName, 18)}</span>
+      <span class="task-accordion-label mono">${escHtml(label)}</span>
+      ${metaText ? `<span class="task-accordion-meta mono">${escHtml(metaText)}</span>` : ""}
+      <span class="task-accordion-chev">${icon("chevronAbajo", 16)}</span>
+    </button>`;
+}
+// Anima el alto del cuerpo del acordeon (excepcion documentada a la regla de
+// "nunca animar width/height"): se mide scrollHeight y se anima ese valor en
+// px, porque CSS no puede transicionar hacia/desde height:auto. Con
+// prefers-reduced-motion se salta la animacion y se aplica el estado final
+// de una vez.
+function animateAccordionToggle(accEl, bodyEl, opening) {
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  bodyEl.removeEventListener("transitionend", bodyEl.__accTransEnd || (() => {}));
+  if (reduce) {
+    accEl.classList.toggle("open", opening);
+    bodyEl.style.height = "";
+    return;
+  }
+  if (opening) {
+    accEl.classList.add("open");
+    const target = bodyEl.scrollHeight;
+    bodyEl.style.height = "0px";
+    requestAnimationFrame(() => { bodyEl.style.height = target + "px"; });
+    const onEnd = (e) => {
+      if (e.target !== bodyEl || e.propertyName !== "height") return;
+      bodyEl.style.height = "auto";
+      bodyEl.removeEventListener("transitionend", onEnd);
+    };
+    bodyEl.__accTransEnd = onEnd;
+    bodyEl.addEventListener("transitionend", onEnd);
+  } else {
+    const current = bodyEl.scrollHeight;
+    bodyEl.style.height = current + "px";
+    requestAnimationFrame(() => { bodyEl.style.height = "0px"; });
+    const onEnd = (e) => {
+      if (e.target !== bodyEl || e.propertyName !== "height") return;
+      accEl.classList.remove("open");
+      bodyEl.style.height = "";
+      bodyEl.removeEventListener("transitionend", onEnd);
+    };
+    bodyEl.__accTransEnd = onEnd;
+    bodyEl.addEventListener("transitionend", onEnd);
+  }
+}
+// Se re-cablea cada vez que se pinta el acordeon (render completo o refresh
+// puntual de #taskHitosGanttWrap) — busca dentro de todo el form, no solo un
+// wrapper, porque Datos vive afuera del bloque que se refresca con los hitos.
+function wireAccordionToggle(key) {
+  const accEl = els.taskForm.querySelector(`.task-accordion[data-accordion="${key}"]`);
+  if (!accEl) return;
+  const head = accEl.querySelector(".task-accordion-head");
+  const body = accEl.querySelector(".task-accordion-body");
+  if (!head || !body) return;
+  head.addEventListener("click", () => {
+    const opening = !accEl.classList.contains("open");
+    setAccordionOpen(key, opening);
+    animateAccordionToggle(accEl, body, opening);
+  });
+}
+
+function buildDatosFieldsHtml(draft, mode) {
+  const editable = mode === "edit";
 
   const respField = editable
     ? buildRespSelector(draft.responsable || state.config.currentUser)
@@ -3734,42 +3827,22 @@ function buildGeneralFieldsHtml(draft, mode) {
     ? `<label>Descripcion<textarea name="descripcion">${escHtml(draft.descripcion || "")}</textarea></label>`
     : `<label>Descripcion<div class="task-view-value" style="white-space:pre-wrap">${draft.descripcion ? escHtml(draft.descripcion) : "-"}</div></label>`;
 
-  // Solo el creador de la pizarra puede marcar/desmarcar un tema como privado
-  // (el resto solo ve el estado actual, sin control para cambiarlo).
-  const esCreador = esCreadorPizarra();
-  const privadoLabel = "Tema privado (solo lo puede ver el creador de la pizarra)";
-  const privadoField = esCreador
-    ? (editable
-        ? `<label class="task-check-row"><input type="checkbox" name="privado" ${draft.privado ? "checked" : ""} />${privadoLabel}</label>`
-        : `<div class="task-check-row">${draft.privado ? `${icon("candado", 14)} ${privadoLabel}` : "Tema visible para todos"}</div>`)
-    : (draft.privado ? `<div class="task-check-row">${icon("candado", 14)} ${privadoLabel}</div>` : "");
-
+  // Nota: "descripcion" ya no se muestra en ningun lado (rediseno v2.5, campo
+  // sin uso real) — el dato sigue existiendo en draft/DB, solo se dejo de
+  // renderizar. La privacidad se mudo al boton candado del header (ver
+  // lockButtonHtml), reemplazando el viejo checkbox de aca.
   return `
-    <div class="task-section">
-      <label>Nombre${nombreField}</label>
-      ${etiquetasBlock}
-    </div>
-
-    <div class="task-grid-3col">
+    <div class="task-datos-grid">
       ${respField}
       ${prioridadField}
       ${solicitanteField}
-    </div>
-    <div class="task-grid-2col">
       ${provinciaField}
       ${municipioField}
-    </div>
-    <div class="task-grid-3col">
+      <div></div>
       ${inicioField}
       ${vencimientoField}
       ${diasField}
     </div>
-
-    <details class="task-section">
-      <summary class="task-section-title">Descripción y privacidad</summary>
-      ${descripcionField}
-      ${privadoField}
-    </details>
   `;
 }
 
@@ -3779,12 +3852,24 @@ function wireGeneralTabEvents(draft, mode) {
   initRespDropdowns(els.taskForm);
 
   const nombreInput = document.getElementById("taskNombreInput");
-  const titleEl = document.getElementById("taskModalTitle");
   if (nombreInput) {
     autoResizeTextarea(nombreInput);
-    nombreInput.addEventListener("input", () => {
-      if (titleEl) titleEl.textContent = nombreInput.value.trim() || "Nuevo tema";
-      autoResizeTextarea(nombreInput);
+    nombreInput.addEventListener("input", () => autoResizeTextarea(nombreInput));
+  }
+  document.getElementById("taskTitleFocusBtn")?.addEventListener("click", () => {
+    nombreInput?.focus();
+    nombreInput?.select();
+  });
+
+  const privadoBtn = document.getElementById("taskPrivadoBtn");
+  const privadoInput = document.getElementById("taskPrivadoInput");
+  if (privadoBtn && privadoInput) {
+    privadoBtn.addEventListener("click", () => {
+      const nowLocked = privadoInput.value !== "1";
+      privadoInput.value = nowLocked ? "1" : "";
+      privadoBtn.classList.toggle("locked", nowLocked);
+      privadoBtn.innerHTML = icon(nowLocked ? "candado" : "candadoAbierto", 16);
+      privadoBtn.title = nowLocked ? "Privado — clic para hacer publico" : "Publico — clic para hacer privado";
     });
   }
 
@@ -3794,7 +3879,10 @@ function wireGeneralTabEvents(draft, mode) {
     return currentEstado === "Cerrado" ? (draft.fechaCierre || fmtDate(new Date())) : null;
   };
   const updateDiasBadge = wireDiasBadge(document.getElementById("taskFechaLimiteInput"), document.getElementById("taskDiasBadge"), getFechaCierre);
-  estadoSelect?.addEventListener("change", () => updateDiasBadge && updateDiasBadge());
+  estadoSelect?.addEventListener("change", () => {
+    estadoSelect.dataset.estado = estadoSelect.value;
+    updateDiasBadge && updateDiasBadge();
+  });
   wireEtiquetasField(draft);
 }
 
@@ -3899,23 +3987,31 @@ function buildHitosGanttSectionHtml(draft, mode) {
   const totalH = draft.hitos.length;
   const doneH = draft.hitos.filter((h) => h.estado === "Cerrado").length;
   return `
-    <div class="task-section">
-      <div class="task-section-title">Hitos${totalH > 0 ? ` (${doneH}/${totalH})` : ""}</div>
-      <div class="hito-compact-list" id="taskHitosList">${renderHitosCompactList(draft, { readonly: !editable })}</div>
-      ${editable && puedeEditar() ? `<button type="button" class="col-add" id="taskAddHitoBtn" style="margin-top:10px">+ Agregar hito</button>` : ""}
-      <div id="taskHitoInlineFormWrap"></div>
+    <div class="task-accordion ${isAccordionOpen("hitos") ? "open" : ""}" data-accordion="hitos">
+      ${accordionHeadHtml("hitos", "prioridad", "Hitos", totalH > 0 ? `${doneH}/${totalH}` : "")}
+      <div class="task-accordion-body"><div class="task-accordion-body-inner">
+        <div class="hito-compact-list" id="taskHitosList">${renderHitosCompactList(draft, { readonly: !editable })}</div>
+        ${editable && puedeEditar() ? `<button type="button" class="col-add" id="taskAddHitoBtn" style="margin-top:10px">+ Agregar hito</button>` : ""}
+        <div id="taskHitoInlineFormWrap"></div>
+      </div></div>
     </div>
 
-    <div class="task-section">
-      <div class="task-section-title">Gantt</div>
-      <div id="taskGanttWrap">${renderMiniGantt(draft)}</div>
+    <div class="task-accordion ${isAccordionOpen("gantt") ? "open" : ""}" data-accordion="gantt">
+      ${accordionHeadHtml("gantt", "ganttBarras", "Gantt")}
+      <div class="task-accordion-body"><div class="task-accordion-body-inner">
+        <div id="taskGanttWrap">${renderMiniGantt(draft)}</div>
+      </div></div>
     </div>
   `;
 }
 
 function buildGeneralTabHtml(draft, mode) {
   return `
-    <div id="taskGeneralFieldsWrap">${buildGeneralFieldsHtml(draft, mode)}</div>
+    <div id="taskEtiquetasWrap">${buildEtiquetasBlockHtml(draft, mode)}</div>
+    <div class="task-accordion ${isAccordionOpen("datos") ? "open" : ""}" data-accordion="datos">
+      ${accordionHeadHtml("datos", "lista", "Datos")}
+      <div class="task-accordion-body"><div class="task-accordion-body-inner">${buildDatosFieldsHtml(draft, mode)}</div></div>
+    </div>
     <div id="taskHitosGanttWrap">${buildHitosGanttSectionHtml(draft, mode)}</div>
   `;
 }
@@ -3974,6 +4070,13 @@ function wireHitosListButtons(draft, mode) {
   list.querySelectorAll("[data-task-delete-hito]").forEach((btn) => {
     btn.addEventListener("click", () => {
       deleteHito(draft, btn.dataset.taskDeleteHito, { onSaved: () => refreshTaskGeneralPane(draft, mode) });
+    });
+  });
+  list.querySelectorAll("[data-hito-comment]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const hito = hitoPorId(draft.hitos, btn.dataset.hitoComment);
+      if (hito) setHitoCommentContext(hito);
     });
   });
 }
@@ -4101,6 +4204,8 @@ function refreshTaskGeneralPane(draft, mode) {
   wireHitosListButtons(draft, mode);
   wireHitoDragReorder(draft, mode);
   wireGanttZoom(draft);
+  wireAccordionToggle("hitos");
+  wireAccordionToggle("gantt");
   if (mode === "edit") wireAddHitoInline(draft);
   // Toda mutacion de hitos tambien empuja una entrada de historial — el feed
   // persistente de Comentarios + Actividad debe reflejarla al toque.
@@ -4119,6 +4224,11 @@ let feedPanelVisible = localStorage.getItem("sgtemas_feed_visible") !== "0";
 let feedQuillInstance = null;
 let feedMentionCandidates = [];
 let feedPendingMenciones = [];
+// Comentario en curso dirigido a un hito puntual (boton de comentario en la
+// fila del hito, ver renderHitosCompactList) — reemplaza al viejo <select>
+// del composer por un chip "Comentando en: X" (rediseno v2.5). Se resetea
+// al mandar el comentario, al limpiarlo a mano, o al re-pintar el panel.
+let activeHitoCommentContext = null;
 // Edicion in-place de un comentario ya guardado: solo uno a la vez (abrir
 // "Editar" en otro cierra el anterior, mismo criterio que los popovers).
 let editingComentarioId = null;
@@ -4133,29 +4243,24 @@ function puedeEditarComentario(c) {
   return Boolean(c.id) && (c.userId === activeUserId() || esCreadorPizarra());
 }
 
-// Actividad (log automatico del sistema) y Comentarios (texto libre de
-// usuarios) son dos secciones separadas dentro del mismo panel persistente
-// -- ya no un feed unico mezclado. Un comentario con hitoId sigue apareciendo
-// solo en Comentarios, etiquetado con el hito (ver feedCommentEntryHtml).
-function buildActividadListHtml(draft) {
-  const historial = [...(draft.historial || [])].sort((a, b) => new Date(a.createdAt || a.at) - new Date(b.createdAt || b.at));
-  if (!historial.length) return `<p style="color:var(--muted);font-size:12.5px">Todavia no hay actividad en este tema.</p>`;
-  return historial.map(feedActivityEntryHtml).join("");
+// Feed unico cronologico (rediseno v2.5): antes eran dos secciones separadas
+// (Actividad arriba, Comentarios abajo); ahora se intercalan por timestamp
+// real, igual que el mockup aprobado. Un comentario con hitoId sigue
+// etiquetado con el hito al que pertenece (ver feedCommentEntryHtml).
+function buildUnifiedFeedHtml(draft) {
+  const activityEntries = (draft.historial || []).map((h) => ({ type: "activity", at: h.createdAt || h.at, data: h }));
+  const commentEntries = (draft.comentarios || []).map((c) => ({ type: "comment", at: c.createdAt || c.at, data: c }));
+  const merged = [...activityEntries, ...commentEntries].sort((a, b) => new Date(a.at) - new Date(b.at));
+  if (!merged.length) return `<p style="color:var(--muted);font-size:12.5px">Todavia no hay actividad en este tema. Escribi el primer comentario abajo.</p>`;
+  return merged.map((e) => (e.type === "activity" ? feedActivityEntryHtml(e.data) : feedCommentEntryHtml(e.data, draft))).join("");
 }
 
-function buildComentariosListHtml(draft) {
-  const comentarios = [...(draft.comentarios || [])].sort((a, b) => new Date(a.createdAt || a.at) - new Date(b.createdAt || b.at));
-  if (!comentarios.length) return `<p style="color:var(--muted);font-size:12.5px">Todavia no hay comentarios en este tema. Escribi el primero abajo.</p>`;
-  return comentarios.map((c) => feedCommentEntryHtml(c, draft)).join("");
-}
-
-// Repinta solo la lista de comentarios (no todo el panel) y re-cablea sus
-// botones de Editar/Guardar/Cancelar — se llama despues de crear, editar o
-// cancelar la edicion de un comentario, sin tocar Actividad ni el composer.
+// Repinta el feed completo y re-cablea sus botones de Editar/Guardar/Cancelar
+// — se llama despues de crear, editar o cancelar la edicion de un comentario.
 function refreshComentariosList(draft) {
-  const list = document.getElementById("taskComentariosList");
+  const list = document.getElementById("taskFeedList");
   if (!list) return;
-  list.innerHTML = buildComentariosListHtml(draft);
+  list.innerHTML = buildUnifiedFeedHtml(draft);
   list.scrollTop = list.scrollHeight;
   wireComentariosListEvents(draft);
 }
@@ -4166,7 +4271,7 @@ function closeCommentEdit() {
 }
 
 function wireComentariosListEvents(draft) {
-  const list = document.getElementById("taskComentariosList");
+  const list = document.getElementById("taskFeedList");
   if (!list) return;
 
   list.querySelectorAll("[data-comment-edit-start]").forEach((btn) => {
@@ -4233,9 +4338,9 @@ function feedCommentEntryHtml(c, draft) {
       <div class="feed-entry-body">
         <div class="feed-entry-header">
           <strong>${escHtml(c.by)}</strong>
-          ${hito ? `<span class="feed-hito-tag" title="Comentario sobre este hito">◆ ${escHtml(hito.nombre)}</span>` : ""}
           <span class="feed-entry-date">${fmtDateNice(c.at)}</span>
         </div>
+        ${hito ? `<div class="feed-comment-tag">${icon("prioridad", 12)} ${escHtml(hito.nombre)}</div>` : ""}
         ${isEditing ? `
           <div class="feed-comment-edit-wrap">
             <div class="task-feed-quill-wrap"><div id="feedCommentEditQuill"></div></div>
@@ -4252,13 +4357,13 @@ function feedCommentEntryHtml(c, draft) {
 
 function buildFeedComposerHtml(draft) {
   if (!puedeEditar()) return "";
-  const hitoOpts = (draft.hitos || []).map((h) => `<option value="${h.id}">${escHtml(h.nombre)}</option>`).join("");
   return `
-    <div class="task-feed-composer">
-      <select id="taskFeedHitoSelect" class="task-feed-hito-select">
-        <option value="">Comentario general del tema</option>
-        ${hitoOpts}
-      </select>
+    <div class="task-feed-composer" id="taskFeedComposerWrap">
+      <div class="task-comment-context ${activeHitoCommentContext ? "active" : ""}" id="taskCommentContext">
+        ${icon("prioridad", 13)}
+        <span>Comentando en: <span id="taskCommentContextName">${activeHitoCommentContext ? escHtml(activeHitoCommentContext.nombre) : ""}</span></span>
+        <button type="button" id="taskCommentContextClear" title="Quitar y comentar en el tema">${icon("cerrar", 12)}</button>
+      </div>
       <div class="task-feed-quill-wrap">
         <div id="taskFeedQuill"></div>
         <div class="task-feed-mention-menu hidden" id="taskFeedMentionMenu"></div>
@@ -4272,16 +4377,31 @@ function buildFeedComposerHtml(draft) {
 function buildFeedPanelHtml(draft) {
   return `
     <aside class="task-feed-panel ${feedPanelVisible ? "" : "hidden"}" id="taskFeedPanel">
-      <div class="task-feed-section task-feed-section-actividad">
-        <div class="task-feed-header"><strong>Actividad</strong></div>
-        <div class="task-feed-list" id="taskActividadList">${buildActividadListHtml(draft)}</div>
-      </div>
-      <div class="task-feed-section task-feed-section-comentarios">
-        <div class="task-feed-header"><strong>Comentarios</strong></div>
-        <div class="task-feed-list" id="taskComentariosList">${buildComentariosListHtml(draft)}</div>
-        ${buildFeedComposerHtml(draft)}
-      </div>
+      <div class="task-feed-header">${icon("historial", 16)}<span class="mono">Actividad</span></div>
+      <div class="task-feed-list" id="taskFeedList">${buildUnifiedFeedHtml(draft)}</div>
+      ${buildFeedComposerHtml(draft)}
     </aside>`;
+}
+
+// Setea/limpia el hito activo del composer y anima la aparicion del chip
+// (ver .task-comment-context en styles.css — @starting-style + allow-discrete,
+// mismo patron que el modal). null limpia y vuelve a "comentario general".
+function setHitoCommentContext(hito) {
+  activeHitoCommentContext = hito ? { id: hito.id, nombre: hito.nombre } : null;
+  const ctx = document.getElementById("taskCommentContext");
+  const nameEl = document.getElementById("taskCommentContextName");
+  if (ctx) {
+    if (hito) {
+      if (nameEl) nameEl.textContent = hito.nombre;
+      ctx.classList.add("active");
+    } else {
+      ctx.classList.remove("active");
+    }
+  }
+  if (hito) {
+    feedQuillInstance?.focus();
+    document.getElementById("taskFeedComposerWrap")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
 }
 
 function toggleFeedPanel() {
@@ -4300,10 +4420,8 @@ function toggleFeedPanel() {
 // acumulando el id en feedPendingMenciones para guardarlo en el comentario.
 function wireFeedPanel(draft) {
   document.getElementById("taskFeedToggleBtn")?.addEventListener("click", toggleFeedPanel);
-  const actividadList = document.getElementById("taskActividadList");
-  if (actividadList) actividadList.scrollTop = actividadList.scrollHeight;
-  const comentariosList = document.getElementById("taskComentariosList");
-  if (comentariosList) comentariosList.scrollTop = comentariosList.scrollHeight;
+  const feedList = document.getElementById("taskFeedList");
+  if (feedList) feedList.scrollTop = feedList.scrollHeight;
   // Antes del early-return de abajo: "Editar" en un comentario propio debe
   // funcionar aunque el usuario actual no tenga permiso para crear uno
   // nuevo (ej. su rol cambio despues de comentar, o esta viendo el tema
@@ -4312,6 +4430,9 @@ function wireFeedPanel(draft) {
 
   const quillContainer = document.getElementById("taskFeedQuill");
   if (!quillContainer) return; // sin permiso de edicion: no hay composer
+
+  activeHitoCommentContext = null;
+  document.getElementById("taskCommentContextClear")?.addEventListener("click", () => setHitoCommentContext(null));
 
   feedPendingMenciones = [];
   feedMentionCandidates = [];
@@ -4373,8 +4494,7 @@ function wireFeedPanel(draft) {
     const plain = feedQuillInstance.getText().trim();
     if (!plain) return;
     if (!isPersistedTema(draft)) { showToast("Guarda el tema antes de comentar."); return; }
-    const hitoSelect = document.getElementById("taskFeedHitoSelect");
-    const hitoId = hitoSelect?.value || null;
+    const hitoId = activeHitoCommentContext?.id || null;
     const hito = hitoId ? hitoPorId(draft.hitos, hitoId) : null;
     const currentUser = activeUserName();
     const menciones = [...feedPendingMenciones];
@@ -4394,24 +4514,18 @@ function wireFeedPanel(draft) {
     draft.historial.push({ event: hito ? `Comentario en hito "${hito.nombre}"` : "Comentario agregado", at: fmtDate(new Date()), createdAt: now, by: currentUser });
     feedQuillInstance.setContents([]);
     feedPendingMenciones = [];
-    if (hitoSelect) hitoSelect.value = "";
+    setHitoCommentContext(null);
     renderAll();
     refreshTaskFeedPane(draft);
   });
 }
 
 function refreshTaskFeedPane(draft) {
-  const actividadList = document.getElementById("taskActividadList");
-  if (actividadList) {
-    actividadList.innerHTML = buildActividadListHtml(draft);
-    actividadList.scrollTop = actividadList.scrollHeight;
-  }
-  const comentariosList = document.getElementById("taskComentariosList");
-  if (comentariosList) {
-    comentariosList.innerHTML = buildComentariosListHtml(draft);
-    comentariosList.scrollTop = comentariosList.scrollHeight;
-    wireComentariosListEvents(draft);
-  }
+  const list = document.getElementById("taskFeedList");
+  if (!list) return;
+  list.innerHTML = buildUnifiedFeedHtml(draft);
+  list.scrollTop = list.scrollHeight;
+  wireComentariosListEvents(draft);
 }
 
 // =========================================================
@@ -4602,6 +4716,26 @@ function wireTaskModalTabs() {
   });
 }
 
+// Boton candado del header: reemplaza al viejo checkbox "Tema privado" del
+// tab General (rediseno v2.5). Mismo criterio de permiso que antes (ver
+// esCreadorPizarra): solo el creador de la pizarra puede tocarlo, y solo en
+// modo edicion — el resto ve un indicador estatico si el tema es privado, o
+// nada si no lo es (no hay nada que mostrar). El valor viaja en un input
+// oculto name="privado" para que siga entrando por FormData en el onsubmit
+// existente sin tocar esa logica mas de lo necesario.
+function lockButtonHtml(draft, mode) {
+  const locked = Boolean(draft.privado);
+  const interactive = mode === "edit" && esCreadorPizarra();
+  if (!interactive && !locked) return "";
+  if (interactive) {
+    const label = locked ? "Privado — clic para hacer publico" : "Publico — clic para hacer privado";
+    return `
+      <input type="hidden" name="privado" id="taskPrivadoInput" value="${locked ? "1" : ""}" />
+      <button type="button" class="lock-btn ${locked ? "locked" : ""}" id="taskPrivadoBtn" title="${label}">${icon(locked ? "candado" : "candadoAbierto", 16)}</button>`;
+  }
+  return `<span class="lock-btn locked static" title="Privado — solo lo puede ver el creador de la pizarra">${icon("candado", 16)}</span>`;
+}
+
 // El modal unifica vista (readonly) y edicion. `initialMode` decide con que modo
 // abre; "Editar"/"Cancelar" alternan entre ambos sin cerrar la ventana ni perder
 // los tabs Documentos/accesorios ya cargados (esos se persisten al toque, no
@@ -4665,14 +4799,17 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
 
     els.taskForm.innerHTML = `
       <div class="task-modal-header">
-        <div class="task-modal-title-block">
-          <span class="id-pill">${escHtml(draft.id)}</span>
-          <h3 class="task-modal-title" id="taskModalTitle">${escHtml(draft.nombre) || "Nuevo tema"}</h3>
-          ${draft.privado ? `<span class="id-pill" title="Solo visible para el creador de la pizarra">${icon("candado", 12)}</span>` : ""}
+        <span class="id-pill">${escHtml(draft.id)}</span>
+        <div class="task-modal-title-wrap">
+          ${editable
+            ? `<textarea name="nombre" id="taskNombreInput" class="task-modal-title-input" rows="1" required>${escHtml(draft.nombre || "")}</textarea>
+               <button type="button" class="task-modal-edit-pencil" id="taskTitleFocusBtn" title="Editar nombre">${icon("lapiz", 15)}</button>`
+            : `<h3 class="task-modal-title" id="taskModalTitle">${escHtml(draft.nombre) || "Nuevo tema"}</h3>`}
         </div>
         <div class="task-modal-header-actions">
+          ${lockButtonHtml(draft, mode)}
           ${editable
-            ? `<select name="estado" class="task-modal-estado-select">${STATES.map((s) => `<option ${draft.estado === s ? "selected" : ""}>${s}</option>`).join("")}</select>`
+            ? `<select name="estado" class="task-modal-estado-select" data-estado="${escHtml(draft.estado)}">${STATES.map((s) => `<option ${draft.estado === s ? "selected" : ""}>${s}</option>`).join("")}</select>`
             : badge(draft.estado)}
           <button type="button" class="task-feed-toggle-btn" id="taskFeedToggleBtn" title="${feedPanelVisible ? "Ocultar actividad" : "Mostrar actividad"}" aria-label="Mostrar u ocultar actividad">${icon("comentario", 16)}</button>
           <button type="button" class="task-modal-close" id="taskModalCloseBtn" aria-label="Cerrar">${icon("cerrar", 14)}</button>
@@ -4706,6 +4843,9 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
     wireHitosListButtons(draft, mode);
     wireHitoDragReorder(draft, mode);
     wireGanttZoom(draft);
+    wireAccordionToggle("datos");
+    wireAccordionToggle("hitos");
+    wireAccordionToggle("gantt");
     if (editable) wireAddHitoInline(draft);
     wireDocumentosTabEvents(draft);
     if (accesorioHabilitado("expediente")) wireExpedienteTabEvents(draft, mode);
@@ -4728,12 +4868,12 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
     if (!nombreVal) { showToast("El nombre del tema es requerido"); return; }
     const data = Object.fromEntries(new FormData(els.taskForm).entries());
     data.responsable = resp;
-    // El checkbox de privacidad solo existe en el DOM para el creador de la
-    // pizarra (ver buildGeneralFieldsHtml) — si no esta, se preserva el valor
-    // actual en vez de asumir false (evita que un editor no-creador lo
-    // desmarque sin querer al no tener control para tocarlo).
-    const privadoChk = els.taskForm.querySelector('[name="privado"]');
-    data.privado = privadoChk ? privadoChk.checked : draft.privado;
+    // El input oculto de privacidad (boton candado del header) solo existe en
+    // el DOM para el creador de la pizarra (ver lockButtonHtml) — si no esta,
+    // se preserva el valor actual en vez de asumir false (evita que un editor
+    // no-creador lo desmarque sin querer al no tener control para tocarlo).
+    const privadoInputEl = els.taskForm.querySelector('[name="privado"]');
+    data.privado = privadoInputEl ? privadoInputEl.value === "1" : draft.privado;
     const hasExp = document.getElementById("taskHasExpChk")?.checked;
     const gdeHidden = document.getElementById("tarea-gdeNumeroHidden");
     data.expediente = hasExp ? (gdeHidden ? gdeHidden.value.trim() : (draft.expediente || "")) : "";

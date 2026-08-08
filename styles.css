@@ -101,7 +101,8 @@ h1.wordmark, span.wordmark {
 }
 
 /* JetBrains Mono solo para IDs/codigos/datos tabulares, nunca texto corrido. */
-.mono, .id-pill, .exp-numero-cell, .hito-gde-num, .gde-compact-number, code {
+.mono, .id-pill, .exp-numero-cell, .hito-gde-num, .gde-compact-number, code,
+.task-accordion-label, .task-accordion-meta, .task-feed-header span, .task-id {
   font-family: 'JetBrains Mono', monospace;
 }
 
@@ -2676,20 +2677,64 @@ html[data-theme="dark"] .etiqueta-popover input[type="text"] { background: var(-
 #taskForm textarea { min-height: 70px; resize: vertical; }
 
 .task-modal-header {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 14px 18px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0;
 }
-.task-modal-title-block { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+.task-modal-title-wrap { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; }
 .task-modal-title {
-  font-size: 16px; font-weight: 600; overflow: hidden; text-overflow: ellipsis;
+  font-size: 17px; font-weight: 700; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap; min-width: 0; flex: 1;
 }
-.task-modal-header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+/* Titulo editable inline (rediseno v2.5): reemplaza al viejo campo "Nombre"
+   duplicado dentro del tab General — unico input real, ahora en el header.
+   Selector calificado con #taskForm textarea para ganarle en especificidad
+   a la regla generica #taskForm textarea (linea ~2661). */
+#taskForm textarea.task-modal-title-input {
+  flex: 1; min-width: 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em;
+  border: 1px solid transparent; border-radius: 8px; padding: 5px 8px; margin: -5px 0 -5px -8px;
+  resize: none; overflow: hidden; background: transparent; color: var(--text); line-height: 1.35;
+}
+#taskForm textarea.task-modal-title-input:hover { background: var(--bg); }
+#taskForm textarea.task-modal-title-input:focus { border-color: var(--primary); background: var(--card); outline: none; }
+.task-modal-edit-pencil {
+  border: none; background: none; cursor: pointer; color: var(--muted);
+  padding: 6px; border-radius: 6px; display: flex; flex-shrink: 0;
+}
+.task-modal-edit-pencil:hover { background: var(--bg); color: var(--text); }
+.task-modal-edit-pencil:active { transform: scale(.97); }
+.task-modal-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+.lock-btn {
+  border: 1px solid var(--border); background: var(--card); cursor: pointer;
+  width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center;
+  color: var(--muted); flex-shrink: 0;
+  transition: color .15s ease, border-color .15s ease, transform .1s ease-out;
+}
+.lock-btn:hover { border-color: var(--muted); }
+.lock-btn.locked { color: var(--text); border-color: var(--text); }
+.lock-btn.static { cursor: default; }
+.lock-btn:active { transform: scale(0.97); }
+html[data-theme="dark"] .lock-btn { background: var(--bg); }
+
 .task-modal-estado-select {
-  border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px;
+  border: 1px solid var(--border); border-radius: 9px; padding: 8px 10px;
   font-size: 12.5px; font-weight: 600; background: white; color: var(--text);
 }
 html[data-theme="dark"] .task-modal-estado-select { background: var(--bg); }
+/* Estado en el header con el color semantico real (STATE_COLORS), no el azul
+   de marca — mismos hex que .b-* (ver linea ~610), duplicados a proposito
+   porque son reglas de contextos distintos (badge vs. <select>). */
+.task-modal-estado-select[data-estado="Pendiente"] { background: var(--pendiente-soft); color: #b91c1c; border-color: transparent; }
+.task-modal-estado-select[data-estado="En curso"] { background: var(--en-curso-soft); color: #1d4ed8; border-color: transparent; }
+.task-modal-estado-select[data-estado="En revision"] { background: var(--en-revision-soft); color: #6d28d9; border-color: transparent; }
+.task-modal-estado-select[data-estado="Bloqueado"] { background: var(--bloqueado-soft); color: #b45309; border-color: transparent; }
+.task-modal-estado-select[data-estado="Cerrado"] { background: var(--cerrado-soft); color: #047857; border-color: transparent; }
+html[data-theme="dark"] .task-modal-estado-select[data-estado="Pendiente"] { background: rgba(239,68,68,0.2); color: #fca5a5; }
+html[data-theme="dark"] .task-modal-estado-select[data-estado="En curso"] { background: rgba(59,130,246,0.2); color: #93c5fd; }
+html[data-theme="dark"] .task-modal-estado-select[data-estado="En revision"] { background: rgba(139,92,246,0.2); color: #c4b5fd; }
+html[data-theme="dark"] .task-modal-estado-select[data-estado="Bloqueado"] { background: rgba(245,158,11,0.2); color: #fcd34d; }
+html[data-theme="dark"] .task-modal-estado-select[data-estado="Cerrado"] { background: rgba(16,185,129,0.2); color: #6ee7b7; }
+
 .task-modal-close {
   background: transparent; border: 0; color: var(--muted); cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
@@ -2760,27 +2805,28 @@ html[data-theme="dark"] .task-modal-footer .btn-delete:hover { background: rgba(
 }
 .task-feed-toggle-btn:hover { color: var(--text); }
 
+/* Panel lateral unificado (rediseno v2.5): fondo propio (reusa --bg, el
+   mismo neutro "un paso mas oscuro que --card" que ya existe en ambos temas)
+   para diferenciarse del contenido principal blanco, sin inventar un token
+   paralelo. Antes eran dos secciones independientes (Actividad / Comentarios
+   con scroll propio); ahora un unico feed cronologico, ver buildUnifiedFeedHtml. */
 .task-feed-panel {
   width: 320px; flex-shrink: 0;
+  background: var(--bg);
   border-left: 1px solid var(--border);
   display: flex; flex-direction: column; min-height: 0;
 }
 .task-feed-panel.hidden { display: none; }
 
-/* Dos secciones independientes dentro del mismo panel: Actividad (log de
-   sistema, altura acotada y scroll propio) y Comentarios (texto libre de
-   usuarios, ocupa el resto del alto y contiene el composer). */
-.task-feed-section { display: flex; flex-direction: column; min-height: 0; }
-.task-feed-section-actividad { flex: 0 1 180px; border-bottom: 1px solid var(--border); }
-.task-feed-section-comentarios { flex: 1 1 auto; min-height: 0; }
-
 .task-feed-header {
-  padding: 10px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; font-size: 13px;
+  padding: 14px 16px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  display: flex; align-items: center; gap: 8px; color: var(--muted);
 }
+.task-feed-header span { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
 
 .task-feed-list {
-  flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 12px 16px;
-  display: flex; flex-direction: column; gap: 12px;
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 14px;
 }
 
 .feed-entry { display: flex; gap: 8px; align-items: flex-start; }
@@ -2789,16 +2835,19 @@ html[data-theme="dark"] .task-modal-footer .btn-delete:hover { background: rgba(
 .feed-entry-date { font-size: 11px; color: var(--muted); margin-top: 1px; }
 .feed-entry-header { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; margin-bottom: 4px; }
 .feed-entry-header strong { font-size: 13px; }
-.feed-hito-tag {
-  font-size: 10px; color: var(--primary); border: 1px solid var(--primary); border-radius: 999px;
-  padding: 0 6px; white-space: nowrap;
+/* Tag "comentario sobre este hito" (reemplaza el viejo .feed-hito-tag en
+   pildora): linea propia arriba de la burbuja, icono Prioridad (flag) +
+   nombre del hito, color de marca — ver §3 del rediseno v2.5. */
+.feed-comment-tag {
+  display: flex; align-items: center; gap: 5px; color: var(--primary);
+  font-size: 11.5px; font-weight: 600; margin-bottom: 5px;
 }
 
-/* Burbuja de comentario al estilo Trello: fondo propio (no texto suelto
-   sobre el panel), separado del bloque de acciones (Editar) que va debajo,
-   afuera de la burbuja. */
+/* Burbuja de comentario al estilo Trello: fondo propio (--card, contrasta
+   con el --bg del panel), separado del bloque de acciones (Editar) que va
+   debajo, afuera de la burbuja. */
 .feed-comment-body {
-  background: var(--bg);
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 8px 10px;
@@ -2826,12 +2875,28 @@ html[data-theme="dark"] .task-modal-footer .btn-delete:hover { background: rgba(
   border-top: 1px solid var(--border); padding: 12px; flex-shrink: 0;
   display: flex; flex-direction: column; gap: 8px;
 }
-.task-feed-hito-select {
-  border: 1px solid transparent; border-radius: 6px; padding: 4px 6px;
-  font-size: 11.5px; font-weight: 600; color: var(--muted); background: transparent;
-  align-self: flex-start;
+/* Chip "Comentando en: X" (rediseno v2.5): reemplaza al viejo <select> de
+   hito del composer. Aparece/desaparece con opacidad+escala via
+   @starting-style (mismo mecanismo que dialog#modalTask, ver mas abajo) —
+   nunca se anima width/height. */
+.task-comment-context {
+  display: none; align-items: center; gap: 6px; margin-bottom: 2px;
+  background: var(--primary-soft); border: 1px solid var(--primary-soft-border); color: var(--primary);
+  font-size: 12px; font-weight: 600; padding: 6px 8px 6px 10px; border-radius: 7px;
+  opacity: 1; transform: scale(1);
+  transition: opacity .15s var(--ease-out), transform .15s var(--ease-out), display .15s var(--ease-out) allow-discrete;
 }
-.task-feed-hito-select:hover { border-color: var(--border); background: var(--card); }
+.task-comment-context.active { display: flex; }
+@starting-style {
+  .task-comment-context.active { opacity: 0; transform: scale(.96); }
+}
+.task-comment-context span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-comment-context button {
+  border: none; background: none; color: var(--primary); cursor: pointer; opacity: .7;
+  width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.task-comment-context button:hover { opacity: 1; }
+.task-comment-context button:active { transform: scale(.97); }
 .task-feed-quill-wrap {
   position: relative;
   border-radius: 8px;
@@ -2847,6 +2912,7 @@ html[data-theme="dark"] .task-modal-footer .btn-delete:hover { background: rgba(
   font-weight: 600;
   border-radius: 8px;
 }
+.task-feed-send:active { transform: scale(.97); }
 
 .task-feed-mention-menu {
   position: absolute; z-index: 20; left: 0; right: 0; bottom: 100%;
@@ -2881,7 +2947,7 @@ html[data-theme="dark"] .ql-snow .ql-picker { color: var(--muted); }
 @media (max-width: 900px) {
   .task-modal-body { flex-direction: column; }
   .task-feed-panel { width: 100%; border-left: 0; border-top: 1px solid var(--border); max-height: 420px; }
-  .task-feed-section-actividad { flex-basis: 110px; }
+  .task-datos-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 .task-section { margin-bottom: 18px; }
@@ -2901,24 +2967,54 @@ details.task-section[open] > summary.task-section-title { margin-bottom: 10px; }
 .task-pane[data-task-pane="hitos"] .task-section { margin-bottom: 10px; }
 .task-pane[data-task-pane="hitos"] .task-section-title { font-size: 10.5px; margin-bottom: 5px; }
 
-/* Grid compacto de 3 columnas para los campos de Responsable/Prioridad/Solicitante
-   e Inicio/Vencimiento/Dias restantes (tab "Tarea"). */
-.task-grid-3col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
-.task-grid-2col { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px; }
+/* Grid unico de 3 columnas (2 en mobile, ver media query 900px) para todos
+   los campos del acordeon "Datos" — Responsable/Prioridad/Solicitante/
+   Provincia/Municipio/(celda vacia)/Inicio/Vencimiento/Dias restantes,
+   siguiendo el mockup v2.5 (antes eran tres grids de fila fija separados). */
+.task-datos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 18px; }
+
+/* ============== Acordeones Datos / Hitos / Gantt (rediseno v2.5) ==============
+   Reemplazan a los viejos .task-section planos del tab General: cada uno
+   controla su propio abrir/cerrar, persistido en localStorage (ver
+   isAccordionOpen/setAccordionOpen en app.js). El alto del cuerpo se anima
+   con JS (measured height, excepcion documentada a "nunca animar
+   width/height" — ver animateAccordionToggle) porque CSS no puede
+   transicionar hacia/desde height:auto. */
+.task-accordion { border: 1px solid var(--border); border-radius: 12px; margin-bottom: 14px; overflow: hidden; }
+.task-accordion:last-child { margin-bottom: 0; }
+.task-accordion-head {
+  width: 100%; display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border: 0; background: var(--card); color: var(--text);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.task-accordion-head:hover { background: var(--bg); }
+.task-accordion-head:active { transform: scale(.995); }
+.task-accordion.open > .task-accordion-head { background: var(--primary-soft); }
+.task-accordion-icon { width: 20px; height: 20px; flex-shrink: 0; color: var(--muted); display: flex; }
+.task-accordion-icon svg { width: 100%; height: 100%; }
+.task-accordion.open .task-accordion-icon { color: var(--primary); }
+.task-accordion-label { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.task-accordion.open .task-accordion-label { color: var(--primary); }
+.task-accordion-meta { font-size: 12px; color: var(--muted); margin-left: -4px; }
+.task-accordion-chev { color: var(--muted); margin-left: auto; display: flex; flex-shrink: 0; transition: transform .15s var(--ease-out); }
+.task-accordion.open .task-accordion-chev { transform: rotate(180deg); color: var(--primary); }
+.task-accordion-body { height: 0; overflow: hidden; transition: height .2s var(--ease-out); } /* impeccable-disable-line layout-transition -- excepcion documentada del rediseno v2.5 (§5): CSS no puede transicionar hacia/desde height:auto, el alto se mide en JS (animateAccordionToggle) */
+.task-accordion.open > .task-accordion-body { height: auto; }
+.task-accordion-body-inner { padding: 20px 16px; }
+html[data-theme="dark"] .task-accordion-head { background: var(--card); }
+html[data-theme="dark"] .task-accordion-head:hover { background: var(--bg); }
+html[data-theme="dark"] .task-accordion.open > .task-accordion-head { background: rgba(96,165,250,.14); }
+@media (prefers-reduced-motion: reduce) {
+  .task-accordion-body { transition: none; }
+  .task-accordion-chev { transition: none; }
+}
 
 /* Valor de solo lectura (modo vista), mismo alto/alineacion que un input */
 .task-view-value { font-size: 13px; color: var(--text); padding: 2px 0; min-height: 20px; }
 
-/* Nombre del tema: auto-expandible en edicion, wrap sin truncar en vista */
-#taskForm textarea.task-nombre-input {
-  resize: none; overflow: hidden; min-height: 0; line-height: 1.35; font-size: 15px; font-weight: 600;
-}
-.task-nombre-view {
-  display: block; font-size: 15px; font-weight: 600; line-height: 1.35;
-  color: var(--text); white-space: normal; word-break: break-word;
-}
-
-/* Checkbox de "Tema privado" (modo edicion) / texto equivalente (modo vista) */
+/* .task-check-row: usado por el panel de edicion de hito (checkboxes propios
+   de esa fila) — el checkbox de "Tema privado" que vivia aca se reemplazo
+   por el boton candado del header, ver lockButtonHtml en app.js. */
 /* especificidad #taskForm label{display:grid} > .task-check-row: se pisa el
    display sin el selector calificado con label. */
 #taskForm label.task-check-row,
@@ -3049,6 +3145,32 @@ html[data-theme="dark"] .hito-item.editing { background: rgba(251,146,60,0.14); 
 .hito-compact-side > .badge {
   display: inline-flex; justify-content: center; min-width: 82px; max-width: 130px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Boton de comentario por hito (rediseno v2.5, §3): mismo glyph que el
+   toggle de Actividad del header. La transicion de hover queda atada a
+   dispositivos con puntero preciso (nunca al tap en touch). */
+.hito-comment-btn {
+  border: none; background: none; color: var(--muted); cursor: pointer; flex-shrink: 0;
+  width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center;
+}
+.hito-comment-btn:hover { background: var(--primary-soft); color: var(--primary); }
+.hito-comment-btn:active { transform: scale(.97); }
+@media (hover: hover) and (pointer: fine) {
+  .hito-comment-btn { transition: background-color .12s var(--ease-out), color .12s var(--ease-out); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hito-comment-btn:active, .lock-btn:active, .task-modal-edit-pencil:active,
+  .task-accordion-head:active, .task-feed-send:active, .task-comment-context button:active {
+    transform: none;
+  }
+  .task-comment-context,
+  .task-comment-context.active {
+    transform: none;
+    transition: opacity .1s ease, display .1s ease allow-discrete;
+  }
+  @starting-style {
+    .task-comment-context.active { transform: none; }
+  }
 }
 
 .hito-compact-meta {
