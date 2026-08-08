@@ -2787,29 +2787,66 @@ html[data-theme="dark"] .task-modal-footer .btn-delete:hover { background: rgba(
 .feed-entry-body { min-width: 0; flex: 1; }
 .feed-entry-text { font-size: 12.5px; }
 .feed-entry-date { font-size: 11px; color: var(--muted); margin-top: 1px; }
-.feed-entry-header { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; margin-bottom: 2px; }
+.feed-entry-header { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; margin-bottom: 4px; }
+.feed-entry-header strong { font-size: 13px; }
 .feed-hito-tag {
   font-size: 10px; color: var(--primary); border: 1px solid var(--primary); border-radius: 999px;
   padding: 0 6px; white-space: nowrap;
 }
-.feed-comment-body { font-size: 13px; line-height: 1.5; word-break: break-word; }
+
+/* Burbuja de comentario al estilo Trello: fondo propio (no texto suelto
+   sobre el panel), separado del bloque de acciones (Editar) que va debajo,
+   afuera de la burbuja. */
+.feed-comment-body {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-word;
+}
 .feed-comment-body p { margin: 0 0 6px; }
 .feed-comment-body p:last-child { margin-bottom: 0; }
 .feed-comment-body img { max-width: 100%; border-radius: 6px; }
 .feed-comment-body a { color: var(--primary); }
 
+.feed-comment-edit-link {
+  border: 0; background: transparent; padding: 4px 2px 0; margin: 0;
+  font-size: 11.5px; font-weight: 600; color: var(--muted); cursor: pointer;
+}
+.feed-comment-edit-link:hover { color: var(--primary); text-decoration: underline; }
+
+/* Composer al estilo Trello: caja propia con borde que resalta en foco
+   (focus-within, sin JS extra), toolbar+editor fusionados en un solo
+   bloque visual, y el boton "Comentar" siempre visible y con peso propio
+   -- no hay forma de no verlo (era el reclamo original: parecia que los
+   comentarios no se guardaban en ningun lado). */
 .task-feed-composer {
-  border-top: 1px solid var(--border); padding: 10px 12px; flex-shrink: 0;
-  display: flex; flex-direction: column; gap: 6px;
+  border-top: 1px solid var(--border); padding: 12px; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 8px;
 }
 .task-feed-hito-select {
-  border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px;
-  font-size: 12px; color: var(--muted); background: var(--card);
+  border: 1px solid transparent; border-radius: 6px; padding: 4px 6px;
+  font-size: 11.5px; font-weight: 600; color: var(--muted); background: transparent;
+  align-self: flex-start;
 }
-.task-feed-quill-wrap { position: relative; }
-#taskFeedQuill { background: var(--card); border-radius: 6px; }
-#taskFeedQuill .ql-editor { min-height: 70px; font-size: 13px; }
-.task-feed-send { align-self: flex-end; padding: 6px 16px; font-size: 12.5px; }
+.task-feed-hito-select:hover { border-color: var(--border); background: var(--card); }
+.task-feed-quill-wrap {
+  position: relative;
+  border-radius: 8px;
+  transition: box-shadow .15s ease;
+}
+.task-feed-quill-wrap:focus-within { box-shadow: 0 0 0 2px var(--primary-soft-border); }
+#taskFeedQuill { background: var(--card); border-radius: 0 0 8px 8px; }
+#taskFeedQuill .ql-editor { min-height: 76px; font-size: 13px; }
+.task-feed-composer-actions { display: flex; justify-content: flex-end; }
+.task-feed-send {
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+}
 
 .task-feed-mention-menu {
   position: absolute; z-index: 20; left: 0; right: 0; bottom: 100%;
@@ -2823,10 +2860,20 @@ html[data-theme="dark"] .task-modal-footer .btn-delete:hover { background: rgba(
 }
 .task-feed-mention-item:hover { background: var(--bg); }
 
+/* Edicion in-place de un comentario ya guardado — mismo lenguaje visual
+   que el composer (caja con foco resaltado + boton primario), para que se
+   sienta como el mismo control y no como algo nuevo. */
+.feed-comment-edit-wrap { display: flex; flex-direction: column; gap: 8px; }
+#feedCommentEditQuill { background: var(--card); border-radius: 0 0 8px 8px; }
+#feedCommentEditQuill .ql-editor { min-height: 60px; font-size: 13px; }
+.feed-comment-edit-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.feed-comment-edit-actions .primary,
+.feed-comment-edit-actions .ghost { padding: 6px 16px; font-size: 12.5px; }
+
 /* Quill (barra de herramientas + editor) heredando la tipografia y los
    neutros de marca en vez de su tema "snow" por defecto. */
-.ql-toolbar.ql-snow { border-color: var(--border); border-radius: 6px 6px 0 0; }
-.ql-container.ql-snow { border-color: var(--border); border-radius: 0 0 6px 6px; font-family: inherit; }
+.ql-toolbar.ql-snow { border-color: var(--border); border-radius: 8px 8px 0 0; }
+.ql-container.ql-snow { border-color: var(--border); border-radius: 0 0 8px 8px; font-family: inherit; }
 html[data-theme="dark"] .ql-snow .ql-stroke { stroke: var(--muted); }
 html[data-theme="dark"] .ql-snow .ql-fill { fill: var(--muted); }
 html[data-theme="dark"] .ql-snow .ql-picker { color: var(--muted); }

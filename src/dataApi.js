@@ -218,15 +218,25 @@ export async function deleteResponsable(id, fullName) {
 // =====================================================================
 // texto llega como HTML de Quill; se sanitiza aca (no en el render) para
 // que quede sanitizado en el origen sin importar desde donde se lea despues.
+// Devuelve la fila creada (con id) para que la UI pueda pintarla de una
+// sin esperar a un refetch completo, y para poder editarla despues.
 export async function createComentario(temaId, texto, { hitoId = null, menciones = [] } = {}) {
-  must(await supabase.from("comentarios").insert({
+  const { data, error } = await supabase.from("comentarios").insert({
     tema_id: temaId,
     hito_id: hitoId,
     menciones,
     user_id: currentUserId(),
     autor_nombre: currentUserName(),
     texto: DOMPurify.sanitize(texto)
-  }));
+  }).select().single();
+  if (error) throw error;
+  return M.comentarioFromRow(data);
+}
+
+// El autor edita su propio comentario (o un Admin, ver puedeEditarComentario
+// en app.js) — solo se toca texto, nunca autor/fecha/menciones originales.
+export async function updateComentario(id, texto) {
+  must(await supabase.from("comentarios").update({ texto: DOMPurify.sanitize(texto) }).eq("id", id));
 }
 
 // =====================================================================

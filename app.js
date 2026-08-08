@@ -4119,6 +4119,14 @@ let feedPanelVisible = localStorage.getItem("sgtemas_feed_visible") !== "0";
 let feedQuillInstance = null;
 let feedMentionCandidates = [];
 let feedPendingMenciones = [];
+// Edicion in-place de un comentario ya guardado: solo uno a la vez (abrir
+// "Editar" en otro cierra el anterior, mismo criterio que los popovers).
+let editingComentarioId = null;
+let editCommentQuillInstance = null;
+
+function puedeEditarComentario(c) {
+  return Boolean(c.id) && (c.userId === activeUserId() || esAdmin());
+}
 
 // Actividad (log automatico del sistema) y Comentarios (texto libre de
 // usuarios) son dos secciones separadas dentro del mismo panel persistente
@@ -4136,6 +4144,68 @@ function buildComentariosListHtml(draft) {
   return comentarios.map((c) => feedCommentEntryHtml(c, draft)).join("");
 }
 
+// Repinta solo la lista de comentarios (no todo el panel) y re-cablea sus
+// botones de Editar/Guardar/Cancelar — se llama despues de crear, editar o
+// cancelar la edicion de un comentario, sin tocar Actividad ni el composer.
+function refreshComentariosList(draft) {
+  const list = document.getElementById("taskComentariosList");
+  if (!list) return;
+  list.innerHTML = buildComentariosListHtml(draft);
+  list.scrollTop = list.scrollHeight;
+  wireComentariosListEvents(draft);
+}
+
+function closeCommentEdit() {
+  editingComentarioId = null;
+  editCommentQuillInstance = null;
+}
+
+function wireComentariosListEvents(draft) {
+  const list = document.getElementById("taskComentariosList");
+  if (!list) return;
+
+  list.querySelectorAll("[data-comment-edit-start]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      editingComentarioId = btn.dataset.commentEditStart;
+      refreshComentariosList(draft);
+    });
+  });
+
+  const editQuillContainer = document.getElementById("feedCommentEditQuill");
+  if (!editQuillContainer) return; // ningun comentario en edicion ahora mismo
+
+  const comentario = (draft.comentarios || []).find((c) => c.id === editingComentarioId);
+  editCommentQuillInstance = new Quill(editQuillContainer, {
+    theme: "snow",
+    modules: { toolbar: [["bold", "italic"], [{ list: "ordered" }, { list: "bullet" }], ["link", "image"]] }
+  });
+  if (comentario) editCommentQuillInstance.clipboard.dangerouslyPasteHTML(comentario.text);
+  editCommentQuillInstance.focus();
+  editCommentQuillInstance.root.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      list.querySelector("[data-comment-edit-save]")?.click();
+    }
+  });
+
+  list.querySelector("[data-comment-edit-cancel]")?.addEventListener("click", () => {
+    closeCommentEdit();
+    refreshComentariosList(draft);
+  });
+  list.querySelector("[data-comment-edit-save]")?.addEventListener("click", async (e) => {
+    const id = e.currentTarget.dataset.commentEditSave;
+    const html = editCommentQuillInstance.root.innerHTML;
+    const plain = editCommentQuillInstance.getText().trim();
+    if (!plain) { showToast("El comentario no puede quedar vacio."); return; }
+    const ok = await withBusy(() => dataApi.updateComentario(id, html));
+    if (!ok) return;
+    const target = (draft.comentarios || []).find((c) => c.id === id);
+    if (target) target.text = DOMPurify.sanitize(html);
+    closeCommentEdit();
+    refreshComentariosList(draft);
+  });
+}
+
 function feedActivityEntryHtml(h) {
   return `
     <div class="feed-entry feed-activity">
@@ -4151,8 +4221,9 @@ function feedActivityEntryHtml(h) {
 // se inyecta tal cual, nunca con escHtml.
 function feedCommentEntryHtml(c, draft) {
   const hito = c.hitoId ? hitoPorId(draft.hitos, c.hitoId) : null;
+  const isEditing = Boolean(c.id) && c.id === editingComentarioId;
   return `
-    <div class="feed-entry feed-comment">
+    <div class="feed-entry feed-comment" data-comentario-id="${c.id || ""}">
       ${respAvatarHtml(c.by)}
       <div class="feed-entry-body">
         <div class="feed-entry-header">
@@ -4160,7 +4231,16 @@ function feedCommentEntryHtml(c, draft) {
           ${hito ? `<span class="feed-hito-tag" title="Comentario sobre este hito">◆ ${escHtml(hito.nombre)}</span>` : ""}
           <span class="feed-entry-date">${fmtDateNice(c.at)}</span>
         </div>
-        <div class="feed-comment-body">${c.text}</div>
+        ${isEditing ? `
+          <div class="feed-comment-edit-wrap">
+            <div class="task-feed-quill-wrap"><div id="feedCommentEditQuill"></div></div>
+            <div class="feed-comment-edit-actions">
+              <button type="button" class="ghost" data-comment-edit-cancel>Cancelar</button>
+              <button type="button" class="primary" data-comment-edit-save="${c.id}">Guardar</button>
+            </div>
+          </div>` : `
+          <div class="feed-comment-body">${c.text}</div>
+          ${puedeEditarComentario(c) ? `<button type="button" class="feed-comment-edit-link" data-comment-edit-start="${c.id}">Editar</button>` : ""}`}
       </div>
     </div>`;
 }
@@ -4178,7 +4258,9 @@ function buildFeedComposerHtml(draft) {
         <div id="taskFeedQuill"></div>
         <div class="task-feed-mention-menu hidden" id="taskFeedMentionMenu"></div>
       </div>
-      <button type="button" class="primary task-feed-send" id="taskFeedSendBtn">Comentar</button>
+      <div class="task-feed-composer-actions">
+        <button type="button" class="primary task-feed-send" id="taskFeedSendBtn">Comentar</button>
+      </div>
     </div>`;
 }
 
@@ -4217,6 +4299,11 @@ function wireFeedPanel(draft) {
   if (actividadList) actividadList.scrollTop = actividadList.scrollHeight;
   const comentariosList = document.getElementById("taskComentariosList");
   if (comentariosList) comentariosList.scrollTop = comentariosList.scrollHeight;
+  // Antes del early-return de abajo: "Editar" en un comentario propio debe
+  // funcionar aunque el usuario actual no tenga permiso para crear uno
+  // nuevo (ej. su rol cambio despues de comentar, o esta viendo el tema
+  // sin el composer visible por otra razon).
+  wireComentariosListEvents(draft);
 
   const quillContainer = document.getElementById("taskFeedQuill");
   if (!quillContainer) return; // sin permiso de edicion: no hay composer
@@ -4227,6 +4314,14 @@ function wireFeedPanel(draft) {
     theme: "snow",
     placeholder: "Escribi un comentario...",
     modules: { toolbar: [["bold", "italic"], [{ list: "ordered" }, { list: "bullet" }], ["link", "image"]] }
+  });
+  // Ctrl/Cmd+Enter envia sin soltar el mouse — Enter solo hace salto de
+  // linea (Quill), asi que no alcanza con eso para no interrumpir el typing.
+  feedQuillInstance.root.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      document.getElementById("taskFeedSendBtn")?.click();
+    }
   });
 
   // Se pide en segundo plano, sin bloquear el resto del wiring (boton
@@ -4278,14 +4373,18 @@ function wireFeedPanel(draft) {
     const hito = hitoId ? hitoPorId(draft.hitos, hitoId) : null;
     const currentUser = activeUserName();
     const menciones = [...feedPendingMenciones];
+    let nuevoComentario = null;
     const ok = await withBusy(async () => {
-      await dataApi.createComentario(draft.id, html, { hitoId, menciones });
+      nuevoComentario = await dataApi.createComentario(draft.id, html, { hitoId, menciones });
       await dataApi.logActivity(draft.id, hito ? `Comentario en hito "${hito.nombre}"` : "Comentario agregado", { hitoId });
     });
     if (!ok) return;
     const now = new Date().toISOString();
     draft.comentarios = draft.comentarios || [];
-    draft.comentarios.push({ by: currentUser, text: DOMPurify.sanitize(html), at: fmtDate(new Date()), createdAt: now, hitoId, menciones });
+    // Se usa la fila que devuelve createComentario (con id/userId reales) en
+    // vez de armar el objeto a mano — sin eso, "Editar" no funcionaba en un
+    // comentario recien creado hasta recargar el tema (no tenia id todavia).
+    draft.comentarios.push(nuevoComentario || { by: currentUser, text: DOMPurify.sanitize(html), at: fmtDate(new Date()), createdAt: now, hitoId, menciones });
     draft.ultimaActualizacion = fmtDate(new Date());
     draft.historial.push({ event: hito ? `Comentario en hito "${hito.nombre}"` : "Comentario agregado", at: fmtDate(new Date()), createdAt: now, by: currentUser });
     feedQuillInstance.setContents([]);
@@ -4306,6 +4405,7 @@ function refreshTaskFeedPane(draft) {
   if (comentariosList) {
     comentariosList.innerHTML = buildComentariosListHtml(draft);
     comentariosList.scrollTop = comentariosList.scrollHeight;
+    wireComentariosListEvents(draft);
   }
 }
 
