@@ -183,6 +183,12 @@
   .letterglyph.italic{font-style:italic;font-weight:600}
   .letterglyph.bold{font-weight:800}
 
+  /* ---------- filetype exception ---------- */
+  .filetype-menu{display:flex;flex-direction:column;gap:2px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px;max-width:260px}
+  .filetype-item{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:8px;font-size:14px;font-weight:500;color:var(--ink)}
+  .filetype-item.active{background:var(--blue-tint);color:var(--blue)}
+  .filetype-item svg{flex-shrink:0}
+
   /* ---------- semantic status colors ---------- */
   .status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:20px}
   .status-chip{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fff}
@@ -263,7 +269,7 @@
       </svg>
     </div>
     <h1>notby</h1>
-    <div class="sub">Manual de marca · v2.4</div>
+    <div class="sub">Manual de marca · v2.5</div>
   </div>
 </div>
 
@@ -833,6 +839,24 @@
       </div>
     </div>
 
+    <h3>Formatos de archivo <span style="font-weight:400;color:var(--muted);font-size:13px">— excepción documentada</span></h3>
+    <p class="familynote">Único caso en todo el sistema donde un ícono no es de línea ni monocromo. Excel, PDF y Word usan la convención de color por formato ya establecida fuera de la marca (verde, rojo, gris) — cambiarla generaría más fricción que coherencia. Aparecen exclusivamente dentro del menú que abre "Exportar" (línea/ink, set base) — nunca reemplazan a Exportar, ni el azul de acento se usa acá: el ítem resaltado del menú usa el mismo tinte de azul que cualquier fila activa (ver 05 — Componentes), no el color del formato.</p>
+    <div class="filetype-menu">
+      <div class="filetype-item">
+        <svg width="22" height="22" viewBox="0 0 24 24"><rect x="3" y="2" width="18" height="20" rx="3" fill="#16A34A"/><rect x="6.5" y="6" width="11" height="12" rx="1" fill="#fff"/><path d="M6.5 10h11M6.5 14h11M10.7 6v12M14.3 6v12" stroke="#16A34A" stroke-width="1"/></svg>
+        Descargar en Excel (.xlsx)
+      </div>
+      <div class="filetype-item">
+        <svg width="22" height="22" viewBox="0 0 24 24"><path d="M6 2h8l4 4v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#71717A"/><path d="M14 2l4 4h-4z" fill="#52525B"/></svg>
+        Descargar en Word (.docx)
+      </div>
+      <div class="filetype-item active">
+        <svg width="22" height="22" viewBox="0 0 24 24"><path d="M6 2h8l4 4v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#DC2626"/><path d="M14 2l4 4h-4z" fill="#991B1B"/></svg>
+        Descargar en PDF
+      </div>
+    </div>
+    <div class="caption">Verde #16A34A (Excel) · Gris #71717A (Word, neutro a propósito para no pisar el azul de marca) · Rojo #DC2626 (PDF). El resaltado activo sigue siendo azul de marca, no el color del ícono.</div>
+
     <h3>Editor de texto enriquecido</h3>
     <p class="familynote">Único subset donde se acepta un glifo tipográfico en vez de un trazo geométrico — es la convención universal de cualquier editor de texto y reinventarla generaría más fricción que consistencia.</p>
     <div class="icongrid compact">
@@ -1034,7 +1058,7 @@
 
 <footer>
   <div class="wrap">
-    notby — Manual de marca v2.4 · Agosto 2026<br>
+    notby — Manual de marca v2.5 · Agosto 2026<br>
     Consultas sobre uso de marca antes de aplicar el logo en contextos no cubiertos por este documento.
   </div>
 </footer>

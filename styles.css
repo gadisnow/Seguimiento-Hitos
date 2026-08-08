@@ -1952,7 +1952,10 @@ dialog#modalNewResp::backdrop { background: rgba(15,23,42,0.6); }
   border-radius: 8px; color: var(--text);
 }
 .split-menu-item:hover { background: var(--primary-soft); color: var(--primary-2); }
-.split-menu-item .ico { font-size: 15px; }
+/* Excepcion documentada del manual (04 — Iconografia, "Formatos de archivo"):
+   unico caso con icono a color en vez de linea/monocromo. El resaltado activo
+   arriba sigue siendo el tinte de azul de marca, no el color del formato. */
+.split-menu-item svg { flex-shrink: 0; }
 
 html[data-theme="dark"] .chip { background: var(--card); }
 html[data-theme="dark"] .switch .track::before { background: #cbd5e1; }
