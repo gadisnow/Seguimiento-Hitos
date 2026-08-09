@@ -1571,6 +1571,8 @@ const ICONS = {
   // iconos ya existentes arriba (lista, prioridad, comentario, candado,
   // predecesor, espera, enlace).
   candadoAbierto: `<rect x="5" y="11" width="14" height="9.5" rx="2.5"/><path d="M8 11V7.5a4 4 0 0 1 7-2.4"/>`,
+  rayo: `<path d="M13 3L5.5 13H11l-1 8 8-10h-5.5l.5-8z"/>`,
+  listaNumerada: `<path d="M8.5 6h11.5M8.5 12h11.5M8.5 18h11.5"/><path d="M4 5v3M4 5h-.7M4 8h1"/><path d="M3.3 12.3h1.3v1.2h-1.3M3.3 12.3a.9.9 0 0 1 1.6-.6c.3.4.2.7-.2 1.1l-1.4 1.4h1.7"/><path d="M3.3 17.3h1.3M4.6 17.3v3M3.3 20.3h2"/>`,
   ganttBarras: `<rect x="3.5" y="5" width="10" height="3" rx="1.5"/><rect x="7.5" y="10.5" width="13" height="3" rx="1.5"/><rect x="4.5" y="16" width="8" height="3" rx="1.5"/>`,
   historial: `<path d="M4.5 12a7.5 7.5 0 1 0 2.3-5.4"/><path d="M4.5 5.5v4h4"/><path d="M12 8.5v3.8l2.6 1.6"/>`,
   imagen: `<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M4 16.3l4.5-4.8 3.2 3.6 3-3.3L20.5 17"/>`
@@ -1579,10 +1581,21 @@ function icon(name, size = 16) {
   return `<svg class="icon-inline" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
 }
 // El toolbar de Quill (composer de comentarios) trae sus propios SVG por
-// defecto; se pisa solo el de "adjuntar imagen" para que use el trazo del
-// manual de marca (unico icono de ese toolbar explicitamente pedido en el
-// rediseno v2.5 — bold/italic/listas/enlace quedan con el default de Quill).
-Quill.import("ui/icons").image = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${ICONS.imagen}</svg>`;
+// defecto. Theme.buildButtons pisa el innerHTML de cada <button class="ql-*">
+// con esta tabla apenas se instancia el Quill (sea el toolbar auto-generado
+// o, como ahora, un contenedor propio pasado en modules.toolbar.container)
+// — cualquier contenido que le pongamos a mano en el HTML del boton se
+// pierde igual, asi que el reemplazo tiene que vivir aca. Mapea 1:1 al
+// trazo del manual de marca / mockup v2.5, compartido por los dos Quill de
+// comentarios (composer nuevo y edicion in-place).
+const qlIconSvg = (name, size = 15) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
+Object.assign(Quill.import("ui/icons"), {
+  image: qlIconSvg("imagen"),
+  link: qlIconSvg("enlace"),
+  bold: "B",
+  italic: "I",
+  list: { ordered: qlIconSvg("listaNumerada", 14), bullet: qlIconSvg("lista", 14) },
+});
 
 // --------- Menu de acciones de la tarjeta Kanban (boton "⋯") ---------
 let activeKcardMenu = null;
@@ -4369,6 +4382,14 @@ function buildFeedComposerHtml(draft) {
         <div class="task-feed-mention-menu hidden" id="taskFeedMentionMenu"></div>
       </div>
       <div class="task-feed-composer-actions">
+        <div class="task-feed-toolbar" id="taskFeedToolbar">
+          <button type="button" class="ql-bold" title="Negrita"></button>
+          <button type="button" class="ql-italic" title="Cursiva"></button>
+          <button type="button" class="ql-list" value="ordered" title="Lista numerada"></button>
+          <button type="button" class="ql-list" value="bullet" title="Viñetas"></button>
+          <button type="button" class="ql-link" title="Enlace"></button>
+          <button type="button" class="ql-image" title="Adjuntar imagen"></button>
+        </div>
         <button type="button" class="primary task-feed-send" id="taskFeedSendBtn">Comentar</button>
       </div>
     </div>`;
@@ -4439,7 +4460,7 @@ function wireFeedPanel(draft) {
   feedQuillInstance = new Quill(quillContainer, {
     theme: "snow",
     placeholder: "Escribi un comentario...",
-    modules: { toolbar: [["bold", "italic"], [{ list: "ordered" }, { list: "bullet" }], ["link", "image"]] }
+    modules: { toolbar: { container: "#taskFeedToolbar" } }
   });
   // Ctrl/Cmd+Enter envia sin soltar el mouse — Enter solo hace salto de
   // linea (Quill), asi que no alcanza con eso para no interrumpir el typing.
@@ -4723,6 +4744,19 @@ function wireTaskModalTabs() {
 // nada si no lo es (no hay nada que mostrar). El valor viaja en un input
 // oculto name="privado" para que siga entrando por FormData en el onsubmit
 // existente sin tocar esa logica mas de lo necesario.
+// Badge de estado del header en modo vista (rediseno v2.5): a diferencia del
+// badge generico usado en tablas/kanban (ver badge()), este lleva icono +
+// flecha como en el mockup aprobado — clic entra a modo edicion (mismo path
+// que el boton "Editar" del footer), asi la flecha no es una promesa vacia.
+function estadoHeaderBadgeHtml(estado) {
+  return `
+    <button type="button" class="task-modal-estado-badge ${badgeClass(estado)}" id="taskEstadoBadgeBtn" title="Cambiar estado">
+      ${icon("rayo", 14)}
+      <span>${escHtml(estado)}</span>
+      ${icon("chevronAbajo", 12)}
+    </button>`;
+}
+
 function lockButtonHtml(draft, mode) {
   const locked = Boolean(draft.privado);
   const interactive = mode === "edit" && esCreadorPizarra();
@@ -4762,14 +4796,18 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
     `;
   }
 
+  function enterEditMode(focusEstado) {
+    const tab = currentTab();
+    mode = "edit";
+    tareaSnapshot = snapshotTareaFields(draft);
+    render(tab);
+    if (focusEstado) els.taskForm.querySelector('[name="estado"]')?.focus();
+  }
+
   function wireFooterEvents() {
     if (mode === "view") {
-      document.getElementById("taskEditBtn")?.addEventListener("click", () => {
-        const tab = currentTab();
-        mode = "edit";
-        tareaSnapshot = snapshotTareaFields(draft);
-        render(tab);
-      });
+      document.getElementById("taskEditBtn")?.addEventListener("click", () => enterEditMode(false));
+      document.getElementById("taskEstadoBadgeBtn")?.addEventListener("click", () => enterEditMode(true));
       document.getElementById("taskDeleteBtn")?.addEventListener("click", async () => {
         if (!confirm("Eliminar este tema? Esta accion no se puede deshacer.")) return;
         await withBusy(async () => {
@@ -4810,7 +4848,7 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
           ${lockButtonHtml(draft, mode)}
           ${editable
             ? `<select name="estado" class="task-modal-estado-select" data-estado="${escHtml(draft.estado)}">${STATES.map((s) => `<option ${draft.estado === s ? "selected" : ""}>${s}</option>`).join("")}</select>`
-            : badge(draft.estado)}
+            : (puedeEditar() ? estadoHeaderBadgeHtml(draft.estado) : badge(draft.estado))}
           <button type="button" class="task-feed-toggle-btn" id="taskFeedToggleBtn" title="${feedPanelVisible ? "Ocultar actividad" : "Mostrar actividad"}" aria-label="Mostrar u ocultar actividad">${icon("comentario", 16)}</button>
           <button type="button" class="task-modal-close" id="taskModalCloseBtn" aria-label="Cerrar">${icon("cerrar", 14)}</button>
         </div>

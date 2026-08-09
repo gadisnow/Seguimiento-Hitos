@@ -2740,6 +2740,28 @@ html[data-theme="dark"] #taskForm .task-modal-estado-select { background: var(--
 #taskForm .task-modal-estado-select[data-estado="En revision"] { background: var(--en-revision-soft); color: #6d28d9; border-color: transparent; }
 #taskForm .task-modal-estado-select[data-estado="Bloqueado"] { background: var(--bloqueado-soft); color: #b45309; border-color: transparent; }
 #taskForm .task-modal-estado-select[data-estado="Cerrado"] { background: var(--cerrado-soft); color: #047857; border-color: transparent; }
+
+/* Badge de estado del header en modo vista (rediseno v2.5): icono + texto +
+   flecha, mismo alto que el select de edicion — clic entra a modo edicion
+   con el foco en el select real (ver enterEditMode en app.js), asi la
+   flecha no es una promesa vacia de interactividad. */
+.task-modal-estado-badge {
+  border: none; border-radius: 9px; padding: 0 10px 0 9px; height: 34px;
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 600; cursor: pointer; flex-shrink: 0;
+}
+.task-modal-estado-badge svg:first-child { width: 14px; height: 14px; }
+.task-modal-estado-badge svg:last-child { width: 12px; height: 12px; opacity: .7; }
+.task-modal-estado-badge.b-pendiente { background: var(--pendiente-soft); color: #b91c1c; }
+.task-modal-estado-badge.b-en-curso { background: var(--en-curso-soft); color: #1d4ed8; }
+.task-modal-estado-badge.b-en-revision { background: var(--en-revision-soft); color: #6d28d9; }
+.task-modal-estado-badge.b-bloqueado { background: var(--bloqueado-soft); color: #b45309; }
+.task-modal-estado-badge.b-cerrado { background: var(--cerrado-soft); color: #047857; }
+html[data-theme="dark"] .task-modal-estado-badge.b-pendiente { background: rgba(239,68,68,0.2); color: #fca5a5; }
+html[data-theme="dark"] .task-modal-estado-badge.b-en-curso { background: rgba(59,130,246,0.2); color: #93c5fd; }
+html[data-theme="dark"] .task-modal-estado-badge.b-en-revision { background: rgba(139,92,246,0.2); color: #c4b5fd; }
+html[data-theme="dark"] .task-modal-estado-badge.b-bloqueado { background: rgba(245,158,11,0.2); color: #fcd34d; }
+html[data-theme="dark"] .task-modal-estado-badge.b-cerrado { background: rgba(16,185,129,0.2); color: #6ee7b7; }
 html[data-theme="dark"] #taskForm .task-modal-estado-select[data-estado="Pendiente"] { background: rgba(239,68,68,0.2); color: #fca5a5; }
 html[data-theme="dark"] #taskForm .task-modal-estado-select[data-estado="En curso"] { background: rgba(59,130,246,0.2); color: #93c5fd; }
 html[data-theme="dark"] #taskForm .task-modal-estado-select[data-estado="En revision"] { background: rgba(139,92,246,0.2); color: #c4b5fd; }
@@ -2914,9 +2936,9 @@ html[data-theme="dark"] .task-modal-footer .btn-delete:hover { background: rgba(
   transition: box-shadow .15s ease;
 }
 .task-feed-quill-wrap:focus-within { box-shadow: 0 0 0 2px var(--primary-soft-border); }
-#taskFeedQuill { background: var(--card); border-radius: 0 0 8px 8px; }
+#taskFeedQuill { background: var(--card); border-radius: 8px; }
 #taskFeedQuill .ql-editor { min-height: 76px; font-size: 13px; }
-.task-feed-composer-actions { display: flex; justify-content: flex-end; }
+.task-feed-composer-actions { display: flex; justify-content: space-between; align-items: center; }
 .task-feed-send {
   padding: 8px 20px;
   font-size: 13px;
@@ -2924,6 +2946,27 @@ html[data-theme="dark"] .task-modal-footer .btn-delete:hover { background: rgba(
   border-radius: 8px;
 }
 .task-feed-send:active { transform: scale(.97); }
+
+/* Barra de formato del composer (rediseno v2.5): mismo lugar que el mockup
+   -- fila de iconos chicos junto al boton Comentar, no la barra Quill
+   default arriba del editor. Quill le agrega igual las clases ql-toolbar
+   ql-snow (ver SnowTheme.extendToolbar) aunque el contenedor sea nuestro,
+   asi que hay que pisar el chrome default (borde/padding/fondo) del tema
+   snow para que se vea como una fila de botones chicos, no como una caja. */
+#taskFeedToolbar {
+  border: none !important; padding: 0 !important; background: transparent !important; border-radius: 0 !important;
+  display: flex; align-items: center; gap: 2px; flex-shrink: 0;
+}
+#taskFeedToolbar button {
+  width: 26px; height: 26px; padding: 0; border: none; background: transparent;
+  border-radius: 6px; color: var(--muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-family: inherit; font-weight: 800; font-size: 12px;
+}
+#taskFeedToolbar button.ql-italic { font-style: italic; font-weight: 600; }
+#taskFeedToolbar button svg { width: 14px; height: 14px; }
+#taskFeedToolbar button:hover { background: var(--bg); color: var(--text); }
+#taskFeedToolbar button.ql-active { background: var(--primary-soft); color: var(--primary); }
 
 .task-feed-mention-menu {
   position: absolute; z-index: 20; left: 0; right: 0; bottom: 100%;
@@ -2963,6 +3006,11 @@ html[data-theme="dark"] .ql-snow .ql-picker { color: var(--muted); }
 
 .task-section { margin-bottom: 18px; }
 .task-section:last-child { margin-bottom: 0; }
+/* Etiquetas queda muy pegado al primer acordeon (Datos) con el margen
+   generico de .task-section — necesita mas aire porque encima no tiene
+   ningun borde/tarjeta que marque el limite (a diferencia de los
+   acordeones, que si tienen su propio borde). */
+#taskEtiquetasWrap .task-section { margin-bottom: 26px; }
 .task-section-title {
   font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase;
   letter-spacing: .04em; margin-bottom: 8px;
