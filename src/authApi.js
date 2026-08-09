@@ -5,6 +5,7 @@ import { profileToUsuario } from "./mappers.js";
 
 let _profile = null;   // usuario (shape UI) del profile actual
 let _authEmail = null; // email real de auth.users (para reautenticacion)
+let _passwordRecovery = false; // ver isPasswordRecovery() mas abajo
 
 export async function getSession() {
   const { data } = await supabase.auth.getSession();
@@ -14,6 +15,22 @@ export async function getSession() {
 export function onAuthStateChange(cb) {
   return supabase.auth.onAuthStateChange(cb);
 }
+
+// Suscripcion registrada a nivel de modulo (se ejecuta apenas se importa
+// este archivo, antes de que app.js llegue a llamar boot()) para no perderse
+// el evento PASSWORD_RECOVERY que supabase-js dispara al detectar el link
+// del email de recuperacion en la URL. Si boot() recien chequeara esto
+// adentro de una funcion llamada mas tarde, existe la ventana de que el
+// evento ya haya disparado y quedara sin escucha.
+supabase.auth.onAuthStateChange((event) => {
+  if (event === "PASSWORD_RECOVERY") _passwordRecovery = true;
+});
+
+// true si la sesion activa viene de clickear el link de "olvide mi
+// contrasena" (no de un login normal) — boot() la usa para mostrar la
+// pantalla de "elegir nueva contrasena" en vez de entrar a la app.
+export function isPasswordRecovery() { return _passwordRecovery; }
+export function clearPasswordRecovery() { _passwordRecovery = false; }
 
 export async function login(email, password) {
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -37,6 +54,37 @@ export async function register(nombre, email, password) {
 export async function logout() {
   _profile = null;
   _authEmail = null;
+  await supabase.auth.signOut();
+}
+
+// Recuperacion de contrasena: envia un link de un solo uso por email (el
+// mail vuelve a la app con una sesion de recuperacion — ver
+// isPasswordRecovery mas arriba). Nunca revela si el email existe o no — el
+// llamador debe mostrar siempre el mismo mensaje generico de exito (ver
+// renderForgotPassword en app.js).
+//
+// TODO: el pedido original era un codigo de 6 digitos escrito a mano (no un
+// link), pero Supabase no deja personalizar la plantilla del email de
+// recuperacion sin plan pago o SMTP propio (probado: PATCH a
+// /config/auth devuelve 400 "Email template modification is not available
+// for free tier projects using the default email provider"). En cuanto haya
+// SMTP configurado, reemplazar este flujo por uno basado en
+// supabase.auth.verifyOtp({ email, token, type: "recovery" }) con un input
+// de 6 digitos, igual que register()/login() de mas abajo.
+export async function requestPasswordReset(email) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    redirectTo: window.location.origin
+  });
+  if (error) throw error;
+}
+
+// Aplica la nueva contrasena sobre la sesion de recuperacion activa (ver
+// isPasswordRecovery) y cierra sesion para forzar un login limpio con las
+// credenciales nuevas.
+export async function completePasswordReset(nueva) {
+  const { error } = await supabase.auth.updateUser({ password: nueva });
+  if (error) throw error;
+  _passwordRecovery = false;
   await supabase.auth.signOut();
 }
 

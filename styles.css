@@ -3641,6 +3641,14 @@ html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
 
 #loginScreen .login-link:hover { text-decoration: underline; }
 
+.login-version {
+  margin-top: 22px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: #A1A1AA;
+}
+
 .search-count {
   position: absolute;
   top: calc(100% + 4px);

@@ -1,0 +1,49 @@
+name: Bump version (produccion)
+
+# Se dispara solo cuando main recibe un push -- o sea, en cada despliegue a
+# produccion (Vercel esta conectado por Git a este repo, ver CLAUDE.md: cada
+# push a main redeploya solo). Incrementa el "minor" de package.json
+# (2.6.0 -> 2.7.0) y lo commitea de vuelta a main; ese commit adicional es
+# el que Vercel termina desplegando, ya con el numero nuevo.
+#
+# Pushes a cualquier otra rama (test/desarrollo, previews) NO disparan este
+# workflow, asi que el numero se mantiene fijo mientras se prueba.
+#
+# El commit de bump lleva la marca [skip version-bump] en el mensaje -- el
+# job la chequea al principio y no vuelve a correr sobre su propio commit,
+# asi se evita un loop infinito de pushes.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    if: "!contains(github.event.head_commit.message, '[skip version-bump]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Incrementar minor version en package.json
+        run: |
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const [major, minor] = pkg.version.split('.').map(Number);
+            pkg.version = major + '.' + (minor + 1) + '.0';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            console.log('Nueva version:', pkg.version);
+          "
+
+      - name: Commit y push a main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          git commit -m "chore: bump version [skip version-bump]"
+          git push origin HEAD:main

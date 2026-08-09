@@ -448,11 +448,34 @@ function init() {
   initTheme();
   bindEvents();
   fillFilterOptions();
+  renderAppVersion();
   boot();
+}
+
+// __APP_VERSION__ lo define vite.config.js a partir de package.json al
+// buildear (ver ese archivo). Solo cambia cuando bump-version.yml lo
+// commitea a main tras un despliegue a produccion — un build de test/preview
+// muestra siempre el numero que ya estaba commiteado en esa rama.
+function renderAppVersion() {
+  const el = $("loginVersion");
+  if (!el) return;
+  const [major, minor] = __APP_VERSION__.split(".");
+  el.textContent = `Notby V.${major}.${minor}`;
 }
 
 // Resuelve la sesion de Supabase y decide que pantalla mostrar.
 async function boot() {
+  // La sesion vino de clickear el link de "olvide mi contrasena": no es un
+  // login normal, hay que forzar elegir una nueva antes de entrar a la app.
+  if (authApi.isPasswordRecovery()) {
+    const ls = $("loginScreen");
+    const app = document.querySelector(".app");
+    if (ls) { ls.style.display = "grid"; ls.style.placeItems = "center"; }
+    if (app) app.style.display = "none";
+    renderNewPassword();
+    return;
+  }
+
   let session;
   try { session = await authApi.getSession(); }
   catch (e) { console.error(e); }
@@ -840,8 +863,10 @@ function renderLogin() {
       <label>Contraseña<input type="password" id="loginPass" autocomplete="current-password" required /></label>
       <div id="loginMsg"></div>
       <button type="submit" class="login-btn">Ingresar</button>
+      <button type="button" class="login-link" id="goForgot">¿Olvidaste tu contraseña?</button>
       <button type="button" class="login-link" id="goRegister">Solicitar acceso</button>
     </form>`;
+  $("goForgot").addEventListener("click", renderForgotPassword);
   $("loginFormEl").addEventListener("submit", async (e) => {
     e.preventDefault();
     const email = $("loginEmail").value.trim().toLowerCase();
@@ -896,6 +921,101 @@ function renderRegister() {
       if (btn) { btn.disabled = false; btn.textContent = "Solicitar acceso"; }
       const already = /registered|already/i.test(err && err.message ? err.message : "");
       msg.innerHTML = `<div class="login-error">${already ? "Ya existe un usuario con ese email." : "No se pudo completar el registro."}</div>`;
+    }
+  });
+}
+
+// =========================================================
+// Recuperar contraseña — email -> link de un solo uso -> nueva contraseña.
+//
+// Nota: el pedido original era un flujo por CODIGO de 6 digitos, no por
+// link (ver TODO en authApi.requestPasswordReset con el motivo exacto:
+// Supabase no deja personalizar la plantilla del email sin plan pago o SMTP
+// propio). Mientras tanto usamos el link que Supabase manda por defecto:
+// vuelve a esta misma app (redirectTo) con una sesion de recuperacion
+// activa, y boot() (ver mas arriba) detecta esa sesion via
+// authApi.isPasswordRecovery() y muestra renderNewPassword() directamente,
+// sin pasar por el login normal.
+// =========================================================
+
+// Clasifica el error de un intento de envio de email: 429 = limite de envios
+// (mensaje especifico); cualquier otro status numerico = respuesta real del
+// servidor (seguimos igual, sin revelar si el email existe o no); sin status
+// = nunca llego a golpear la API (fallo de red real, ahi si avisamos).
+function classifyMailError(err) {
+  if (err && err.status === 429) return "rate_limited";
+  if (err && typeof err.status === "number") return "server_response";
+  return "network";
+}
+
+function renderForgotPassword() {
+  const wrap = $("loginFormWrap");
+  if (!wrap) return;
+
+  function showSuccess() {
+    wrap.innerHTML = `
+      <div class="login-success">Si el email está registrado, te llega un correo con un link para elegir tu nueva contraseña. Revisá también la carpeta de spam.</div>
+      <button type="button" class="login-link" id="goLoginFromForgot2">Volver al login</button>`;
+    $("goLoginFromForgot2").addEventListener("click", renderLogin);
+  }
+
+  wrap.innerHTML = `
+    <form class="login-form" id="forgotFormEl">
+      <p class="login-sub" style="margin:0 0 4px">Ingresá el email con el que creaste tu usuario. Te vamos a mandar un link para elegir una nueva contraseña.</p>
+      <label>Email<input type="email" id="forgotEmail" autocomplete="email" required /></label>
+      <div id="forgotMsg"></div>
+      <button type="submit" class="login-btn">Enviar link</button>
+      <button type="button" class="login-link" id="goLoginFromForgot">Volver al login</button>
+    </form>`;
+  $("goLoginFromForgot").addEventListener("click", renderLogin);
+  $("forgotFormEl").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = $("forgotEmail").value.trim().toLowerCase();
+    const msg = $("forgotMsg");
+    const btn = e.target.querySelector(".login-btn");
+    if (btn) { btn.disabled = true; btn.textContent = "Enviando..."; }
+    try {
+      await authApi.requestPasswordReset(email);
+      showSuccess();
+    } catch (err) {
+      const kind = classifyMailError(err);
+      if (kind === "server_response") { showSuccess(); return; }
+      if (btn) { btn.disabled = false; btn.textContent = "Enviar link"; }
+      msg.innerHTML = kind === "rate_limited"
+        ? `<div class="login-error">Ya pediste un link hace poco. Esperá un minuto y probá de nuevo.</div>`
+        : `<div class="login-error">No se pudo enviar el link. Revisá tu conexión e intentá de nuevo.</div>`;
+    }
+  });
+}
+
+function renderNewPassword() {
+  const wrap = $("loginFormWrap");
+  if (!wrap) return;
+  wrap.innerHTML = `
+    <form class="login-form" id="newPassFormEl">
+      <p class="login-sub" style="margin:0 0 4px">Elegí tu nueva contraseña.</p>
+      <label>Nueva contraseña<input type="password" id="newPass1" autocomplete="new-password" required /></label>
+      <label>Confirmar contraseña<input type="password" id="newPass2" autocomplete="new-password" required /></label>
+      <div id="newPassMsg"></div>
+      <button type="submit" class="login-btn">Guardar contraseña</button>
+    </form>`;
+  $("newPassFormEl").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msg = $("newPassMsg");
+    const p1 = $("newPass1").value;
+    const p2 = $("newPass2").value;
+    if (p1 !== p2) { msg.innerHTML = `<div class="login-error">Las contraseñas no coinciden.</div>`; return; }
+    if (p1.length < 6) { msg.innerHTML = `<div class="login-error">La contraseña debe tener al menos 6 caracteres.</div>`; return; }
+    const btn = e.target.querySelector(".login-btn");
+    if (btn) { btn.disabled = true; btn.textContent = "Guardando..."; }
+    try {
+      await authApi.completePasswordReset(p1);
+      state.profile = null;
+      wrap.innerHTML = `<div class="login-success">Contraseña actualizada. Iniciá sesión con tu nueva contraseña.</div>`;
+      setTimeout(() => renderLogin(), 2500);
+    } catch (err) {
+      if (btn) { btn.disabled = false; btn.textContent = "Guardar contraseña"; }
+      msg.innerHTML = `<div class="login-error">No se pudo actualizar la contraseña. Volvé a pedir un código.</div>`;
     }
   });
 }
