@@ -47,14 +47,20 @@ export async function fetchInitialState(pizarraId = null) {
   const columnas = (colR.data || []).map(M.columnaFromRow);
   const columnaById = Object.fromEntries(columnas.map((c) => [c.id, c]));
 
+  // hitos/comentarios/activity_log/documentos se filtran tambien por
+  // pizarra_id (no solo se atan por tema_id/hito_id en memoria mas abajo):
+  // ahora que esos ids son unicos por pizarra y no en toda la tabla, un
+  // usuario con acceso a mas de un tablero podia traer del servidor filas
+  // de OTRO tablero con el mismo codigo de tema/hito y el join por texto
+  // (temaById[h.tema_id]) las pegaba igual, mezclando datos entre tableros.
   const [temasR, hitosR, expR, respR, comR, actR, docR, profR, etqR] = await Promise.all([
     supabase.from("temas").select("*").eq("pizarra_id", currentPizarraId).order("orden", { ascending: true, nullsFirst: false }).order("id"),
-    supabase.from("hitos").select("*").order("orden", { ascending: true, nullsFirst: false }).order("id"),
+    supabase.from("hitos").select("*").eq("pizarra_id", currentPizarraId).order("orden", { ascending: true, nullsFirst: false }).order("id"),
     supabase.from("expedientes").select("*").eq("pizarra_id", currentPizarraId).order("numero"),
     supabase.from("responsables").select("*").eq("pizarra_id", currentPizarraId).order("nombre"),
-    supabase.from("comentarios").select("*").order("created_at", { ascending: true }),
-    supabase.from("activity_log").select("*").order("created_at", { ascending: true }),
-    supabase.from("documentos").select("*").order("created_at", { ascending: true }),
+    supabase.from("comentarios").select("*").eq("pizarra_id", currentPizarraId).order("created_at", { ascending: true }),
+    supabase.from("activity_log").select("*").eq("pizarra_id", currentPizarraId).order("created_at", { ascending: true }),
+    supabase.from("documentos").select("*").eq("pizarra_id", currentPizarraId).order("created_at", { ascending: true }),
     supabase.from("profiles").select("*").order("created_at", { ascending: true }),
     supabase.from("etiquetas").select("*").eq("pizarra_id", currentPizarraId).order("orden", { ascending: true, nullsFirst: false }).order("nombre")
   ]);
@@ -99,6 +105,7 @@ export async function logActivity(temaId, event, opts = {}) {
   must(await supabase.from("activity_log").insert({
     tema_id: temaId,
     hito_id: opts.hitoId || null,
+    pizarra_id: currentPizarraId,
     event,
     user_id: currentUserId(),
     actor_nombre: currentUserName()
@@ -108,14 +115,12 @@ export async function logActivity(temaId, event, opts = {}) {
 // =====================================================================
 // Temas
 // =====================================================================
-// temas.id es PK global (no por pizarra) aunque cada tablero solo ve sus
-// propios temas (fetchInitialState filtra por pizarra_id) — nextTemaId() en
-// app.js no puede basarse en el state en memoria (solo trae los del tablero
-// actual) o repite "T-001" en cada tablero nuevo y choca contra la PK de
-// otro. Trae solo la columna id, de todos los tableros, para calcular el
-// proximo numero libre en todo el sistema.
+// temas.id es PK compuesta (pizarra_id, id): unica por pizarra, no en toda
+// la tabla (cada tablero puede tener su propio T-001 en adelante). Trae solo
+// los ids del tablero actual para calcular el proximo numero libre DENTRO
+// de ese tablero.
 export async function getMaxTemaIdNum() {
-  const r = await supabase.from("temas").select("id");
+  const r = await supabase.from("temas").select("id").eq("pizarra_id", currentPizarraId);
   must(r);
   return Math.max(0, ...(r.data || []).map((t) => parseInt((t.id || "").replace(/\D/g, ""), 10) || 0));
 }
@@ -125,30 +130,33 @@ export async function createTema(ui) {
   must(await supabase.from("temas").insert(row));
 }
 
+// id ya no es unico por si solo (PK compuesta con pizarra_id) -- todo
+// update/delete por id debe acotarse tambien por pizarra_id actual o
+// podria tocar la fila de otro tablero que comparte el mismo codigo.
 export async function updateTema(id, ui) {
-  must(await supabase.from("temas").update(M.temaToRow(ui)).eq("id", id));
+  must(await supabase.from("temas").update(M.temaToRow(ui)).eq("id", id).eq("pizarra_id", currentPizarraId));
 }
 
 export async function deleteTema(id) {
-  must(await supabase.from("temas").delete().eq("id", id));
+  must(await supabase.from("temas").delete().eq("id", id).eq("pizarra_id", currentPizarraId));
 }
 
 export async function updateTemaColumna(id, columnaId, extra = {}) {
   must(await supabase.from("temas")
     .update({ columna_id: columnaId, ultima_actualizacion: today(), ...extra })
-    .eq("id", id));
+    .eq("id", id).eq("pizarra_id", currentPizarraId));
 }
 
 export async function setTemaFechaLimite(id, fecha) {
   must(await supabase.from("temas")
     .update({ fecha_limite: fecha, ultima_actualizacion: today() })
-    .eq("id", id));
+    .eq("id", id).eq("pizarra_id", currentPizarraId));
 }
 
 // Reasigna 'orden' segun el orden recibido (ids de una columna del Kanban).
 export async function reorderTemas(orderedIds) {
   await Promise.all(orderedIds.map((id, i) =>
-    supabase.from("temas").update({ orden: i }).eq("id", id)
+    supabase.from("temas").update({ orden: i }).eq("id", id).eq("pizarra_id", currentPizarraId)
   ));
 }
 
@@ -156,22 +164,23 @@ export async function reorderTemas(orderedIds) {
 // Hitos
 // =====================================================================
 export async function createHito(temaId, ui) {
-  const row = { id: ui.id, codigo: ui.id, tema_id: temaId, ...M.hitoToRow(ui), orden: ui.orden ?? null };
+  const row = { id: ui.id, codigo: ui.id, tema_id: temaId, pizarra_id: currentPizarraId, ...M.hitoToRow(ui), orden: ui.orden ?? null };
   must(await supabase.from("hitos").insert(row));
 }
 
+// hitos.id es PK compuesta (pizarra_id, id) -- ver nota en updateTema.
 export async function updateHito(id, ui) {
-  must(await supabase.from("hitos").update(M.hitoToRow(ui)).eq("id", id));
+  must(await supabase.from("hitos").update(M.hitoToRow(ui)).eq("id", id).eq("pizarra_id", currentPizarraId));
 }
 
 export async function deleteHito(id) {
-  must(await supabase.from("hitos").delete().eq("id", id));
+  must(await supabase.from("hitos").delete().eq("id", id).eq("pizarra_id", currentPizarraId));
 }
 
 // Reasigna 'orden' segun el orden recibido (arrastre manual en el tab Hitos).
 export async function reorderHitos(orderedIds) {
   await Promise.all(orderedIds.map((id, i) =>
-    supabase.from("hitos").update({ orden: i }).eq("id", id)
+    supabase.from("hitos").update({ orden: i }).eq("id", id).eq("pizarra_id", currentPizarraId)
   ));
 }
 
@@ -251,6 +260,7 @@ export async function createComentario(temaId, texto, { hitoId = null, menciones
     id,
     tema_id: temaId,
     hito_id: hitoId,
+    pizarra_id: currentPizarraId,
     menciones,
     user_id: userId,
     autor_nombre: autorNombre,
@@ -318,6 +328,7 @@ export async function uploadDocumento(file, { relacionadoTipo, temaId = null, hi
     tema_id: temaId,
     hito_id: hitoId,
     expediente_numero: expedienteNumero,
+    pizarra_id: currentPizarraId,
     uploaded_by: currentUserId()
   };
   const { data, error } = await supabase.from("documentos").insert(meta).select().single();
