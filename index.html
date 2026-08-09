@@ -78,15 +78,23 @@
               <strong id="dropdownUserName">Jorge Rios</strong>
               <span id="dropdownLastLogin">Ultima conexion: —</span>
             </div>
-            <button class="user-menu-item" id="menuUsuarios" data-view="usuarios" style="display:none">Usuarios</button>
-            <button class="user-menu-item" id="menuCambiarPizarra">Cambiar pizarra</button>
-            <button class="user-menu-item" data-view="configuracion">Configuracion</button>
+            <button class="user-menu-item" id="menuUsuarios" data-view="usuarios" style="display:none">
+              <span class="user-menu-item-label"><svg class="icon-inline" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8.2" r="3.7"/><path d="M4.5 20.5c0-4.14 3.36-7 7.5-7s7.5 2.86 7.5 7"/></svg>Usuarios</span>
+            </button>
+            <button class="user-menu-item" id="menuCambiarPizarra">
+              <span class="user-menu-item-label"><svg class="icon-inline" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="6.5" width="13" height="13" rx="3"/><rect x="7.5" y="3.5" width="13" height="13" rx="3" fill="var(--card)"/></svg>Cambiar pizarra</span>
+            </button>
+            <button class="user-menu-item" data-view="configuracion">
+              <span class="user-menu-item-label"><svg class="icon-inline" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="6.2"/><circle cx="12" cy="12" r="2.2"/><rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8"/><rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(45 12 12)"/><rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(90 12 12)"/><rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(135 12 12)"/><rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(180 12 12)"/><rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(225 12 12)"/><rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(270 12 12)"/><rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(315 12 12)"/></svg>Configuracion</span>
+            </button>
             <button class="user-menu-item" id="darkToggle">
-              <span>Modo oscuro</span>
+              <span class="user-menu-item-label"><svg class="icon-inline" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>Modo oscuro</span>
               <span class="toggle-switch" id="darkToggleSwitch"></span>
             </button>
             <div class="user-menu-sep"></div>
-            <button class="user-menu-item danger" id="logoutBtn">Salir</button>
+            <button class="user-menu-item danger" id="logoutBtn">
+              <span class="user-menu-item-label"><svg class="icon-inline" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 4H6.5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1H13"/><path d="M11 12h9"/><path d="M16.5 8.5l3.5 3.5-3.5 3.5"/></svg>Cerrar Sesion</span>
+            </button>
           </div>
         </div>
       </div>
