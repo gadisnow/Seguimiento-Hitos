@@ -1703,7 +1703,7 @@ function handleKcardMenuAction(action, tema) {
 
 async function duplicarTema(tema) {
   if (!puedeEditar()) return;
-  const nuevoId = nextTemaId();
+  const nuevoId = await nextTemaId();
   const draft = {
     id: nuevoId,
     nombre: `${tema.nombre} (copia)`,
@@ -4950,14 +4950,14 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
   render("general");
 }
 
-function openTemaForm(existing = null, defaultEstado = "Pendiente", opts = {}) {
+async function openTemaForm(existing = null, defaultEstado = "Pendiente", opts = {}) {
   const isEdit = Boolean(existing);
   const defaultCol = state.columnas.find((c) => c.nombre === defaultEstado)
     || state.columnas.find((c) => c.esInicial)
     || state.columnas[0]
     || null;
   const draft = existing || {
-    id: nextTemaId(),
+    id: await nextTemaId(),
     nombre: "", solicitante: "", etiquetas: [],
     prioridad: "Media", responsable: state.config.currentUser,
     columnaId: defaultCol ? defaultCol.id : null,
@@ -5782,9 +5782,15 @@ function download(name, content, mime) {
 // =========================================================
 // Utils
 // =========================================================
-function nextTemaId() {
-  const ids = state.temas.map((t) => parseInt(t.id.replace(/\D/g,""), 10) || 0);
-  return `T-${String((Math.max(0,...ids)) + 1).padStart(3,"0")}`;
+// state.temas solo trae los temas del tablero actual (fetchInitialState
+// filtra por pizarra_id) pero temas.id es una PK global — calcular el
+// proximo id contra ese state alcanza mientras hay un solo tablero, pero en
+// un tablero nuevo (sin temas todavia) siempre da "T-001" y choca contra el
+// de otro tablero. Se consulta la PK global real en vez de confiar en el
+// state en memoria.
+async function nextTemaId() {
+  const max = await dataApi.getMaxTemaIdNum();
+  return `T-${String(max + 1).padStart(3,"0")}`;
 }
 function nextDocId() {
   const ids = state.documentos.map((d) => parseInt(d.id.replace(/\D/g,""), 10) || 0);

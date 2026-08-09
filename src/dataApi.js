@@ -108,6 +108,18 @@ export async function logActivity(temaId, event, opts = {}) {
 // =====================================================================
 // Temas
 // =====================================================================
+// temas.id es PK global (no por pizarra) aunque cada tablero solo ve sus
+// propios temas (fetchInitialState filtra por pizarra_id) — nextTemaId() en
+// app.js no puede basarse en el state en memoria (solo trae los del tablero
+// actual) o repite "T-001" en cada tablero nuevo y choca contra la PK de
+// otro. Trae solo la columna id, de todos los tableros, para calcular el
+// proximo numero libre en todo el sistema.
+export async function getMaxTemaIdNum() {
+  const r = await supabase.from("temas").select("id");
+  must(r);
+  return Math.max(0, ...(r.data || []).map((t) => parseInt((t.id || "").replace(/\D/g, ""), 10) || 0));
+}
+
 export async function createTema(ui) {
   const row = { id: ui.id, codigo: ui.id, ...M.temaToRow(ui), pizarra_id: currentPizarraId, creado_por: currentUserId() };
   must(await supabase.from("temas").insert(row));
