@@ -3215,7 +3215,7 @@ const GANTT_ZOOM_LEVELS = {
   quincena: { label: "Quincena", pxPerDay: 14, markEveryDays: 7 },
   mes:      { label: "Mes",      pxPerDay: 5,  markEveryDays: 14 }
 };
-let ganttZoom = "quincena";
+let ganttZoom = "mes";
 
 const GANTT_ROW_H = 22;
 const GANTT_BAR_H = 11;
