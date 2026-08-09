@@ -2859,7 +2859,7 @@ function closeDrawer() {
 function buildRespSelector(currentValue) {
   const selected = (currentValue || "").split(",").map((s) => s.trim()).filter(Boolean);
   if (!state.responsables.length) {
-    return `<label>Responsable <span style="color:#dc2626">*</span><input name="responsable" value="${escHtml(currentValue || "")}" required /></label>`;
+    return `<label><span>Responsable <span style="color:#dc2626">*</span></span><input name="responsable" value="${escHtml(currentValue || "")}" required /></label>`;
   }
   const opts = state.responsables.map((r) => {
     const full = [r.nombre, r.apellido].filter(Boolean).join(" ");
@@ -2869,7 +2869,7 @@ function buildRespSelector(currentValue) {
   const displayLabel = selected.length ? escHtml(selected.join(", ")) : "-- Seleccionar --";
   const placeholderClass = selected.length ? "" : "placeholder";
   return `
-    <label>Responsable <span style="color:#dc2626">*</span>
+    <label><span>Responsable <span style="color:#dc2626">*</span></span>
       <div class="resp-dropdown">
         <button type="button" class="resp-dropdown-trigger">
           <span class="resp-dropdown-label ${placeholderClass}">${displayLabel}</span>
