@@ -2491,7 +2491,7 @@ html[data-theme="dark"] .gde-preview-row { background: var(--card); }
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--primary);
+  background: var(--muted);
   flex-shrink: 0;
   margin-top: 4px;
 }
@@ -2607,7 +2607,7 @@ html[data-theme="dark"] .dtab.active { background: transparent; border-right: 0;
 
 html[data-theme="dark"] .col-En-revision .col-head { background: #7c3aed; }
 
-html[data-theme="dark"] .activity-dot { background: var(--primary); }
+html[data-theme="dark"] .activity-dot { background: var(--muted); }
 
 /* ============== Task modal (Tema + Hitos tabbed) ============== */
 :root {
@@ -2866,6 +2866,11 @@ html[data-theme="dark"] .task-modal-footer .btn-delete:hover { background: rgba(
 .feed-entry-body { min-width: 0; flex: 1; }
 .feed-entry-text { font-size: 12.5px; }
 .feed-entry-date { font-size: 11px; color: var(--muted); margin-top: 1px; }
+/* Las entradas de actividad del sistema no deben competir con los
+   comentarios (lo relevante del panel) — bastardilla + gris en las dos
+   lineas, contra el texto normal + negrita del nombre en los comentarios. */
+.feed-activity .feed-entry-text,
+.feed-activity .feed-entry-date { font-style: italic; color: var(--muted); }
 .feed-entry-header { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; margin-bottom: 4px; }
 .feed-entry-header strong { font-size: 13px; }
 /* Tag "comentario sobre este hito" (reemplaza el viejo .feed-hito-tag en
@@ -3031,6 +3036,17 @@ details.task-section[open] > summary.task-section-title { margin-bottom: 10px; }
    Provincia/Municipio/(celda vacia)/Inicio/Vencimiento/Dias restantes,
    siguiendo el mockup v2.5 (antes eran tres grids de fila fija separados). */
 .task-datos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 18px; }
+/* input/select/input[type=date] y el trigger custom de Responsable traen
+   cada uno su propio alto nativo del navegador (el <select> y el <input
+   type=date> reservan mas espacio vertical por su iconografia interna que
+   un <input> de texto comun) — sin este alto explicito quedan todos con
+   distinta altura en la misma fila. */
+.task-datos-grid input,
+.task-datos-grid select,
+.task-datos-grid .resp-dropdown-trigger {
+  height: 40px;
+  box-sizing: border-box;
+}
 
 /* ============== Acordeones Datos / Hitos / Gantt (rediseno v2.5) ==============
    Reemplazan a los viejos .task-section planos del tab General: cada uno
@@ -3242,20 +3258,14 @@ html[data-theme="dark"] .hito-comment-btn { color: var(--muted); }
   border: 1px solid var(--border); border-radius: 999px; padding: 1px 6px;
 }
 .hito-dep-chip.muted { color: var(--muted); }
-/* "Espera a X" (predecesor todavia abierto): tono de atencion (naranja de
-   marca). "Sigue X" (es predecesor de otro hito): tono neutro informativo. */
+/* "Espera a X" (predecesor todavia abierto): tono de atencion (naranja de marca). */
 .hito-dep-chip.waiting { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-2); font-weight: 600; }
-.hito-dep-chip.successor { background: var(--bg); border-style: dashed; }
 .hito-status-icon {
   flex-shrink: 0; width: 16px; height: 16px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 10px; line-height: 1; border: 1px solid var(--border); color: var(--muted);
 }
 .hito-status-icon.done { background: #10b981; border-color: #10b981; color: #fff; }
-.hito-tipo-badge {
-  font-size: 9px; font-weight: 700; letter-spacing: .02em; color: var(--primary);
-  border: 1px solid var(--primary); border-radius: 5px; padding: 0 4px;
-}
 .hito-fecha-rango { font-size: 9.5px; color: var(--muted); white-space: nowrap; }
 html[data-theme="dark"] .hito-dep-chip { background: var(--card); border-color: var(--border); }
 

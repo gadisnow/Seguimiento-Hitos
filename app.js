@@ -3362,35 +3362,21 @@ function renderMiniGantt(tema) {
     </div>`;
 }
 
-// Cadena predecesor -> sucesor, visible en la lista: si este hito espera a
-// que otro cierre (predecesor todavia abierto), a que otro ya cerro (cadena
-// resuelta, fechas ya calculadas), y si otros hitos dependen de este.
+// Chip de predecesor visible en la lista compacta: si este hito espera a
+// que otro cierre (predecesor todavia abierto) o depende de uno que ya
+// cerro (cadena resuelta, fechas ya calculadas). El sucesor ("Sigue X") y
+// el tipo de vinculo (FC/CC/FF) se sacaron por pedido explicito de la
+// previsualizacion: no aportan nada para decidir que hacer con este hito
+// puntual, solo suman ruido a la fila.
 function hitoPredecesorChipHtml(hito, hitos) {
-  const chips = [];
-  if (hito.predecesorId) {
-    const pred = hitoPorId(hitos, hito.predecesorId);
-    const nombre = pred ? pred.nombre : "(hito eliminado)";
-    const predCerrado = pred && pred.estado === "Cerrado";
-    if (hito.estado !== "Cerrado" && !predCerrado) {
-      chips.push(`<span class="hito-dep-chip waiting" title="Este hito arranca cuando se cierre '${escHtml(nombre)}'">${icon("espera", 12)} Espera a "${escHtml(nombre)}"</span>`);
-    } else {
-      chips.push(`<span class="hito-dep-chip" title="Depende de: ${escHtml(nombre)}">${icon("predecesor", 12)} Depende de "${escHtml(nombre)}"</span>`);
-    }
+  if (!hito.predecesorId) return `<span class="hito-dep-chip muted">Sin dependencia</span>`;
+  const pred = hitoPorId(hitos, hito.predecesorId);
+  const nombre = pred ? pred.nombre : "(hito eliminado)";
+  const predCerrado = pred && pred.estado === "Cerrado";
+  if (hito.estado !== "Cerrado" && !predCerrado) {
+    return `<span class="hito-dep-chip waiting" title="Este hito arranca cuando se cierre '${escHtml(nombre)}'">${icon("espera", 12)} Espera a "${escHtml(nombre)}"</span>`;
   }
-  const sucesores = hitos.filter((h) => h.predecesorId === hito.id);
-  if (sucesores.length) {
-    const nombres = sucesores.map((s) => s.nombre).join(", ");
-    const label = sucesores.length === 1 ? `"${sucesores[0].nombre}"` : `${sucesores.length} hitos`;
-    chips.push(`<span class="hito-dep-chip successor" title="Dependen de este hito: ${escHtml(nombres)}">${icon("predecesor", 12)} Sigue ${escHtml(label)}</span>`);
-  }
-  if (!chips.length) return `<span class="hito-dep-chip muted">Sin dependencia</span>`;
-  return chips.join("");
-}
-
-function tipoVinculoBadgeHtml(hito) {
-  if (!hito.predecesorId || !hito.tipoVinculo) return "";
-  const info = TIPO_VINCULO_INFO[hito.tipoVinculo];
-  return `<span class="hito-tipo-badge" title="${escHtml(info ? `${info.label} — ${info.ayuda}` : hito.tipoVinculo)}">${hito.tipoVinculo}</span>`;
+  return `<span class="hito-dep-chip" title="Depende de: ${escHtml(nombre)}">${icon("predecesor", 12)} Depende de "${escHtml(nombre)}"</span>`;
 }
 
 function hitoAlertBadgesHtml(hito) {
@@ -3439,7 +3425,6 @@ function renderHitosCompactList(tema, opts = {}) {
         </div>
         <div class="hito-compact-meta">
           ${hitoPredecesorChipHtml(h, tema.hitos)}
-          ${tipoVinculoBadgeHtml(h)}
           ${hitoAlertBadgesHtml(h)}
           <span class="hito-fecha-rango">${fmtDateNice(h.fechaInicio)} → ${fmtDateNice(h.fechaLimite)}</span>
           ${diasRestantesBadge(h.fechaLimite, h.estado === "Cerrado" ? h.fechaCierre : null)}
@@ -4330,12 +4315,13 @@ function wireComentariosListEvents(draft) {
 }
 
 function feedActivityEntryHtml(h) {
+  const fecha = h.createdAt ? fmtDateTimeNice(h.createdAt) : fmtDateNice(h.at);
   return `
     <div class="feed-entry feed-activity">
       <div class="activity-dot"></div>
       <div class="feed-entry-body">
         <div class="feed-entry-text">${escHtml(h.event)}</div>
-        <div class="feed-entry-date">${escHtml(h.by || "sistema")} · ${fmtDateNice(h.at)}</div>
+        <div class="feed-entry-date">${escHtml(h.by || "sistema")} · ${fecha}</div>
       </div>
     </div>`;
 }
