@@ -237,9 +237,13 @@ function activeUserId() { return state.profile ? state.profile.id : null; }
 
 // --------- Persistencia / recarga desde Supabase ---------
 // pizarraId: si se pasa, cambia de tablero (selector de pizarras); si se
-// omite, refresca el tablero actualmente cargado (comportamiento historico).
+// omite, refresca el tablero actualmente cargado. fetchInitialState(null)
+// por su cuenta resuelve al PRIMER tablero (comportamiento fase 1, sin
+// selector) — hay que pasarle explicitamente state.currentPizarraId o todo
+// reloadState() sin argumento (guardar un tema, un hito, etc.) te saca del
+// tablero 2+ de vuelta al primero.
 async function reloadState(pizarraId) {
-  const data = await dataApi.fetchInitialState(pizarraId);
+  const data = await dataApi.fetchInitialState(pizarraId || state.currentPizarraId);
   state.temas = data.temas;
   state.expedientes = data.expedientes;
   state.responsables = data.responsables;
