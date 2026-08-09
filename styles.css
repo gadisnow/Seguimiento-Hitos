@@ -2653,6 +2653,36 @@ dialog#modalTask::backdrop {
 }
 html[data-theme="dark"] dialog#modalTask { background: var(--card); color: var(--text); }
 
+/* Lightbox de imagenes adjuntas en comentarios: mismo lenguaje de apertura
+   (fade + scale via @starting-style) que dialog#modalTask, pero sin caja
+   blanca -- la imagen es el contenido, el dialogo es solo el marco. */
+dialog#modalImagePreview {
+  border: 0; border-radius: 12px; padding: 0; background: transparent;
+  max-width: min(1100px, 92vw); max-height: 90vh;
+  opacity: 1; transform: scale(1);
+  transition: opacity .2s var(--ease-out), transform .2s var(--ease-out),
+              overlay .2s var(--ease-out) allow-discrete,
+              display .2s var(--ease-out) allow-discrete;
+}
+dialog#modalImagePreview:not([open]) { opacity: 0; transform: scale(0.96); }
+@starting-style {
+  dialog#modalImagePreview[open] { opacity: 0; transform: scale(0.96); }
+}
+dialog#modalImagePreview::backdrop {
+  background: rgba(15,23,42,0.85);
+  transition: background .2s var(--ease-out), overlay .2s var(--ease-out) allow-discrete, display .2s var(--ease-out) allow-discrete;
+}
+@starting-style { dialog#modalImagePreview[open]::backdrop { background: rgba(15,23,42,0); } }
+#imgPreviewImg { display: block; max-width: min(1100px, 92vw); max-height: 90vh; border-radius: 10px; }
+.img-preview-toolbar { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 8px; }
+.img-preview-btn {
+  width: 36px; height: 36px; border-radius: 9px; border: none; cursor: pointer;
+  background: rgba(255,255,255,0.14); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .12s ease;
+}
+.img-preview-btn:hover { background: rgba(255,255,255,0.26); }
+
 /* El dialogo cap a 90vh; el form ocupa esa altura como columna flex para que
    .task-modal-body (flex:1) sea lo unico que crece/scrollea. Adentro, el
    panel principal (tabs + contenido) y el panel de actividad persistente
@@ -2896,7 +2926,8 @@ html[data-theme="dark"] .task-modal-footer .btn-delete:hover { background: rgba(
 }
 .feed-comment-body p { margin: 0 0 6px; }
 .feed-comment-body p:last-child { margin-bottom: 0; }
-.feed-comment-body img { max-width: 100%; border-radius: 6px; }
+.feed-comment-body img { max-width: 100%; border-radius: 6px; cursor: zoom-in; transition: opacity .1s ease; }
+.feed-comment-body img:hover { opacity: .88; }
 .feed-comment-body a { color: var(--primary); }
 
 .feed-comment-edit-link {

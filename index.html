@@ -524,6 +524,18 @@
     <form method="dialog" id="taskForm"></form>
   </dialog>
 
+  <dialog id="modalImagePreview">
+    <div class="img-preview-toolbar">
+      <a id="imgPreviewDownloadBtn" class="img-preview-btn" download title="Descargar">
+        <svg class="icon-inline" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5v11.5"/><path d="M7.5 11l4.5 4.5 4.5-4.5"/><path d="M4.5 17.5v2a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2"/></svg>
+      </a>
+      <button type="button" class="img-preview-btn" id="imgPreviewCloseBtn" title="Cerrar">
+        <svg class="icon-inline" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <img id="imgPreviewImg" alt="Imagen adjunta" />
+  </dialog>
+
   <dialog id="modalNewResp">
     <form id="newRespForm">
       <h3>Nuevo responsable</h3>

@@ -355,6 +355,7 @@ const els = {
   dynamicForm:        $("dynamicForm"),
   modalTask:          $("modalTask"),
   taskForm:           $("taskForm"),
+  modalImagePreview:  $("modalImagePreview"),
   respGrid:           $("respGrid"),
   respTarjetas:       $("respTarjetas"),
   respLista:          $("respLista"),
@@ -590,6 +591,11 @@ function bindEvents() {
   });
 
   els.menuCambiarPizarra?.addEventListener("click", () => showPizarraSwitcher());
+
+  els.modalImagePreview.addEventListener("click", (e) => {
+    if (e.target === els.modalImagePreview) els.modalImagePreview.close();
+  });
+  document.getElementById("imgPreviewCloseBtn").addEventListener("click", () => els.modalImagePreview.close());
 
   $("btnNewTema").addEventListener("click", () => openTemaForm());
   $("btnNewExpediente").addEventListener("click", () => openExpedienteForm());
@@ -1579,7 +1585,8 @@ const ICONS = {
   listaNumerada: `<path d="M8.5 6h11.5M8.5 12h11.5M8.5 18h11.5"/><path d="M4 5v3M4 5h-.7M4 8h1"/><path d="M3.3 12.3h1.3v1.2h-1.3M3.3 12.3a.9.9 0 0 1 1.6-.6c.3.4.2.7-.2 1.1l-1.4 1.4h1.7"/><path d="M3.3 17.3h1.3M4.6 17.3v3M3.3 20.3h2"/>`,
   ganttBarras: `<rect x="3.5" y="5" width="10" height="3" rx="1.5"/><rect x="7.5" y="10.5" width="13" height="3" rx="1.5"/><rect x="4.5" y="16" width="8" height="3" rx="1.5"/>`,
   historial: `<path d="M4.5 12a7.5 7.5 0 1 0 2.3-5.4"/><path d="M4.5 5.5v4h4"/><path d="M12 8.5v3.8l2.6 1.6"/>`,
-  imagen: `<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M4 16.3l4.5-4.8 3.2 3.6 3-3.3L20.5 17"/>`
+  imagen: `<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M4 16.3l4.5-4.8 3.2 3.6 3-3.3L20.5 17"/>`,
+  descargar: `<path d="M12 3.5v11.5"/><path d="M7.5 11l4.5 4.5 4.5-4.5"/><path d="M4.5 17.5v2a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2"/>`
 };
 function icon(name, size = 16) {
   return `<svg class="icon-inline" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
@@ -4318,6 +4325,18 @@ function wireComentariosListEvents(draft) {
   });
 }
 
+// Lightbox para imagenes adjuntas en comentarios (Quill las inserta como
+// <img> normales, base64 inline) — clic las abre mas grandes, con opcion
+// de descargar sin salir del modal de tema.
+function openImagePreview(src) {
+  document.getElementById("imgPreviewImg").src = src;
+  const ext = /^data:image\/(\w+)/.exec(src)?.[1] || "png";
+  const downloadBtn = document.getElementById("imgPreviewDownloadBtn");
+  downloadBtn.href = src;
+  downloadBtn.download = `imagen.${ext === "jpeg" ? "jpg" : ext}`;
+  els.modalImagePreview.showModal();
+}
+
 function feedActivityEntryHtml(h) {
   const fecha = h.createdAt ? fmtDateTimeNice(h.createdAt) : fmtDateNice(h.at);
   return `
@@ -4433,6 +4452,12 @@ function wireFeedPanel(draft) {
   document.getElementById("taskFeedToggleBtn")?.addEventListener("click", toggleFeedPanel);
   const feedList = document.getElementById("taskFeedList");
   if (feedList) feedList.scrollTop = feedList.scrollHeight;
+  // Delegado en el contenedor (no por <img>): sobrevive a refreshComentariosList,
+  // que solo reemplaza el innerHTML de #taskFeedList sin recrear el nodo.
+  feedList?.addEventListener("click", (e) => {
+    const img = e.target.closest(".feed-comment-body img");
+    if (img) openImagePreview(img.src);
+  });
   // Antes del early-return de abajo: "Editar" en un comentario propio debe
   // funcionar aunque el usuario actual no tenga permiso para crear uno
   // nuevo (ej. su rol cambio despues de comentar, o esta viendo el tema
