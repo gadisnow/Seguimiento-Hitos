@@ -618,7 +618,7 @@ function bindEvents() {
 
   els.menuCambiarPizarra?.addEventListener("click", () => showPizarraSwitcher());
   els.topbarPizarraBtn?.addEventListener("click", () => showPizarraSwitcher());
-  els.topbarInviteBtn?.addEventListener("click", () => openInvitarColaboradorModal());
+  els.topbarInviteBtn?.addEventListener("click", () => openColaboradoresModal());
 
   els.modalImagePreview.addEventListener("click", (e) => {
     if (e.target === els.modalImagePreview) els.modalImagePreview.close();
@@ -906,7 +906,7 @@ function renderRegister() {
       <label>Contraseña<input type="password" id="regPass" required /></label>
       <label>Confirmar contraseña<input type="password" id="regPass2" required /></label>
       <div id="regMsg"></div>
-      <button type="submit" class="login-btn">Solicitar acceso</button>
+      <button type="submit" class="login-btn">Crear cuenta</button>
       <button type="button" class="login-link" id="goLogin">Volver al login</button>
     </form>`;
   $("goLogin").addEventListener("click", renderLogin);
@@ -922,14 +922,22 @@ function renderRegister() {
     const btn = e.target.querySelector(".login-btn");
     if (btn) { btn.disabled = true; btn.textContent = "Enviando..."; }
     try {
-      await authApi.register(nombre, email, pass);
-      // Queda con sesion iniciada pero sin aprobar: cerramos para dejar el login limpio.
-      await authApi.logout();
-      state.profile = null;
-      msg.innerHTML = `<div class="login-success">Tu solicitud fue enviada. El administrador debe aprobarla antes de que puedas ingresar.</div>`;
+      const { session } = await authApi.register(nombre, email, pass);
+      if (session) {
+        // Cuenta aprobada al instante (sin intervencion de un admin, ver
+        // handle_new_user en supabase/migrations/021): ya hay sesion activa
+        // y boot() encuentra la pizarra personal recien creada por el
+        // trigger, asi que entra directo a la app.
+        await boot();
+        return;
+      }
+      // El proyecto exige confirmar el email antes de dar sesion (distinto
+      // entre entornos: ver nota de mailer_autoconfirm en 021) -- la cuenta
+      // y su pizarra personal ya existen, solo falta que confirme el mail.
+      msg.innerHTML = `<div class="login-success">Te mandamos un correo a ${escHtml(email)} para confirmar tu cuenta. Confirmala y volve a entrar.</div>`;
       setTimeout(() => renderLogin(), 3500);
     } catch (err) {
-      if (btn) { btn.disabled = false; btn.textContent = "Solicitar acceso"; }
+      if (btn) { btn.disabled = false; btn.textContent = "Crear cuenta"; }
       const already = /registered|already/i.test(err && err.message ? err.message : "");
       msg.innerHTML = `<div class="login-error">${already ? "Ya existe un usuario con ese email." : "No se pudo completar el registro."}</div>`;
     }
@@ -4786,56 +4794,117 @@ function openConectarAccesorioModal() {
   document.getElementById("conectarAccesorioOk").addEventListener("click", () => els.modalForm.close());
 }
 
-// Invitar colaborador a la pizarra actual. Si el email ya tiene cuenta
-// aprobada en la plataforma queda agregado de una (sin paso de
-// confirmacion, decision de producto); si no, se le manda un magic link
-// para que pueda solicitar su usuario (mismas limitaciones de mailer que
-// "olvide mi contrasena" — ver TODO en authApi.inviteNewUserByEmail).
-function openInvitarColaboradorModal() {
+// Panel "Colaboradores" de la pizarra actual, estilo compartir de Google
+// Sheets: invitar por email arriba, lista de "con acceso" (dueno + cada
+// colaborador con su rol) abajo. Invitar: si el email ya tiene cuenta en
+// notby queda sumado al toque; si no, se crea la cuenta (magic link, ver
+// authApi.inviteNewUserByEmail) y como el trigger handle_new_user la deja
+// aprobada de una (supabase/migrations/021), se reintenta el alta como
+// colaborador en el momento en vez de pedirle al dueno que reinvite despues.
+// Solo lo abre el creador de la pizarra (ver esCreadorPizarra() en el
+// listener de topbarInviteBtn) -- list_board_collaborators tambien lo
+// exige del lado del servidor.
+function openColaboradoresModal() {
   els.dynamicForm.innerHTML = `
-    <h3>Invitar colaborador</h3>
+    <h3>Colaboradores</h3>
     <p style="color:var(--muted);font-size:13px;margin:8px 0 16px">
-      Se invita a <strong>${escHtml(state.pizarraActual?.nombre || "esta pizarra")}</strong>. Si la persona ya
-      tiene cuenta en notby queda sumada al toque; si no, le mandamos un correo para que pueda solicitar la suya.
+      Compartir <strong>${escHtml(state.pizarraActual?.nombre || "esta pizarra")}</strong>. Si la persona ya
+      tiene cuenta en notby queda sumada al toque; si no, le mandamos un correo para que confirme la suya.
     </p>
-    <label>Email<input type="email" name="email" id="inviteColabEmail" required autofocus /></label>
-    <label>Permiso
-      <select name="permiso">
+    <div class="colab-invite-row">
+      <input type="email" id="inviteColabEmail" placeholder="Email de la persona a invitar" required autofocus />
+      <select id="inviteColabPermiso">
         <option value="edit">Puede editar</option>
         <option value="view">Solo puede ver</option>
       </select>
-    </label>
+      <button class="primary" type="submit">Invitar</button>
+    </div>
     <div id="inviteColabMsg"></div>
-    <div class="btn-group">
-      <button class="primary" value="submit">Invitar</button>
-      <button class="ghost" type="button" onclick="document.getElementById('modalForm').close()">Cancelar</button>
+    <div class="colab-list-title">Con acceso</div>
+    <div id="colabList" class="colab-list"><p style="color:var(--muted);font-size:13px">Cargando...</p></div>
+    <div class="btn-group" style="justify-content:flex-end;margin-top:6px">
+      <button class="ghost" type="button" onclick="document.getElementById('modalForm').close()">Cerrar</button>
     </div>
   `;
+
+  async function refreshColabList() {
+    const listEl = document.getElementById("colabList");
+    if (!listEl) return;
+    let colaboradores = [];
+    try { colaboradores = await pizarraApi.listColaboradores(state.currentPizarraId); }
+    catch (err) {
+      console.error(err);
+      listEl.innerHTML = `<p style="color:var(--muted);font-size:13px">No se pudo cargar la lista de colaboradores.</p>`;
+      return;
+    }
+    listEl.innerHTML = colaboradores.map((c) => `
+      <div class="colab-row">
+        <span class="colab-avatar">${escHtml((c.nombre || c.email || "?").trim().charAt(0).toUpperCase())}</span>
+        <span class="colab-info">
+          <span class="colab-nombre">${escHtml(c.nombre)}</span>
+          <span class="colab-email">${escHtml(c.email)}</span>
+        </span>
+        ${c.esPropietario ? `
+          <span class="colab-rol-fijo">Propietario</span>
+        ` : `
+          <select class="pill colab-rol-select" data-colab-rol="${c.usuarioId}">
+            <option value="edit" ${c.permiso === "edit" ? "selected" : ""}>Editor</option>
+            <option value="view" ${c.permiso === "view" ? "selected" : ""}>Visualizador</option>
+          </select>
+          <button type="button" class="colab-quitar" data-colab-quitar="${c.usuarioId}" title="Quitar acceso" aria-label="Quitar acceso">${icon("papelera", 14)}</button>
+        `}
+      </div>
+    `).join("") || `<p style="color:var(--muted);font-size:13px">Todavia no hay colaboradores.</p>`;
+
+    listEl.querySelectorAll("[data-colab-rol]").forEach((sel) => {
+      sel.addEventListener("change", async () => {
+        const ok = await withBusy(() => pizarraApi.updateColaboradorPermiso(state.currentPizarraId, sel.dataset.colabRol, sel.value));
+        if (ok) showToast("Rol actualizado");
+      });
+    });
+    listEl.querySelectorAll("[data-colab-quitar]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const persona = colaboradores.find((c) => c.usuarioId === btn.dataset.colabQuitar);
+        if (!confirm(`Quitar a ${persona ? persona.nombre : "esta persona"} de esta pizarra?`)) return;
+        const ok = await withBusy(() => pizarraApi.removeColaborador(state.currentPizarraId, btn.dataset.colabQuitar));
+        if (ok) { showToast("Colaborador quitado"); await refreshColabList(); }
+      });
+    });
+  }
+
   els.dynamicForm.onsubmit = async (e) => {
     e.preventDefault();
-    const email = document.getElementById("inviteColabEmail").value.trim().toLowerCase();
-    const permiso = els.dynamicForm.querySelector('[name="permiso"]').value;
-    const msg = e.target.querySelector("#inviteColabMsg");
-    const btn = e.target.querySelector(".primary");
+    const emailInput = document.getElementById("inviteColabEmail");
+    const email = emailInput.value.trim().toLowerCase();
+    const permiso = document.getElementById("inviteColabPermiso").value;
+    const msg = document.getElementById("inviteColabMsg");
+    const btn = els.dynamicForm.querySelector(".primary");
     if (btn) { btn.disabled = true; btn.textContent = "Invitando..."; }
+    msg.innerHTML = "";
     try {
-      const candidato = await pizarraApi.findCollaboratorCandidate(email);
+      let candidato = await pizarraApi.findCollaboratorCandidate(email);
+      if (!candidato) {
+        await authApi.inviteNewUserByEmail(email);
+        candidato = await pizarraApi.findCollaboratorCandidate(email);
+      }
       if (candidato) {
         await pizarraApi.addColaborador(state.currentPizarraId, candidato.id, permiso);
-        showToast(`${candidato.nombre} ya forma parte de esta pizarra.`);
-        els.modalForm.close();
+        showToast(`${candidato.nombre} se sumo a esta pizarra.`);
+        emailInput.value = "";
+        await refreshColabList();
         return;
       }
-      await authApi.inviteNewUserByEmail(email);
-      msg.innerHTML = `<div class="login-success" style="margin-top:0">Le mandamos un correo a ${escHtml(email)} para que pueda solicitar su usuario. Cuando se registre y quede aprobada, volvé a invitarla para sumarla a esta pizarra.</div>`;
-      if (btn) { btn.disabled = false; btn.textContent = "Invitar"; }
+      msg.innerHTML = `<div class="login-success" style="margin-top:0">Le mandamos un correo a ${escHtml(email)} para que confirme su cuenta. En cuanto entre por primera vez, volvé a invitarla para sumarla.</div>`;
     } catch (err) {
-      if (btn) { btn.disabled = false; btn.textContent = "Invitar"; }
       const rateLimited = err && err.status === 429;
       msg.innerHTML = `<div class="login-error" style="margin-top:0">${rateLimited ? "Ya se mando un correo hace poco. Esperá un minuto y probá de nuevo." : "No se pudo completar la invitacion."}</div>`;
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "Invitar"; }
     }
   };
+
   els.modalForm.showModal();
+  refreshColabList();
 }
 
 function buildExpedienteTabHtml(draft, mode) {

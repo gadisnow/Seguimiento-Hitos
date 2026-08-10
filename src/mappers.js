@@ -217,6 +217,19 @@ export function pizarraFromRow(r) {
   return { id: r.id, nombre: r.nombre || "", tipo: r.tipo || "personal", creadorId: r.creador_id, accesorios: r.accesorios || {} };
 }
 
+// Fila de list_board_collaborators (ver supabase/migrations/021) — panel
+// de Colaboradores de una pizarra, estilo compartir de Google Sheets.
+export function colaboradorFromRow(r) {
+  return {
+    usuarioId: r.usuario_id,
+    nombre: r.nombre || "",
+    email: r.email || "",
+    esPropietario: !!r.es_propietario,
+    permiso: r.permiso || "view",
+    estado: r.estado || "aceptada"
+  };
+}
+
 export function columnaFromRow(r) {
   return {
     id: r.id,

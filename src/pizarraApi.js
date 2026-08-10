@@ -79,7 +79,8 @@ export async function findCollaboratorCandidate(email) {
 // Agrega (o actualiza el permiso de) un colaborador ya existente en la
 // plataforma. estado 'aceptada' de una, sin paso de confirmacion de la
 // otra persona (decision de producto). Protegido por la policy pc_insert
-// (solo el creador de la pizarra puede invitar).
+// (solo el creador de la pizarra puede invitar). Tambien sirve para
+// volver a agregar a alguien que se habia quitado (upsert).
 export async function addColaborador(pizarraId, usuarioId, permiso = "edit") {
   must(await supabase.from("pizarra_colaboradores").upsert({
     pizarra_id: pizarraId,
@@ -88,6 +89,30 @@ export async function addColaborador(pizarraId, usuarioId, permiso = "edit") {
     estado: "aceptada",
     invitado_por: currentUserId()
   }, { onConflict: "pizarra_id,usuario_id" }));
+}
+
+// Panel "Colaboradores": dueno + todos los colaboradores de la pizarra con
+// su rol (ver list_board_collaborators, supabase/migrations/021). Solo el
+// creador de la pizarra puede llamarla (gateado tambien en la funcion SQL).
+export async function listColaboradores(pizarraId) {
+  const { data, error } = await supabase.rpc("list_board_collaborators", { p_pizarra_id: pizarraId });
+  if (error) throw error;
+  return (data || []).map(M.colaboradorFromRow);
+}
+
+// Cambia el rol (editor/visualizador) de un colaborador ya sumado a la
+// pizarra. Protegido por la policy pc_update_creator (solo el dueno).
+export async function updateColaboradorPermiso(pizarraId, usuarioId, permiso) {
+  must(await supabase.from("pizarra_colaboradores").update({ permiso })
+    .eq("pizarra_id", pizarraId).eq("usuario_id", usuarioId));
+}
+
+// Quita a un colaborador de la pizarra (puede volver a sumarse despues via
+// addColaborador). Protegido por la policy pc_delete (dueno o el propio
+// colaborador).
+export async function removeColaborador(pizarraId, usuarioId) {
+  must(await supabase.from("pizarra_colaboradores").delete()
+    .eq("pizarra_id", pizarraId).eq("usuario_id", usuarioId));
 }
 
 // =====================================================================
