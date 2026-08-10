@@ -1,6 +1,7 @@
 import * as authApi from "./src/authApi.js";
 import * as dataApi from "./src/dataApi.js";
 import * as pizarraApi from "./src/pizarraApi.js";
+import * as realtimeApi from "./src/realtimeApi.js";
 import ExcelJS from "exceljs";
 import { jsPDF } from "jspdf";
 import { autoTable } from "jspdf-autotable";
@@ -254,6 +255,52 @@ async function reloadState(pizarraId) {
   state.currentPizarraId = data.pizarraId;
   state.pizarraActual = data.pizarra;
   renderAll();
+  ensureBoardRealtimeSubscription(data.pizarraId);
+}
+
+// =========================================================
+// Realtime: ver cambios de otros colaboradores sin esperar una accion
+// propia ni un F5 (ver src/realtimeApi.js y supabase/migrations/024).
+// Cualquier cambio en la pizarra abierta dispara un refetch completo
+// (reusa reloadState/renderAll tal cual, sin merge fila a fila) -- pero
+// SOLO si no hay un modal abierto: openTemaForm deja "draft" como
+// referencia viva a un objeto de state.temas, y un reloadState a mitad de
+// una edicion lo dejaria huerfano (el Submit final pisaria con datos
+// viejos cualquier cambio ajeno llegado en el medio). Con un modal
+// abierto, el refresh se difiere hasta que el usuario lo cierra.
+// =========================================================
+let boardChannel = null;
+let boardChannelPizarraId = null;
+let pendingRemoteRefresh = false;
+let remoteChangeTimer = null;
+
+function ensureBoardRealtimeSubscription(pizarraId) {
+  if (pizarraId === boardChannelPizarraId) return;
+  realtimeApi.unsubscribeBoard(boardChannel);
+  boardChannel = pizarraId ? realtimeApi.subscribeToBoard(pizarraId, onRemoteBoardChange) : null;
+  boardChannelPizarraId = pizarraId || null;
+}
+
+function teardownBoardRealtimeSubscription() {
+  realtimeApi.unsubscribeBoard(boardChannel);
+  boardChannel = null;
+  boardChannelPizarraId = null;
+  pendingRemoteRefresh = false;
+}
+
+// Debounced: varios cambios seguidos (ej. reordenar 5 columnas) disparan
+// un solo refetch, no uno por evento.
+function onRemoteBoardChange() {
+  clearTimeout(remoteChangeTimer);
+  remoteChangeTimer = setTimeout(() => {
+    const modalAbierto = Boolean((els.modalTask && els.modalTask.open) || (els.modalForm && els.modalForm.open));
+    if (modalAbierto) {
+      if (!pendingRemoteRefresh) showToast("Hay cambios nuevos de otro usuario. Se van a mostrar cuando cierres esta ventana.");
+      pendingRemoteRefresh = true;
+      return;
+    }
+    reloadState(state.currentPizarraId);
+  }, 500);
 }
 
 // Ejecuta una mutacion async y muestra un toast si falla.
@@ -577,6 +624,7 @@ async function renderPizarraSwitcherScreen() {
     if (!confirm("Cerrar sesion?")) return;
     await withBusy(() => authApi.logout());
     state.profile = null;
+    teardownBoardRealtimeSubscription();
     showLoginScreen();
   });
 }
@@ -757,12 +805,25 @@ function bindEvents() {
     });
   }
 
+  // Cambios remotos diferidos mientras un modal estaba abierto (ver
+  // onRemoteBoardChange): se aplican recien al cerrarlo, sin importar si
+  // se cerro por Cancelar, Escape, o un Submit que ya disparo su propio
+  // reloadState (ese caso queda un refetch de mas, inofensivo).
+  [els.modalTask, els.modalForm].forEach((dialog) => {
+    dialog?.addEventListener("close", () => {
+      if (!pendingRemoteRefresh) return;
+      pendingRemoteRefresh = false;
+      reloadState(state.currentPizarraId);
+    });
+  });
+
   const logoutBtn = $("logoutBtn");
   if (logoutBtn) {
     logoutBtn.addEventListener("click", async () => {
       if (!confirm("Cerrar sesion?")) return;
       await withBusy(() => authApi.logout());
       state.profile = null;
+      teardownBoardRealtimeSubscription();
       showLoginScreen();
     });
   }
@@ -826,6 +887,7 @@ function showAccessNotice(kind) {
   $("noticeLogout").addEventListener("click", async () => {
     await withBusy(() => authApi.logout());
     state.profile = null;
+    teardownBoardRealtimeSubscription();
     renderLogin();
   });
 }
