@@ -340,7 +340,6 @@ const els = {
   semaforoList:       $("semaforoList"),
   alertList:          $("alertList"),
   atencionList:       $("atencionList"),
-  notifDot:           $("notifDot"),
   agendaKanban:       $("agendaKanban"),
   tableHitos:         $("tableHitos"),
   tableExpedientes:   $("tableExpedientes"),
@@ -1479,8 +1478,6 @@ function renderDashboard() {
 
   // Alertas resumen lateral
   const alerts = buildAlerts(temas).sort((a, b) => b.nivel - a.nivel);
-  const alertCount = alerts.length;
-  if (els.notifDot) els.notifDot.textContent = alertCount;
   const nivelIcon = { 4: icon("alerta"), 3: icon("alerta"), 2: icon("circulo"), 1: icon("circulo") };
   const nivelClass = { 4: "rojo", 3: "naranja", 2: "amarillo", 1: "amarillo" };
   els.alertList.innerHTML = alerts.slice(0, 5).map((a) => `
