@@ -1049,7 +1049,10 @@ function renderUsuarios() {
   if (!esAdmin()) { tbActivos.innerHTML = ""; tbPendientes.innerHTML = ""; return; }
 
   const activos   = state.usuarios.filter((u) => u.aprobado && u.activo);
-  const pendientes = state.usuarios.filter((u) => !u.aprobado);
+  // !activo tambien cubre a quien fue "Rechazado" (ver data-rechazar mas
+  // abajo: rechazar desactiva en vez de borrar el profile) -- sin este
+  // chequeo, una solicitud rechazada seguiria apareciendo aca para siempre.
+  const pendientes = state.usuarios.filter((u) => !u.aprobado && u.activo);
 
   tbActivos.innerHTML = activos.map((u) => `
     <tr>
@@ -1071,8 +1074,22 @@ function renderUsuarios() {
   tbActivos.querySelectorAll("[data-eliminar]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const u = state.usuarios.find((x) => x.id === btn.dataset.eliminar);
-      if (u && confirm(`Eliminar a ${u.nombre} definitivamente?`)) {
-        await withBusy(async () => { await dataApi.deleteProfile(u.id); await reloadState(); renderUsuarios(); });
+      if (!u || !confirm(`Eliminar a ${u.nombre} definitivamente?`)) return;
+      try {
+        await dataApi.deleteProfile(u.id);
+        await reloadState();
+        renderUsuarios();
+      } catch (err) {
+        // 23503 = foreign_key_violation: ya creo temas/comentarios/documentos
+        // (esas tablas no tienen ON DELETE CASCADE/SET NULL hacia profiles a
+        // proposito, para no perder la atribucion de contenido existente) --
+        // no se puede borrar de raiz, "Desactivar" es el camino real.
+        if (err && err.code === "23503") {
+          showToast(`No se puede eliminar a ${u.nombre}: ya creo contenido en la app. Probá "Desactivar" en su lugar.`);
+        } else {
+          console.error(err);
+          showToast("Error: " + (err && err.message ? err.message : err));
+        }
       }
     });
   });
@@ -1128,7 +1145,13 @@ function renderUsuarios() {
     btn.addEventListener("click", async () => {
       const u = state.usuarios.find((x) => x.id === btn.dataset.rechazar);
       if (u && confirm(`Rechazar solicitud de ${u.nombre}?`)) {
-        await withBusy(async () => { await dataApi.deleteProfile(u.id); await reloadState(); renderUsuarios(); });
+        // Desactiva en vez de borrar el profile: si la persona ya alcanzo a
+        // crear algo (temas/comentarios/documentos) antes de quedar pendiente
+        // de nuevo, un DELETE choca con esas FK (ver data-eliminar mas
+        // arriba). Desactivarla la saca de "pendientes" (filtro de arriba) y
+        // le bloquea el acceso igual -- is_approved_user() exige
+        // aprobado Y activo -- sin ese riesgo.
+        await withBusy(async () => { await dataApi.deactivateProfile(u.id); await reloadState(); renderUsuarios(); });
       }
     });
   });
