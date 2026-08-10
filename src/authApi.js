@@ -51,6 +51,21 @@ export async function register(nombre, email, password) {
   return data;
 }
 
+// Invita a alguien que todavia no tiene cuenta: Supabase crea el
+// auth.users (shouldCreateUser) y le manda un magic link por email. Al
+// clickearlo entra con sesion, pero igual queda bloqueado en "pendiente de
+// aprobacion" -- el trigger handle_new_user crea el profile igual que en un
+// registro con contrasena (ver boot() en app.js), solo cambia la puerta de
+// entrada. Mismas limitaciones de mailer que requestPasswordReset (ver TODO
+// mas abajo): rate-limit bajo, plantilla en ingles sin poder personalizarla.
+export async function inviteNewUserByEmail(email) {
+  const { error } = await supabase.auth.signInWithOtp({
+    email: email.trim(),
+    options: { shouldCreateUser: true, emailRedirectTo: window.location.origin }
+  });
+  if (error) throw error;
+}
+
 export async function logout() {
   _profile = null;
   _authEmail = null;

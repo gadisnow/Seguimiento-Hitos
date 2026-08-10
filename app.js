@@ -429,7 +429,10 @@ const els = {
   pizarraSwitcher:       $("pizarraSwitcher"),
   pizarraSwitcherList:   $("pizarraSwitcherList"),
   pizarraSwitcherCreate: $("pizarraSwitcherCreate"),
-  menuCambiarPizarra:    $("menuCambiarPizarra")
+  menuCambiarPizarra:    $("menuCambiarPizarra"),
+  topbarPizarraBtn:      $("topbarPizarraBtn"),
+  topbarPizarraNombre:   $("topbarPizarraNombre"),
+  topbarInviteBtn:       $("topbarInviteBtn")
 };
 
 let calCursor = new Date();
@@ -614,6 +617,8 @@ function bindEvents() {
   });
 
   els.menuCambiarPizarra?.addEventListener("click", () => showPizarraSwitcher());
+  els.topbarPizarraBtn?.addEventListener("click", () => showPizarraSwitcher());
+  els.topbarInviteBtn?.addEventListener("click", () => openInvitarColaboradorModal());
 
   els.modalImagePreview.addEventListener("click", (e) => {
     if (e.target === els.modalImagePreview) els.modalImagePreview.close();
@@ -849,6 +854,12 @@ function updateHeaderForRole() {
     const last = state.profile ? state.profile.ultimoAcceso : "";
     els.dropdownLastLogin.textContent = `Ultima conexion: ${last ? fmtDateTimeNice(last) : "—"}`;
   }
+
+  if (els.topbarPizarraNombre) els.topbarPizarraNombre.textContent = state.pizarraActual ? state.pizarraActual.nombre : "";
+  if (els.topbarPizarraBtn) els.topbarPizarraBtn.style.display = state.pizarraActual ? "" : "none";
+  // Invitar colaborador: solo el creador de la pizarra actual puede sumar
+  // gente (mismo criterio que la policy pc_insert de pizarra_colaboradores).
+  if (els.topbarInviteBtn) els.topbarInviteBtn.style.display = esCreadorPizarra() ? "" : "none";
 }
 
 // =========================================================
@@ -1689,6 +1700,7 @@ const ICONS = {
   buscar: `<circle cx="10.5" cy="10.5" r="6.5"/><path d="M19.5 19.5l-4.3-4.3"/>`,
   // Colaboracion y roles (manual): pizarra personal reutiliza "usuario".
   pizarraColaborativa: `<circle cx="8.5" cy="8.5" r="3"/><circle cx="16" cy="9.5" r="2.4"/><path d="M3.5 20c0-3.6 2.6-5.8 5-5.8s5 2.2 5 5.8"/><path d="M14.3 14.7c2 .3 3.7 2.1 3.7 5.3"/>`,
+  invitar: `<circle cx="10" cy="8.2" r="3.7"/><path d="M3.5 20.5c0-4.14 2.9-7 6.5-7"/><path d="M17 8.5v6M14 11.5h6"/>`,
   // Navegacion nucleo (manual, 04 — Iconografia): Hitos y Alertas reutilizan
   // Prioridad y Notificacion (campana, ya definida arriba); Expedientes
   // reutiliza "documento" (identico al icono "Expediente" del manual).
@@ -3546,7 +3558,7 @@ function renderHitosCompactList(tema, opts = {}) {
           <div class="hito-compact-side">
             ${respAvatarHtml(h.responsable || tema.responsable)}
             ${badge(h.estado)}
-            ${puedeEditar() ? `<button type="button" class="hito-comment-btn" data-hito-comment="${h.id}" title="Comentar en este hito">${icon("comentario", 15)}</button>` : ""}
+            ${puedeEditar() && !readonly ? `<button type="button" class="hito-comment-btn" data-hito-comment="${h.id}" title="Comentar en este hito">${icon("comentario", 15)}</button>` : ""}
             ${readonly ? "" : `
             <div class="hito-actions">
               ${puedeEditar() ? `<button type="button" data-task-edit-hito="${h.id}" title="Editar" aria-expanded="false">${icon("lapiz", 14)}</button>` : ""}
@@ -4338,7 +4350,7 @@ function refreshTaskGeneralPane(draft, mode) {
   if (mode === "edit") wireAddHitoInline(draft);
   // Toda mutacion de hitos tambien empuja una entrada de historial — el feed
   // persistente de Comentarios + Actividad debe reflejarla al toque.
-  refreshTaskFeedPane(draft);
+  refreshTaskFeedPane(draft, mode);
 }
 
 // =========================================================
@@ -4350,6 +4362,10 @@ function refreshTaskGeneralPane(draft, mode) {
 // con el hito puntual al que se refiere.
 // =========================================================
 let feedPanelVisible = localStorage.getItem("sgtemas_feed_visible") !== "0";
+// Filtro de contenido dentro del panel (no confundir con feedPanelVisible,
+// que oculta el panel entero): solo comentarios, sin las entradas de
+// activity_log — lo mas relevante del panel segun feedback de uso.
+let feedOnlyComments = localStorage.getItem("sgtemas_feed_only_comments") === "1";
 let feedQuillInstance = null;
 let feedMentionCandidates = [];
 let feedPendingMenciones = [];
@@ -4372,26 +4388,35 @@ function puedeEditarComentario(c) {
   return Boolean(c.id) && (c.userId === activeUserId() || esCreadorPizarra());
 }
 
-// Feed unico cronologico (rediseno v2.5): antes eran dos secciones separadas
-// (Actividad arriba, Comentarios abajo); ahora se intercalan por timestamp
-// real, igual que el mockup aprobado. Un comentario con hitoId sigue
-// etiquetado con el hito al que pertenece (ver feedCommentEntryHtml).
-function buildUnifiedFeedHtml(draft) {
-  const activityEntries = (draft.historial || []).map((h) => ({ type: "activity", at: h.createdAt || h.at, data: h }));
+// Feed unico (rediseno v2.5): antes eran dos secciones separadas (Actividad
+// arriba, Comentarios abajo); ahora se intercalan por timestamp real. Orden
+// mas nuevo primero (arriba) — asi lo ultimo se ve sin tener que recorrer
+// todo el panel. Un comentario con hitoId sigue etiquetado con el hito al
+// que pertenece (ver feedCommentEntryHtml). feedOnlyComments filtra las
+// entradas de activity_log, dejando solo los comentarios (toggle cableado
+// en wireFeedPanel, boton #taskFeedFilterToggle).
+function buildUnifiedFeedHtml(draft, mode) {
+  const activityEntries = feedOnlyComments ? [] : (draft.historial || []).map((h) => ({ type: "activity", at: h.createdAt || h.at, data: h }));
   const commentEntries = (draft.comentarios || []).map((c) => ({ type: "comment", at: c.createdAt || c.at, data: c }));
-  const merged = [...activityEntries, ...commentEntries].sort((a, b) => new Date(a.at) - new Date(b.at));
-  if (!merged.length) return `<p style="color:var(--muted);font-size:12.5px">Todavia no hay actividad en este tema. Escribi el primer comentario abajo.</p>`;
+  const merged = [...activityEntries, ...commentEntries].sort((a, b) => new Date(b.at) - new Date(a.at));
+  if (!merged.length) {
+    if (feedOnlyComments) return `<p style="color:var(--muted);font-size:12.5px">Todavia no hay comentarios en este tema.</p>`;
+    const invitacion = mode === "edit" ? " Escribi el primer comentario abajo." : "";
+    return `<p style="color:var(--muted);font-size:12.5px">Todavia no hay actividad en este tema.${invitacion}</p>`;
+  }
   return merged.map((e) => (e.type === "activity" ? feedActivityEntryHtml(e.data) : feedCommentEntryHtml(e.data, draft))).join("");
 }
 
 // Repinta el feed completo y re-cablea sus botones de Editar/Guardar/Cancelar
-// — se llama despues de crear, editar o cancelar la edicion de un comentario.
-function refreshComentariosList(draft) {
+// — se llama despues de crear, editar, borrar o cancelar la edicion de un
+// comentario. scrollTop a 0 (no al fondo): con lo mas nuevo arriba, el fondo
+// ya no es "lo ultimo".
+function refreshComentariosList(draft, mode) {
   const list = document.getElementById("taskFeedList");
   if (!list) return;
-  list.innerHTML = buildUnifiedFeedHtml(draft);
-  list.scrollTop = list.scrollHeight;
-  wireComentariosListEvents(draft);
+  list.innerHTML = buildUnifiedFeedHtml(draft, mode);
+  list.scrollTop = 0;
+  wireComentariosListEvents(draft, mode);
 }
 
 function closeCommentEdit() {
@@ -4399,15 +4424,37 @@ function closeCommentEdit() {
   editCommentQuillInstance = null;
 }
 
-function wireComentariosListEvents(draft) {
+// Nota: editar/eliminar un comentario propio (o de cualquiera, si sos el
+// creador de la pizarra) funciona sin importar el modo view/edit del modal
+// -- es una accion autocontenida sobre ESE comentario, distinta de editar
+// los campos del tema (ver puedeEditarComentario). Solo la CREACION de
+// comentarios nuevos esta atada al modo edicion (ver buildFeedComposerHtml).
+function wireComentariosListEvents(draft, mode) {
   const list = document.getElementById("taskFeedList");
   if (!list) return;
 
   list.querySelectorAll("[data-comment-edit-start]").forEach((btn) => {
     btn.addEventListener("click", () => {
       editingComentarioId = btn.dataset.commentEditStart;
-      refreshComentariosList(draft);
+      refreshComentariosList(draft, mode);
     });
+  });
+
+  list.querySelector("[data-comment-edit-delete]")?.addEventListener("click", async (e) => {
+    const id = e.currentTarget.dataset.commentEditDelete;
+    if (!confirm("Eliminar este comentario? Esta accion no se puede deshacer.")) return;
+    const target = (draft.comentarios || []).find((c) => c.id === id);
+    const hito = target?.hitoId ? hitoPorId(draft.hitos, target.hitoId) : null;
+    const evento = hito ? `Comentario eliminado en hito "${hito.nombre}"` : "Comentario eliminado";
+    const ok = await withBusy(async () => {
+      await dataApi.deleteComentario(id);
+      await dataApi.logActivity(draft.id, evento, { hitoId: target?.hitoId || null });
+    });
+    if (!ok) return;
+    draft.comentarios = (draft.comentarios || []).filter((c) => c.id !== id);
+    draft.historial.push({ event: evento, at: fmtDate(new Date()), createdAt: new Date().toISOString(), by: activeUserName() });
+    closeCommentEdit();
+    refreshComentariosList(draft, mode);
   });
 
   const editQuillContainer = document.getElementById("feedCommentEditQuill");
@@ -4429,7 +4476,7 @@ function wireComentariosListEvents(draft) {
 
   list.querySelector("[data-comment-edit-cancel]")?.addEventListener("click", () => {
     closeCommentEdit();
-    refreshComentariosList(draft);
+    refreshComentariosList(draft, mode);
   });
   list.querySelector("[data-comment-edit-save]")?.addEventListener("click", async (e) => {
     const id = e.currentTarget.dataset.commentEditSave;
@@ -4441,7 +4488,7 @@ function wireComentariosListEvents(draft) {
     const target = (draft.comentarios || []).find((c) => c.id === id);
     if (target) target.text = DOMPurify.sanitize(html);
     closeCommentEdit();
-    refreshComentariosList(draft);
+    refreshComentariosList(draft, mode);
   });
 }
 
@@ -4487,8 +4534,11 @@ function feedCommentEntryHtml(c, draft) {
           <div class="feed-comment-edit-wrap">
             <div class="task-feed-quill-wrap"><div id="feedCommentEditQuill"></div></div>
             <div class="feed-comment-edit-actions">
-              <button type="button" class="ghost" data-comment-edit-cancel>Cancelar</button>
-              <button type="button" class="primary" data-comment-edit-save="${c.id}">Guardar</button>
+              <button type="button" class="btn-delete" data-comment-edit-delete="${c.id}">Eliminar</button>
+              <div class="feed-comment-edit-actions-right">
+                <button type="button" class="ghost" data-comment-edit-cancel>Cancelar</button>
+                <button type="button" class="primary" data-comment-edit-save="${c.id}">Guardar</button>
+              </div>
             </div>
           </div>` : `
           <div class="feed-comment-body">${c.text}</div>
@@ -4497,8 +4547,13 @@ function feedCommentEntryHtml(c, draft) {
     </div>`;
 }
 
-function buildFeedComposerHtml(draft) {
-  if (!puedeEditar()) return "";
+// El composer (y el boton "Comentar" de una fila de hito, ver
+// renderHitosCompactList) solo aparece con el modal en modo edicion — crear
+// un comentario nuevo es una accion de edicion como cualquier otra, a
+// diferencia de editar/eliminar uno ya existente (ver nota en
+// wireComentariosListEvents).
+function buildFeedComposerHtml(draft, mode) {
+  if (!puedeEditar() || mode !== "edit") return "";
   return `
     <div class="task-feed-composer" id="taskFeedComposerWrap">
       <div class="task-comment-context ${activeHitoCommentContext ? "active" : ""}" id="taskCommentContext">
@@ -4524,12 +4579,18 @@ function buildFeedComposerHtml(draft) {
     </div>`;
 }
 
-function buildFeedPanelHtml(draft) {
+function buildFeedPanelHtml(draft, mode) {
   return `
     <aside class="task-feed-panel ${feedPanelVisible ? "" : "hidden"}" id="taskFeedPanel">
-      <div class="task-feed-header">${icon("historial", 16)}<span class="mono">Actividad</span></div>
-      <div class="task-feed-list" id="taskFeedList">${buildUnifiedFeedHtml(draft)}</div>
-      ${buildFeedComposerHtml(draft)}
+      <div class="task-feed-header">
+        ${icon("historial", 16)}<span class="mono">Actividad</span>
+        <button type="button" class="task-feed-filter-toggle" id="taskFeedFilterToggle" title="${feedOnlyComments ? "Mostrar tambien la actividad del sistema" : "Mostrar solo comentarios, sin la actividad del sistema"}">
+          <span>Solo comentarios</span>
+          <span class="toggle-switch ${feedOnlyComments ? "on" : ""}" id="taskFeedFilterSwitch"></span>
+        </button>
+      </div>
+      <div class="task-feed-list" id="taskFeedList">${buildUnifiedFeedHtml(draft, mode)}</div>
+      ${buildFeedComposerHtml(draft, mode)}
     </aside>`;
 }
 
@@ -4568,21 +4629,26 @@ function toggleFeedPanel() {
 // pizarra actual (creador + colaboradores aceptados, via RPC
 // get_board_members) e inserta "@Nombre" como texto en negrita al elegir,
 // acumulando el id en feedPendingMenciones para guardarlo en el comentario.
-function wireFeedPanel(draft) {
+function wireFeedPanel(draft, mode) {
   document.getElementById("taskFeedToggleBtn")?.addEventListener("click", toggleFeedPanel);
+  document.getElementById("taskFeedFilterToggle")?.addEventListener("click", () => {
+    feedOnlyComments = !feedOnlyComments;
+    localStorage.setItem("sgtemas_feed_only_comments", feedOnlyComments ? "1" : "0");
+    document.getElementById("taskFeedFilterSwitch")?.classList.toggle("on", feedOnlyComments);
+    refreshTaskFeedPane(draft, mode);
+  });
   const feedList = document.getElementById("taskFeedList");
-  if (feedList) feedList.scrollTop = feedList.scrollHeight;
   // Delegado en el contenedor (no por <img>): sobrevive a refreshComentariosList,
   // que solo reemplaza el innerHTML de #taskFeedList sin recrear el nodo.
   feedList?.addEventListener("click", (e) => {
     const img = e.target.closest(".feed-comment-body img");
     if (img) openImagePreview(img.src);
   });
-  // Antes del early-return de abajo: "Editar" en un comentario propio debe
-  // funcionar aunque el usuario actual no tenga permiso para crear uno
-  // nuevo (ej. su rol cambio despues de comentar, o esta viendo el tema
-  // sin el composer visible por otra razon).
-  wireComentariosListEvents(draft);
+  // Antes del early-return de abajo: "Editar"/"Eliminar" en un comentario
+  // propio deben funcionar aunque el usuario actual no tenga permiso para
+  // crear uno nuevo (ej. su rol cambio despues de comentar, o el modal esta
+  // en modo vista y por eso el composer no esta visible).
+  wireComentariosListEvents(draft, mode);
 
   const quillContainer = document.getElementById("taskFeedQuill");
   if (!quillContainer) return; // sin permiso de edicion: no hay composer
@@ -4672,16 +4738,18 @@ function wireFeedPanel(draft) {
     feedPendingMenciones = [];
     setHitoCommentContext(null);
     renderAll();
-    refreshTaskFeedPane(draft);
+    refreshTaskFeedPane(draft, mode);
   });
 }
 
-function refreshTaskFeedPane(draft) {
+// scrollTop a 0 (no al fondo): con lo mas nuevo arriba, el fondo ya no es
+// "lo ultimo" — ver buildUnifiedFeedHtml.
+function refreshTaskFeedPane(draft, mode) {
   const list = document.getElementById("taskFeedList");
   if (!list) return;
-  list.innerHTML = buildUnifiedFeedHtml(draft);
-  list.scrollTop = list.scrollHeight;
-  wireComentariosListEvents(draft);
+  list.innerHTML = buildUnifiedFeedHtml(draft, mode);
+  list.scrollTop = 0;
+  wireComentariosListEvents(draft, mode);
 }
 
 // =========================================================
@@ -4716,6 +4784,58 @@ function openConectarAccesorioModal() {
   `;
   els.modalForm.showModal();
   document.getElementById("conectarAccesorioOk").addEventListener("click", () => els.modalForm.close());
+}
+
+// Invitar colaborador a la pizarra actual. Si el email ya tiene cuenta
+// aprobada en la plataforma queda agregado de una (sin paso de
+// confirmacion, decision de producto); si no, se le manda un magic link
+// para que pueda solicitar su usuario (mismas limitaciones de mailer que
+// "olvide mi contrasena" — ver TODO en authApi.inviteNewUserByEmail).
+function openInvitarColaboradorModal() {
+  els.dynamicForm.innerHTML = `
+    <h3>Invitar colaborador</h3>
+    <p style="color:var(--muted);font-size:13px;margin:8px 0 16px">
+      Se invita a <strong>${escHtml(state.pizarraActual?.nombre || "esta pizarra")}</strong>. Si la persona ya
+      tiene cuenta en notby queda sumada al toque; si no, le mandamos un correo para que pueda solicitar la suya.
+    </p>
+    <label>Email<input type="email" name="email" id="inviteColabEmail" required autofocus /></label>
+    <label>Permiso
+      <select name="permiso">
+        <option value="edit">Puede editar</option>
+        <option value="view">Solo puede ver</option>
+      </select>
+    </label>
+    <div id="inviteColabMsg"></div>
+    <div class="btn-group">
+      <button class="primary" value="submit">Invitar</button>
+      <button class="ghost" type="button" onclick="document.getElementById('modalForm').close()">Cancelar</button>
+    </div>
+  `;
+  els.dynamicForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("inviteColabEmail").value.trim().toLowerCase();
+    const permiso = els.dynamicForm.querySelector('[name="permiso"]').value;
+    const msg = e.target.querySelector("#inviteColabMsg");
+    const btn = e.target.querySelector(".primary");
+    if (btn) { btn.disabled = true; btn.textContent = "Invitando..."; }
+    try {
+      const candidato = await pizarraApi.findCollaboratorCandidate(email);
+      if (candidato) {
+        await pizarraApi.addColaborador(state.currentPizarraId, candidato.id, permiso);
+        showToast(`${candidato.nombre} ya forma parte de esta pizarra.`);
+        els.modalForm.close();
+        return;
+      }
+      await authApi.inviteNewUserByEmail(email);
+      msg.innerHTML = `<div class="login-success" style="margin-top:0">Le mandamos un correo a ${escHtml(email)} para que pueda solicitar su usuario. Cuando se registre y quede aprobada, volvé a invitarla para sumarla a esta pizarra.</div>`;
+      if (btn) { btn.disabled = false; btn.textContent = "Invitar"; }
+    } catch (err) {
+      if (btn) { btn.disabled = false; btn.textContent = "Invitar"; }
+      const rateLimited = err && err.status === 429;
+      msg.innerHTML = `<div class="login-error" style="margin-top:0">${rateLimited ? "Ya se mando un correo hace poco. Esperá un minuto y probá de nuevo." : "No se pudo completar la invitacion."}</div>`;
+    }
+  };
+  els.modalForm.showModal();
 }
 
 function buildExpedienteTabHtml(draft, mode) {
@@ -5005,7 +5125,7 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
             ${accesorioHabilitado("planillas") ? `<div class="task-pane ${activeTab === "planillas" ? "active" : ""}" data-task-pane="planillas">${buildPlanillasTabHtml()}</div>` : ""}
           </div>
         </div>
-        ${buildFeedPanelHtml(draft)}
+        ${buildFeedPanelHtml(draft, mode)}
       </div>
 
       <div class="task-modal-footer ${editable ? "" : "footer-view"}">${footerHtml()}</div>
@@ -5022,7 +5142,7 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
     if (editable) wireAddHitoInline(draft);
     wireDocumentosTabEvents(draft);
     if (accesorioHabilitado("expediente")) wireExpedienteTabEvents(draft, mode);
-    wireFeedPanel(draft);
+    wireFeedPanel(draft, mode);
     document.getElementById("taskConectarAccesorioBtn")?.addEventListener("click", openConectarAccesorioModal);
 
     document.getElementById("taskModalCloseBtn").addEventListener("click", () => els.modalTask.close());

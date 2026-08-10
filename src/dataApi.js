@@ -282,6 +282,13 @@ export async function updateComentario(id, texto) {
   must(await supabase.from("comentarios").update({ texto: DOMPurify.sanitize(texto) }).eq("id", id));
 }
 
+// Mismo criterio de permiso que updateComentario (RLS comentarios_delete,
+// ver puedeEditarComentario en app.js). Irreversible: la UI confirma antes
+// de llamar esto.
+export async function deleteComentario(id) {
+  must(await supabase.from("comentarios").delete().eq("id", id));
+}
+
 // =====================================================================
 // Usuarios (profiles) - operaciones de administrador (protegidas por RLS)
 // =====================================================================

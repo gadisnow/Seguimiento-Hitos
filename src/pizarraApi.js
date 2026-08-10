@@ -64,6 +64,32 @@ export async function getBoardMembers(pizarraId) {
   return data || [];
 }
 
+// Busca un perfil aprobado/activo por email para invitar como colaborador
+// -- el cliente no puede leer profiles por email directo (RLS), asi que se
+// resuelve via RPC (ver supabase/migrations/020_invite_collaborator.sql).
+// null significa "sin cuenta activa con ese email" (puede no existir,
+// estar pendiente de aprobacion, o desactivada -- no se distingue a
+// proposito, ver openInvitarColaboradorModal en app.js).
+export async function findCollaboratorCandidate(email) {
+  const { data, error } = await supabase.rpc("find_collaborator_candidate", { p_email: email });
+  if (error) throw error;
+  return data && data[0] ? data[0] : null;
+}
+
+// Agrega (o actualiza el permiso de) un colaborador ya existente en la
+// plataforma. estado 'aceptada' de una, sin paso de confirmacion de la
+// otra persona (decision de producto). Protegido por la policy pc_insert
+// (solo el creador de la pizarra puede invitar).
+export async function addColaborador(pizarraId, usuarioId, permiso = "edit") {
+  must(await supabase.from("pizarra_colaboradores").upsert({
+    pizarra_id: pizarraId,
+    usuario_id: usuarioId,
+    permiso,
+    estado: "aceptada",
+    invitado_por: currentUserId()
+  }, { onConflict: "pizarra_id,usuario_id" }));
+}
+
 // =====================================================================
 // Columnas
 // =====================================================================
