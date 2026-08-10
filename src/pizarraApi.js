@@ -56,8 +56,31 @@ export async function renamePizarra(id, nombre) {
   must(await supabase.from("pizarras").update({ nombre }).eq("id", id));
 }
 
+// Elimina una pizarra completa (dueno, nunca la protegida) via RPC -- ver
+// delete_pizarra en supabase/migrations/022_pizarras_delete.sql. Salir de
+// una pizarra ajena (colaborador) no necesita funcion propia: es
+// removeColaborador(pizarraId, currentUserId()) mas abajo.
+export async function deletePizarra(pizarraId) {
+  const { error } = await supabase.rpc("delete_pizarra", { p_pizarra_id: pizarraId });
+  if (error) throw error;
+}
+
+// Mi propio permiso en cada pizarra donde soy colaborador (no dueno) --
+// para la vista "Mis pizarras": distingue "administro" de "colaboro" y
+// muestra con que rol. Permitido por la policy pc_select (usuario_id =
+// auth.uid()), sin necesitar RPC.
+export async function listMisColaboraciones() {
+  const { data, error } = await supabase
+    .from("pizarra_colaboradores")
+    .select("pizarra_id, permiso")
+    .eq("usuario_id", currentUserId());
+  if (error) throw error;
+  return data || [];
+}
+
 // Creador + colaboradores aceptados de la pizarra (id/nombre/email) — usado
-// para armar la lista de candidatos a @mencionar en comentarios.
+// para armar la lista de candidatos a @mencionar en comentarios, y para
+// resolver el nombre del dueno en la vista "Mis pizarras" cuando no soy yo.
 export async function getBoardMembers(pizarraId) {
   const { data, error } = await supabase.rpc("get_board_members", { p_pizarra_id: pizarraId });
   if (error) throw error;
@@ -69,7 +92,7 @@ export async function getBoardMembers(pizarraId) {
 // resuelve via RPC (ver supabase/migrations/020_invite_collaborator.sql).
 // null significa "sin cuenta activa con ese email" (puede no existir,
 // estar pendiente de aprobacion, o desactivada -- no se distingue a
-// proposito, ver openInvitarColaboradorModal en app.js).
+// proposito, ver openColaboradoresModal en app.js).
 export async function findCollaboratorCandidate(email) {
   const { data, error } = await supabase.rpc("find_collaborator_candidate", { p_email: email });
   if (error) throw error;

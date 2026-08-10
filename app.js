@@ -780,6 +780,7 @@ function showView(view) {
   if (view === "calendario") renderCalendar();
   if (view === "responsables") renderResponsables();
   if (view === "usuarios") renderUsuarios();
+  if (view === "mispizarras") renderMisPizarras();
 }
 
 function navigateTo(view) {
@@ -1043,16 +1044,11 @@ function renderNewPassword() {
 // Usuarios view
 // =========================================================
 function renderUsuarios() {
-  const tbActivos   = $("tableUsuariosActivos");
-  const tbPendientes = $("tableUsuariosPendientes");
+  const tbActivos = $("tableUsuariosActivos");
   if (!tbActivos) return;
-  if (!esAdmin()) { tbActivos.innerHTML = ""; tbPendientes.innerHTML = ""; return; }
+  if (!esAdmin()) { tbActivos.innerHTML = ""; return; }
 
-  const activos   = state.usuarios.filter((u) => u.aprobado && u.activo);
-  // !activo tambien cubre a quien fue "Rechazado" (ver data-rechazar mas
-  // abajo: rechazar desactiva en vez de borrar el profile) -- sin este
-  // chequeo, una solicitud rechazada seguiria apareciendo aca para siempre.
-  const pendientes = state.usuarios.filter((u) => !u.aprobado && u.activo);
+  const activos = state.usuarios.filter((u) => u.aprobado && u.activo);
 
   tbActivos.innerHTML = activos.map((u) => `
     <tr>
@@ -1112,49 +1108,147 @@ function renderUsuarios() {
       }
     });
   });
+}
 
-  tbPendientes.innerHTML = pendientes.map((u) => `
-    <tr>
-      <td>${escHtml(u.nombre)}</td>
-      <td>${escHtml(u.email)}</td>
-      <td>${fmtDateNice(u.fechaRegistro)}</td>
-      <td>
-        <div style="display:flex;gap:6px;align-items:center">
-          <select class="pill" style="font-size:12px;padding:3px 8px" id="rolAprobacion-${u.id}">
-            ${["Admin","Editor","Viewer"].map((r) => `<option>${r}</option>`).join("")}
-          </select>
-          <button class="primary" style="font-size:12px;padding:4px 10px" data-aprobar="${u.id}">Aprobar</button>
-          <button class="ghost" style="font-size:12px;color:#dc2626" data-rechazar="${u.id}">Rechazar</button>
-        </div>
-      </td>
-    </tr>`).join("") || `<tr><td colspan="4" style="color:var(--muted);text-align:center">Sin solicitudes pendientes.</td></tr>`;
+// =========================================================
+// Vista "Mis pizarras" — pizarras propias (colaboradores, renombrar,
+// eliminar) y pizarras donde colaboro (mi rol, salir). A diferencia de
+// Usuarios, la ve cualquier usuario logueado, no solo Admin.
+// =========================================================
+async function renderMisPizarras() {
+  const elPropias = $("misPizarrasPropias");
+  const elColaboro = $("misPizarrasColaboro");
+  if (!elPropias || !elColaboro) return;
+  elPropias.innerHTML = `<p style="color:var(--muted);font-size:13px">Cargando...</p>`;
+  elColaboro.innerHTML = "";
 
-  tbPendientes.querySelectorAll("[data-aprobar]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const u = state.usuarios.find((x) => x.id === btn.dataset.aprobar);
-      const rolSel = document.getElementById(`rolAprobacion-${u.id}`);
-      if (u) await withBusy(async () => {
-        await dataApi.approveProfile(u.id, rolSel ? rolSel.value : "Viewer");
-        await reloadState();
-        renderUsuarios();
-        showToast(`${u.nombre} aprobado`);
-      });
+  let pizarras = [];
+  try { pizarras = await pizarraApi.listMyPizarras(); }
+  catch (e) {
+    console.error(e);
+    elPropias.innerHTML = `<p style="color:var(--muted);font-size:13px">No se pudieron cargar tus pizarras.</p>`;
+    return;
+  }
+
+  const myId = activeUserId();
+  const propias = pizarras.filter((p) => p.creadorId === myId);
+  const colaboro = pizarras.filter((p) => p.creadorId !== myId);
+
+  elPropias.innerHTML = propias.map((p) => `
+    <div class="pizarra-mgmt-row">
+      <span class="pizarra-mgmt-main">
+        ${icon(p.tipo === "colaborativa" ? "pizarraColaborativa" : "usuario", 18)}
+        <span class="pizarra-mgmt-nombre">${escHtml(p.nombre)}</span>
+        <span class="pizarra-mgmt-type">${p.tipo === "colaborativa" ? "Colaborativa" : "Personal"}</span>
+      </span>
+      <span class="pizarra-mgmt-actions">
+        <button type="button" class="ghost" data-pizarra-entrar="${p.id}">Entrar</button>
+        <button type="button" class="ghost" data-pizarra-colab="${p.id}">Colaboradores</button>
+        <button type="button" class="ghost" data-pizarra-renombrar="${p.id}">Renombrar</button>
+        ${p.protegida
+          ? `<span class="pizarra-mgmt-protegida" title="Esta pizarra no se puede eliminar">Protegida</span>`
+          : `<button type="button" class="ghost" style="color:#dc2626" data-pizarra-eliminar="${p.id}">Eliminar</button>`}
+      </span>
+    </div>
+  `).join("") || `<p style="color:var(--muted);font-size:13px">Todavía no administrás ninguna pizarra.</p>`;
+
+  elPropias.querySelectorAll("[data-pizarra-entrar]").forEach((btn) => {
+    btn.addEventListener("click", () => enterPizarra(btn.dataset.pizarraEntrar));
+  });
+  elPropias.querySelectorAll("[data-pizarra-colab]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const p = propias.find((x) => x.id === btn.dataset.pizarraColab);
+      if (p) openColaboradoresModal(p.id, p.nombre);
     });
   });
-  tbPendientes.querySelectorAll("[data-rechazar]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const u = state.usuarios.find((x) => x.id === btn.dataset.rechazar);
-      if (u && confirm(`Rechazar solicitud de ${u.nombre}?`)) {
-        // Desactiva en vez de borrar el profile: si la persona ya alcanzo a
-        // crear algo (temas/comentarios/documentos) antes de quedar pendiente
-        // de nuevo, un DELETE choca con esas FK (ver data-eliminar mas
-        // arriba). Desactivarla la saca de "pendientes" (filtro de arriba) y
-        // le bloquea el acceso igual -- is_approved_user() exige
-        // aprobado Y activo -- sin ese riesgo.
-        await withBusy(async () => { await dataApi.deactivateProfile(u.id); await reloadState(); renderUsuarios(); });
-      }
+  elPropias.querySelectorAll("[data-pizarra-renombrar]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const p = propias.find((x) => x.id === btn.dataset.pizarraRenombrar);
+      if (p) openRenamePizarraModal(p);
     });
   });
+  elPropias.querySelectorAll("[data-pizarra-eliminar]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const p = propias.find((x) => x.id === btn.dataset.pizarraEliminar);
+      if (!p || !confirm(`Eliminar la pizarra "${p.nombre}" para siempre? Se borra todo su contenido (temas, hitos, documentos, etc).`)) return;
+      const eraActiva = state.currentPizarraId === p.id;
+      const ok = await withBusy(() => pizarraApi.deletePizarra(p.id));
+      if (!ok) return;
+      showToast("Pizarra eliminada");
+      // Si era la pizarra abierta, boot() vuelve a decidir donde entrar
+      // (misma resolucion que ya usa el flujo de registro nuevo).
+      if (eraActiva) await boot(); else await renderMisPizarras();
+    });
+  });
+
+  let misPermisos = [];
+  try { misPermisos = await pizarraApi.listMisColaboraciones(); } catch (e) { console.error(e); }
+  const permisoPorPizarra = Object.fromEntries(misPermisos.map((c) => [c.pizarra_id, c.permiso]));
+
+  const filasColaboro = await Promise.all(colaboro.map(async (p) => {
+    let dueno = "";
+    try {
+      const miembros = await pizarraApi.getBoardMembers(p.id);
+      dueno = miembros.find((m) => m.id === p.creadorId)?.nombre || "";
+    } catch (e) { console.error(e); }
+    const permiso = permisoPorPizarra[p.id] === "edit" ? "Editor" : "Visualizador";
+    return `
+      <div class="pizarra-mgmt-row">
+        <span class="pizarra-mgmt-main">
+          ${icon("pizarraColaborativa", 18)}
+          <span class="pizarra-mgmt-nombre">${escHtml(p.nombre)}</span>
+          <span class="pizarra-mgmt-type">${escHtml(permiso)}${dueno ? ` · de ${escHtml(dueno)}` : ""}</span>
+        </span>
+        <span class="pizarra-mgmt-actions">
+          <button type="button" class="ghost" data-pizarra-entrar="${p.id}">Entrar</button>
+          <button type="button" class="ghost" style="color:#dc2626" data-pizarra-salir="${p.id}">Salir</button>
+        </span>
+      </div>`;
+  }));
+
+  elColaboro.innerHTML = filasColaboro.join("") || `<p style="color:var(--muted);font-size:13px">Todavía no colaborás en ninguna pizarra ajena.</p>`;
+
+  elColaboro.querySelectorAll("[data-pizarra-entrar]").forEach((btn) => {
+    btn.addEventListener("click", () => enterPizarra(btn.dataset.pizarraEntrar));
+  });
+  elColaboro.querySelectorAll("[data-pizarra-salir]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const p = colaboro.find((x) => x.id === btn.dataset.pizarraSalir);
+      if (!p || !confirm(`Salir de la pizarra "${p.nombre}"?`)) return;
+      const eraActiva = state.currentPizarraId === p.id;
+      const ok = await withBusy(() => pizarraApi.removeColaborador(p.id, myId));
+      if (!ok) return;
+      showToast("Saliste de la pizarra");
+      if (eraActiva) await boot(); else await renderMisPizarras();
+    });
+  });
+}
+
+// Modal chico para renombrar una pizarra sin tocar nada mas (colaboradores,
+// columnas, etc quedan intactos: renamePizarra solo escribe pizarras.nombre).
+function openRenamePizarraModal(pizarra) {
+  els.dynamicForm.innerHTML = `
+    <h3>Renombrar pizarra</h3>
+    <label>Nombre<input type="text" id="renamePizarraNombre" value="${escHtml(pizarra.nombre)}" required autofocus /></label>
+    <div class="btn-group">
+      <button class="primary" value="submit">Guardar</button>
+      <button class="ghost" type="button" onclick="document.getElementById('modalForm').close()">Cancelar</button>
+    </div>
+  `;
+  els.dynamicForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const nombre = document.getElementById("renamePizarraNombre").value.trim();
+    if (!nombre) return;
+    const ok = await withBusy(async () => {
+      await pizarraApi.renamePizarra(pizarra.id, nombre);
+      if (state.currentPizarraId === pizarra.id) await reloadState(state.currentPizarraId);
+    });
+    if (!ok) return;
+    els.modalForm.close();
+    showToast("Pizarra renombrada");
+    await renderMisPizarras();
+  };
+  els.modalForm.showModal();
 }
 
 // =========================================================
@@ -4825,13 +4919,16 @@ function openConectarAccesorioModal() {
 // aprobada de una (supabase/migrations/021), se reintenta el alta como
 // colaborador en el momento en vez de pedirle al dueno que reinvite despues.
 // Solo lo abre el creador de la pizarra (ver esCreadorPizarra() en el
-// listener de topbarInviteBtn) -- list_board_collaborators tambien lo
-// exige del lado del servidor.
-function openColaboradoresModal() {
+// listener de topbarInviteBtn, y esDueno en renderMisPizarras) --
+// list_board_collaborators tambien lo exige del lado del servidor.
+// pizarraId/nombre son opcionales: sin argumentos administra la pizarra
+// abierta actualmente (uso desde la topbar); "Mis pizarras" pasa una
+// pizarra explicita que puede no ser la que esta abierta.
+function openColaboradoresModal(pizarraId = state.currentPizarraId, nombre = state.pizarraActual?.nombre) {
   els.dynamicForm.innerHTML = `
     <h3>Colaboradores</h3>
     <p style="color:var(--muted);font-size:13px;margin:8px 0 16px">
-      Compartir <strong>${escHtml(state.pizarraActual?.nombre || "esta pizarra")}</strong>. Si la persona ya
+      Compartir <strong>${escHtml(nombre || "esta pizarra")}</strong>. Si la persona ya
       tiene cuenta en notby queda sumada al toque; si no, le mandamos un correo para que confirme la suya.
     </p>
     <div class="colab-invite-row">
@@ -4854,7 +4951,7 @@ function openColaboradoresModal() {
     const listEl = document.getElementById("colabList");
     if (!listEl) return;
     let colaboradores = [];
-    try { colaboradores = await pizarraApi.listColaboradores(state.currentPizarraId); }
+    try { colaboradores = await pizarraApi.listColaboradores(pizarraId); }
     catch (err) {
       console.error(err);
       listEl.innerHTML = `<p style="color:var(--muted);font-size:13px">No se pudo cargar la lista de colaboradores.</p>`;
@@ -4881,7 +4978,7 @@ function openColaboradoresModal() {
 
     listEl.querySelectorAll("[data-colab-rol]").forEach((sel) => {
       sel.addEventListener("change", async () => {
-        const ok = await withBusy(() => pizarraApi.updateColaboradorPermiso(state.currentPizarraId, sel.dataset.colabRol, sel.value));
+        const ok = await withBusy(() => pizarraApi.updateColaboradorPermiso(pizarraId, sel.dataset.colabRol, sel.value));
         if (ok) showToast("Rol actualizado");
       });
     });
@@ -4889,7 +4986,7 @@ function openColaboradoresModal() {
       btn.addEventListener("click", async () => {
         const persona = colaboradores.find((c) => c.usuarioId === btn.dataset.colabQuitar);
         if (!confirm(`Quitar a ${persona ? persona.nombre : "esta persona"} de esta pizarra?`)) return;
-        const ok = await withBusy(() => pizarraApi.removeColaborador(state.currentPizarraId, btn.dataset.colabQuitar));
+        const ok = await withBusy(() => pizarraApi.removeColaborador(pizarraId, btn.dataset.colabQuitar));
         if (ok) { showToast("Colaborador quitado"); await refreshColabList(); }
       });
     });
@@ -4911,7 +5008,7 @@ function openColaboradoresModal() {
         candidato = await pizarraApi.findCollaboratorCandidate(email);
       }
       if (candidato) {
-        await pizarraApi.addColaborador(state.currentPizarraId, candidato.id, permiso);
+        await pizarraApi.addColaborador(pizarraId, candidato.id, permiso);
         showToast(`${candidato.nombre} se sumo a esta pizarra.`);
         emailInput.value = "";
         await refreshColabList();
@@ -5851,14 +5948,16 @@ function openResponsableForm(existing = null) {
 
 function openUsuarioForm() {
   // Con Supabase Auth las cuentas se crean por auto-registro (nunca guardamos
-  // contrasenas). El admin no crea usuarios: los aprueba y asigna rol.
+  // contrasenas). El admin no crea usuarios directamente: quedan activos
+  // solos apenas se registran (ver handle_new_user, supabase/migrations/021)
+  // y desde aca se les puede cambiar el rol o desactivarlos si hace falta.
   els.dynamicForm.innerHTML = `
     <h3>Alta de usuarios</h3>
     <p style="font-size:13.5px;line-height:1.6;color:var(--text)">
       Los usuarios se dan de alta ellos mismos desde la pantalla de inicio con
-      <strong>"Solicitar acceso"</strong>. Cuando lo hagan, apareceran en
-      <strong>Solicitudes pendientes</strong> y desde ahi podras aprobarlos y
-      asignarles un rol (Admin / Editor / Viewer).
+      <strong>"Crear cuenta"</strong> y quedan activos al instante, sin necesitar
+      aprobacion. Una vez registrados vas a poder cambiarles el rol
+      (Admin / Editor / Viewer) o desactivarlos desde la tabla de arriba.
     </p>
     <div class="btn-group" style="justify-content:flex-end">
       <button class="primary" type="button" onclick="document.getElementById('modalForm').close()">Entendido</button>

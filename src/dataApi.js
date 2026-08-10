@@ -292,10 +292,6 @@ export async function deleteComentario(id) {
 // =====================================================================
 // Usuarios (profiles) - operaciones de administrador (protegidas por RLS)
 // =====================================================================
-export async function approveProfile(id, rol) {
-  must(await supabase.from("profiles").update({ aprobado: true, rol }).eq("id", id));
-}
-
 export async function updateProfileRole(id, rol) {
   must(await supabase.from("profiles").update({ rol }).eq("id", id));
 }

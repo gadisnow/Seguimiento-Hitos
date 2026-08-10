@@ -90,6 +90,9 @@
             <button class="user-menu-item" id="menuCambiarPizarra">
               <span class="user-menu-item-label"><svg class="icon-inline" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="6.5" width="13" height="13" rx="3"/><rect x="7.5" y="3.5" width="13" height="13" rx="3" fill="var(--card)"/></svg>Cambiar pizarra</span>
             </button>
+            <button class="user-menu-item" data-view="mispizarras">
+              <span class="user-menu-item-label"><svg class="icon-inline" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M3.5 9.5h17"/></svg>Mis pizarras</span>
+            </button>
             <button class="user-menu-item" data-view="configuracion">
               <span class="user-menu-item-label"><svg class="icon-inline" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="6.2"/><circle cx="12" cy="12" r="2.2"/><rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8"/><rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(45 12 12)"/><rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(90 12 12)"/><rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(135 12 12)"/><rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(180 12 12)"/><rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(225 12 12)"/><rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(270 12 12)"/><rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(315 12 12)"/></svg>Configuracion</span>
             </button>
@@ -474,18 +477,18 @@
             </table>
           </div>
         </article>
-        <article class="card" id="cardSolicitudes">
-          <div class="card-head"><h3>Solicitudes pendientes</h3></div>
-          <div class="table-wrap">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Nombre</th><th>Email</th><th>Fecha solicitud</th><th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody id="tableUsuariosPendientes"></tbody>
-            </table>
-          </div>
+      </section>
+
+      <!-- =================== MIS PIZARRAS =================== -->
+      <section class="view" id="view-mispizarras">
+        <div class="section-head"><h2>Mis pizarras</h2></div>
+        <article class="card">
+          <div class="card-head"><h3>Pizarras que administrás</h3></div>
+          <div id="misPizarrasPropias" class="pizarra-mgmt-list"></div>
+        </article>
+        <article class="card">
+          <div class="card-head"><h3>Pizarras en las que colaborás</h3></div>
+          <div id="misPizarrasColaboro" class="pizarra-mgmt-list"></div>
         </article>
       </section>
 

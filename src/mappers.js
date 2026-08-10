@@ -214,7 +214,14 @@ export function etiquetaFromRow(r) {
 
 // ---------------- pizarras / columnas ----------------
 export function pizarraFromRow(r) {
-  return { id: r.id, nombre: r.nombre || "", tipo: r.tipo || "personal", creadorId: r.creador_id, accesorios: r.accesorios || {} };
+  return {
+    id: r.id,
+    nombre: r.nombre || "",
+    tipo: r.tipo || "personal",
+    creadorId: r.creador_id,
+    accesorios: r.accesorios || {},
+    protegida: !!r.protegida
+  };
 }
 
 // Fila de list_board_collaborators (ver supabase/migrations/021) — panel
