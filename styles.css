@@ -1233,6 +1233,12 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
 .cal-spacer { flex: 1; }
 
 .cal-legend { display: flex; gap: 12px; font-size: 12px; color: var(--muted); align-items: center; }
+/* Puramente informativa (los eventos ya llevan su propio color) -- se
+   saca en celulares para no sumarle mas filas al toolbar, que ya tiene
+   4 botones de vista + los de navegacion compitiendo por el ancho. */
+@media (max-width: 640px) {
+  .cal-legend { display: none; }
+}
 
 .dot { width: 9px; height: 9px; border-radius: 999px; display: inline-block; margin-right: 5px; }
 .dot-pendiente { background: var(--pendiente); }
@@ -1241,12 +1247,19 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
 .dot-bloqueado { background: var(--bloqueado); }
 .dot-cerrado { background: var(--cerrado); }
 
+/* Sin manejo responsivo, 7 columnas repartidas en un celular quedaban en
+   ~25px cada una (inusable). minmax(90px, 1fr) les pone un piso legible;
+   cuando el ancho disponible no alcanza para las 7 a la vez, el grid
+   mismo scrollea horizontal en vez de aplastarlas -- mismo patron que
+   .table-wrap usa para las tablas (linea ~549). En desktop no cambia
+   nada: el contenedor ya es mas ancho que 7*90px. */
 .cal-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(90px, 1fr));
   gap: 6px;
   flex: 1;
   min-height: 0;
+  overflow-x: auto;
 }
 
 /* Encabezado compartido por las 4 vistas (Mes/3 dias/semana laboral/semana
@@ -1566,6 +1579,13 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
 .colab-invite-row { display: flex; gap: 8px; align-items: center; }
 .colab-invite-row input { flex: 1; min-width: 0; }
 .colab-invite-row select { flex-shrink: 0; }
+/* Sin esto el email queda en ~6-8 caracteres visibles dentro de #dynamicForm
+   en celulares -- riesgo real de invitar a la persona equivocada sin poder
+   verificar lo que se escribio. El input pasa a su propia linea completa. */
+@media (max-width: 520px) {
+  .colab-invite-row { flex-wrap: wrap; }
+  .colab-invite-row input { flex: 1 1 100%; }
+}
 
 .colab-list-title {
   font-size: 12px; font-weight: 600; color: var(--muted);
@@ -1609,29 +1629,73 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
   background: var(--bg); border: 1px solid var(--border);
   padding: 3px 9px; border-radius: 999px;
 }
-.pizarra-mgmt-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+.pizarra-mgmt-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .pizarra-mgmt-actions .ghost { font-size: 12px; padding: 5px 10px; }
 .pizarra-mgmt-protegida {
   font-size: 11.5px; color: var(--muted); font-style: italic; padding: 5px 4px;
 }
+/* A ~330px de acciones (Entrar/Colaboradores/Renombrar/Eliminar) el
+   flex-wrap de arriba ya no alcanza en celulares: manda toda la fila a
+   columna para que las acciones tengan su propio ancho completo en vez
+   de recortarse contra .app{overflow-x:hidden}. */
+@media (max-width: 560px) {
+  .pizarra-mgmt-row { flex-direction: column; align-items: stretch; }
+  .pizarra-mgmt-actions { justify-content: flex-end; }
+}
 
+/* Apertura/cierre: mismo lenguaje que dialog#modalTask (fade + scale via
+   @starting-style, linea ~2687) -- este dialogo generico es el que usan
+   Colaboradores, Renombrar pizarra, editar hito y varios formularios mas,
+   asi que quedaba llamativo que fuera el unico sin animar. */
 dialog#modalForm {
   border: 0; border-radius: 12px;
   padding: 0;
   width: min(660px, 96vw);
   box-shadow: 0 30px 60px rgba(15,23,42,0.2);
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity .2s var(--ease-out), transform .2s var(--ease-out),
+              overlay .2s var(--ease-out) allow-discrete,
+              display .2s var(--ease-out) allow-discrete;
 }
-
-dialog#modalForm::backdrop { background: rgba(15,23,42,0.6); }
+dialog#modalForm:not([open]) { opacity: 0; transform: scale(0.96); }
+@starting-style {
+  dialog#modalForm[open] { opacity: 0; transform: scale(0.96); }
+}
+dialog#modalForm::backdrop {
+  background: rgba(15,23,42,0.6);
+  transition: background .2s var(--ease-out),
+              overlay .2s var(--ease-out) allow-discrete,
+              display .2s var(--ease-out) allow-discrete;
+}
+@starting-style {
+  dialog#modalForm[open]::backdrop { background: rgba(15,23,42,0); }
+}
 
 dialog#modalNewResp {
   border: 0; border-radius: 12px;
   padding: 0;
   width: min(480px, 96vw);
   box-shadow: 0 30px 60px rgba(15,23,42,0.2);
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity .2s var(--ease-out), transform .2s var(--ease-out),
+              overlay .2s var(--ease-out) allow-discrete,
+              display .2s var(--ease-out) allow-discrete;
 }
-
-dialog#modalNewResp::backdrop { background: rgba(15,23,42,0.6); }
+dialog#modalNewResp:not([open]) { opacity: 0; transform: scale(0.96); }
+@starting-style {
+  dialog#modalNewResp[open] { opacity: 0; transform: scale(0.96); }
+}
+dialog#modalNewResp::backdrop {
+  background: rgba(15,23,42,0.6);
+  transition: background .2s var(--ease-out),
+              overlay .2s var(--ease-out) allow-discrete,
+              display .2s var(--ease-out) allow-discrete;
+}
+@starting-style {
+  dialog#modalNewResp[open]::backdrop { background: rgba(15,23,42,0); }
+}
 
 /* Responsable dropdown multi-selector */
 .resp-dropdown { position: relative; }
@@ -2881,11 +2945,17 @@ html[data-theme="dark"] #taskForm .task-modal-estado-select[data-estado="Cerrado
 
 .task-modal-tabs {
   display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--border); padding: 0 18px; flex-shrink: 0;
+  /* Cantidad de tabs es dinamica (General + Documentos + hasta 2
+     accesorios + el "+"); sin esto, en el modal angosto (mobile o con el
+     panel de Actividad abierto al lado) se recortaban o forzaban scroll
+     horizontal de todo el dialogo -- mismo patron que .tabbar (linea ~293). */
+  overflow-x: auto; scrollbar-width: thin;
 }
 .task-tab {
   border: 0; border-radius: 0; background: transparent; padding: 10px 14px; font-size: 13px; font-weight: 500;
   color: var(--muted); border-bottom: 2px solid transparent; cursor: pointer;
   transition: color .15s ease, border-bottom-color .15s ease;
+  flex-shrink: 0; white-space: nowrap;
 }
 .task-tab:hover { color: var(--text); }
 .task-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
@@ -3829,20 +3899,53 @@ html[data-theme="dark"] .rol-viewer { background: rgba(148,163,184,0.22); color:
    selector de pizarras. */
 @media (prefers-reduced-motion: reduce) {
   dialog#modalTask,
-  dialog#modalTask:not([open]) {
+  dialog#modalTask:not([open]),
+  dialog#modalImagePreview,
+  dialog#modalImagePreview:not([open]),
+  dialog#modalForm,
+  dialog#modalForm:not([open]),
+  dialog#modalNewResp,
+  dialog#modalNewResp:not([open]) {
     transform: none;
   }
-  dialog#modalTask {
+  dialog#modalTask,
+  dialog#modalImagePreview,
+  dialog#modalForm,
+  dialog#modalNewResp {
     transition: opacity .2s ease,
                 overlay .2s ease allow-discrete,
                 display .2s ease allow-discrete;
   }
   @starting-style {
-    dialog#modalTask[open] { transform: none; }
+    dialog#modalTask[open],
+    dialog#modalImagePreview[open],
+    dialog#modalForm[open],
+    dialog#modalNewResp[open] {
+      transform: none;
+    }
   }
 
   #pizarraSwitcher .login-card,
   #pizarraSwitcher.open .login-card {
     transform: none;
   }
+
+  /* Menus contextuales (kcard-menu/board-menu/cal-day-popover): mismo
+     criterio que los dialogos de arriba -- se conserva el fade, se saca
+     el translateY(-4px) de entrada (ver @keyframes contextMenuIn). */
+  .kcard-menu, .board-menu, .cal-day-popover {
+    animation: contextFadeIn .12s var(--ease-out);
+  }
+
+  /* Drawer de expediente: el translate(-50%,-50%) es posicionamiento fijo
+     (lo centra), no movimiento -- se conserva; solo se saca el scale de
+     entrada, igual que los dialogos. */
+  .drawer, .drawer.open {
+    transform: translate(-50%, -50%);
+  }
+}
+
+@keyframes contextFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
