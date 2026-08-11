@@ -4563,13 +4563,16 @@ let activeHitoCommentContext = null;
 let editingComentarioId = null;
 let editCommentQuillInstance = null;
 
-// Mismo criterio que la politica RLS comentarios_delete (y la nueva
-// comentarios_update): el autor, o el creador de ESTA pizarra puntual —
-// no el rol global Admin, que es un concepto distinto en este proyecto
-// (ver esCreadorPizarra). Si no coincide con el server, el update queda
-// bloqueado por RLS aunque el boton se muestre.
+// Solo quien creo el comentario puede editarlo -- ni el creador de la
+// pizarra ni un Admin tienen ese permiso sobre comentarios ajenos, aunque
+// si lo tengan para editar el resto del tema (ver esCreadorPizarra en
+// otros lados). Mismo criterio que la policy RLS comentarios_update (ver
+// supabase/migrations/025) -- si no coincide con el server, el update
+// queda bloqueado por RLS aunque el boton se muestre. Borrar es una
+// decision de moderacion distinta: sigue permitido al creador de la
+// pizarra (comentarios_delete no se toco, ver data-comment-edit-delete).
 function puedeEditarComentario(c) {
-  return Boolean(c.id) && (c.userId === activeUserId() || esCreadorPizarra());
+  return Boolean(c.id) && c.userId === activeUserId();
 }
 
 // Feed unico (rediseno v2.5): antes eran dos secciones separadas (Actividad
@@ -4667,10 +4670,22 @@ function wireComentariosListEvents(draft, mode) {
     const html = editCommentQuillInstance.root.innerHTML;
     const plain = editCommentQuillInstance.getText().trim();
     if (!plain) { showToast("El comentario no puede quedar vacio."); return; }
-    const ok = await withBusy(() => dataApi.updateComentario(id, html));
-    if (!ok) return;
     const target = (draft.comentarios || []).find((c) => c.id === id);
-    if (target) target.text = DOMPurify.sanitize(html);
+    const textoNuevo = DOMPurify.sanitize(html);
+    // A diferencia de crear (que ya queda registrado con solo aparecer en el
+    // feed), editar SI deja un movimiento propio -- pero solo si el texto
+    // realmente cambio, no por abrir "Editar" y guardar sin tocar nada.
+    const huboCambio = Boolean(target) && target.text !== textoNuevo;
+    const ok = await withBusy(async () => {
+      await dataApi.updateComentario(id, html);
+      if (huboCambio) await dataApi.logActivity(draft.id, "Comentario modificado", { hitoId: target?.hitoId || null });
+    });
+    if (!ok) return;
+    if (target) target.text = textoNuevo;
+    if (huboCambio) {
+      const now = new Date().toISOString();
+      draft.historial.push({ event: "Comentario modificado", at: fmtDate(new Date()), createdAt: now, by: activeUserName() });
+    }
     closeCommentEdit();
     refreshComentariosList(draft, mode);
   });
@@ -4711,7 +4726,7 @@ function feedCommentEntryHtml(c, draft) {
       <div class="feed-entry-body">
         <div class="feed-entry-header">
           <strong>${escHtml(c.by)}</strong>
-          <span class="feed-entry-date">${fmtDateNice(c.at)}</span>
+          <span class="feed-entry-date">${c.createdAt ? fmtDateTimeNice(c.createdAt) : fmtDateNice(c.at)}</span>
         </div>
         ${hito ? `<div class="feed-comment-tag">${icon("prioridad", 12)} ${escHtml(hito.nombre)}</div>` : ""}
         ${isEditing ? `
@@ -4901,13 +4916,14 @@ function wireFeedPanel(draft, mode) {
     if (!plain) return;
     if (!isPersistedTema(draft)) { showToast("Guarda el tema antes de comentar."); return; }
     const hitoId = activeHitoCommentContext?.id || null;
-    const hito = hitoId ? hitoPorId(draft.hitos, hitoId) : null;
     const currentUser = activeUserName();
     const menciones = [...feedPendingMenciones];
     let nuevoComentario = null;
+    // Cargar el comentario ya queda registrado con solo aparecer en el feed
+    // -- no hace falta un movimiento de actividad aparte que repita lo mismo
+    // (ver logActivity solo en el edit de abajo, para "Comentario modificado").
     const ok = await withBusy(async () => {
       nuevoComentario = await dataApi.createComentario(draft.id, html, { hitoId, menciones });
-      await dataApi.logActivity(draft.id, hito ? `Comentario en hito "${hito.nombre}"` : "Comentario agregado", { hitoId });
     });
     if (!ok) return;
     const now = new Date().toISOString();
@@ -4917,7 +4933,6 @@ function wireFeedPanel(draft, mode) {
     // comentario recien creado hasta recargar el tema (no tenia id todavia).
     draft.comentarios.push(nuevoComentario || { by: currentUser, text: DOMPurify.sanitize(html), at: fmtDate(new Date()), createdAt: now, hitoId, menciones });
     draft.ultimaActualizacion = fmtDate(new Date());
-    draft.historial.push({ event: hito ? `Comentario en hito "${hito.nombre}"` : "Comentario agregado", at: fmtDate(new Date()), createdAt: now, by: currentUser });
     feedQuillInstance.setContents([]);
     feedPendingMenciones = [];
     setHitoCommentContext(null);
@@ -5440,10 +5455,15 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
 
     const submitBtn = els.taskForm.querySelector('[value="submit"]');
     if (submitBtn) submitBtn.disabled = true;
+    // Solo registra actividad si algun campo del tema realmente cambio --
+    // tareaSnapshot se capturo al entrar en modo edicion (enterEditMode);
+    // apretar "Guardar cambios" sin tocar nada no debe dejar un movimiento
+    // fantasma en el feed.
+    const huboCambios = isEdit && JSON.stringify(tareaSnapshot) !== JSON.stringify(snapshotTareaFields(draft));
     const ok = await withBusy(async () => {
       if (isEdit) {
         await dataApi.updateTema(draft.id, draft);
-        await dataApi.logActivity(draft.id, "Tema editado");
+        if (huboCambios) await dataApi.logActivity(draft.id, "Tema editado");
       } else {
         draft.creadoPor = activeUserId();
         await dataApi.createTema(draft);

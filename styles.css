@@ -2941,7 +2941,7 @@ html[data-theme="dark"] .task-modal-footer .btn-delete:hover { background: rgba(
    paralelo. Antes eran dos secciones independientes (Actividad / Comentarios
    con scroll propio); ahora un unico feed cronologico, ver buildUnifiedFeedHtml. */
 .task-feed-panel {
-  width: 320px; flex-shrink: 0;
+  width: 352px; flex-shrink: 0;
   background: var(--bg);
   border-left: 1px solid var(--border);
   display: flex; flex-direction: column; min-height: 0;
@@ -2968,6 +2968,11 @@ html[data-theme="dark"] .task-modal-footer .btn-delete:hover { background: rgba(
 .task-feed-list {
   flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 16px;
   display: flex; flex-direction: column; gap: 14px;
+  /* Fondo propio (no el header/toggle, que se queda con var(--bg): su
+     texto usa var(--muted), el mismo gris, y quedaria invisible encima).
+     Las burbujas de comentario (.feed-comment-body) siguen con --card,
+     asi que el contraste "tarjeta clara sobre fondo gris" se mantiene. */
+  background: #71717A;
 }
 
 .feed-entry { display: flex; gap: 8px; align-items: flex-start; }
@@ -3050,7 +3055,7 @@ html[data-theme="dark"] .task-modal-footer .btn-delete:hover { background: rgba(
   transition: box-shadow .15s ease;
 }
 .task-feed-quill-wrap:focus-within { box-shadow: 0 0 0 2px var(--primary-soft-border); }
-#taskFeedQuill { background: var(--card); border-radius: 8px; }
+#taskFeedQuill { background: #E4E4E7; border-radius: 8px; }
 #taskFeedQuill .ql-editor { min-height: 76px; font-size: 13px; }
 .task-feed-composer-actions { display: flex; justify-content: space-between; align-items: center; }
 .task-feed-send {
@@ -3098,20 +3103,21 @@ html[data-theme="dark"] .task-modal-footer .btn-delete:hover { background: rgba(
    que el composer (caja con foco resaltado + boton primario), para que se
    sienta como el mismo control y no como algo nuevo. */
 .feed-comment-edit-wrap { display: flex; flex-direction: column; gap: 8px; }
-#feedCommentEditQuill { background: var(--card); border-radius: 0 0 8px 8px; }
+#feedCommentEditQuill { background: #E4E4E7; border-radius: 0 0 8px 8px; }
 #feedCommentEditQuill .ql-editor { min-height: 60px; font-size: 13px; }
 .feed-comment-edit-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .feed-comment-edit-actions-right { display: flex; gap: 8px; }
 .feed-comment-edit-actions .primary,
-.feed-comment-edit-actions .ghost,
-.feed-comment-edit-actions .btn-delete { padding: 6px 16px; font-size: 12.5px; }
-/* .btn-delete solo trae color/borde bajo .task-modal-footer (ver mas
-   arriba) -- acá se repite el mismo tratamiento rojo, la unica parte que no
-   hereda por el selector distinto. */
-.feed-comment-edit-actions .btn-delete { background: transparent; border: 1px solid #fecaca; color: #dc2626; }
-.feed-comment-edit-actions .btn-delete:hover { background: #fef2f2; }
-html[data-theme="dark"] .feed-comment-edit-actions .btn-delete { border-color: rgba(239,68,68,0.4); color: #fca5a5; }
-html[data-theme="dark"] .feed-comment-edit-actions .btn-delete:hover { background: rgba(239,68,68,0.12); }
+.feed-comment-edit-actions .ghost { padding: 5px 12px; font-size: 11.5px; }
+/* Eliminar: texto rojo sin caja/borde (a diferencia de .btn-delete en
+   .task-modal-footer, que si lleva recuadro) -- mismo lenguaje liviano que
+   .feed-comment-edit-link ("Editar"), solo que en rojo. */
+.feed-comment-edit-actions .btn-delete {
+  padding: 5px 4px; font-size: 11.5px;
+  background: transparent; border: 0; color: #dc2626;
+}
+.feed-comment-edit-actions .btn-delete:hover { text-decoration: underline; }
+html[data-theme="dark"] .feed-comment-edit-actions .btn-delete { color: #fca5a5; }
 
 /* Quill (barra de herramientas + editor) heredando la tipografia y los
    neutros de marca en vez de su tema "snow" por defecto. */
