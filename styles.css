@@ -2968,11 +2968,6 @@ html[data-theme="dark"] .task-modal-footer .btn-delete:hover { background: rgba(
 .task-feed-list {
   flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 16px;
   display: flex; flex-direction: column; gap: 14px;
-  /* Fondo propio (no el header/toggle, que se queda con var(--bg): su
-     texto usa var(--muted), el mismo gris, y quedaria invisible encima).
-     Las burbujas de comentario (.feed-comment-body) siguen con --card,
-     asi que el contraste "tarjeta clara sobre fondo gris" se mantiene. */
-  background: #71717A;
 }
 
 .feed-entry { display: flex; gap: 8px; align-items: flex-start; }
@@ -3017,6 +3012,10 @@ html[data-theme="dark"] .task-modal-footer .btn-delete:hover { background: rgba(
   font-size: 11.5px; font-weight: 600; color: var(--muted); cursor: pointer;
 }
 .feed-comment-edit-link:hover { color: var(--primary); text-decoration: underline; }
+/* html[data-theme="dark"] button (linea ~2155) tiene mas selectores de tipo
+   que una clase sola y le gana el fondo transparente -- se recalifica
+   igual que .lock-btn (mismo problema, mismo arreglo, linea ~2820). */
+html[data-theme="dark"] .feed-comment-edit-link { background: transparent; }
 
 /* Composer al estilo Trello: caja propia con borde que resalta en foco
    (focus-within, sin JS extra), toolbar+editor fusionados en un solo
@@ -3055,7 +3054,7 @@ html[data-theme="dark"] .task-modal-footer .btn-delete:hover { background: rgba(
   transition: box-shadow .15s ease;
 }
 .task-feed-quill-wrap:focus-within { box-shadow: 0 0 0 2px var(--primary-soft-border); }
-#taskFeedQuill { background: #E4E4E7; border-radius: 8px; }
+#taskFeedQuill { background: var(--card); border-radius: 8px; }
 #taskFeedQuill .ql-editor { min-height: 76px; font-size: 13px; }
 .task-feed-composer-actions { display: flex; justify-content: space-between; align-items: center; }
 .task-feed-send {
@@ -3103,7 +3102,7 @@ html[data-theme="dark"] .task-modal-footer .btn-delete:hover { background: rgba(
    que el composer (caja con foco resaltado + boton primario), para que se
    sienta como el mismo control y no como algo nuevo. */
 .feed-comment-edit-wrap { display: flex; flex-direction: column; gap: 8px; }
-#feedCommentEditQuill { background: #E4E4E7; border-radius: 0 0 8px 8px; }
+#feedCommentEditQuill { background: var(--card); border-radius: 0 0 8px 8px; }
 #feedCommentEditQuill .ql-editor { min-height: 60px; font-size: 13px; }
 .feed-comment-edit-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .feed-comment-edit-actions-right { display: flex; gap: 8px; }
