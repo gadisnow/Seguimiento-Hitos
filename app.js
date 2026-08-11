@@ -256,6 +256,7 @@ async function reloadState(pizarraId) {
   state.pizarraActual = data.pizarra;
   renderAll();
   ensureBoardRealtimeSubscription(data.pizarraId);
+  refreshBoardMembers(data.pizarraId);
 }
 
 // =========================================================
@@ -302,6 +303,96 @@ function onRemoteBoardChange() {
     reloadState(state.currentPizarraId);
   }, 500);
 }
+
+// =========================================================
+// Presence: quien esta conectado ahora mismo (ver src/realtimeApi.js).
+// Cada cliente manda un heartbeat con su ultima actividad local (mouse/
+// teclado/scroll); el resto calcula el color a partir de ese timestamp:
+// <=15min activo (verde), <=60min inactivo (amarillo), >60min o sin datos
+// de presencia = desconectado (rojo). Usado en la vista Usuarios (punto de
+// estado) y en el stack de avatares junto al boton Colaboradores (filtrado
+// a los miembros de la pizarra actual).
+// =========================================================
+const PRESENCE_HEARTBEAT_MS = 30000;
+let presenceChannel = null;
+let presenceHeartbeatTimer = null;
+let presenceLastActivity = {}; // userId -> timestamp ms de su ultima actividad conocida
+let lastLocalActivity = Date.now();
+let boardMembers = []; // creador + colaboradores aceptados de la pizarra actual (id/nombre/email)
+
+function startPresence() {
+  if (!state.profile || presenceChannel) return;
+  presenceChannel = realtimeApi.subscribeToPresence(state.profile, onPresenceSync);
+  presenceHeartbeatTimer = setInterval(sendPresenceHeartbeat, PRESENCE_HEARTBEAT_MS);
+}
+
+function stopPresence() {
+  clearInterval(presenceHeartbeatTimer);
+  presenceHeartbeatTimer = null;
+  realtimeApi.unsubscribePresence(presenceChannel);
+  presenceChannel = null;
+  presenceLastActivity = {};
+}
+
+function sendPresenceHeartbeat() {
+  realtimeApi.trackPresence(presenceChannel, { nombre: activeUserName(), last_activity: lastLocalActivity });
+}
+
+function onPresenceSync(rawState) {
+  const next = {};
+  for (const [userId, metas] of Object.entries(rawState)) {
+    next[userId] = metas.reduce((max, m) => Math.max(max, m.last_activity || 0), 0);
+  }
+  presenceLastActivity = next;
+  if (document.getElementById("view-usuarios")?.classList.contains("active")) renderUsuarios();
+  renderTopbarPresence();
+}
+
+function presenceStatus(userId) {
+  const last = presenceLastActivity[userId];
+  if (!last) return "red";
+  const diffMin = (Date.now() - last) / 60000;
+  if (diffMin <= 15) return "green";
+  if (diffMin <= 60) return "yellow";
+  return "red";
+}
+
+const PRESENCE_LABEL = { green: "Activo", yellow: "Inactivo (+15 min)", red: "Desconectado" };
+
+function presenceDot(userId) {
+  const status = presenceStatus(userId);
+  return `<span class="presence-dot presence-dot-${status}" title="${PRESENCE_LABEL[status]}"></span>`;
+}
+
+// Miembros de la pizarra abierta (para el stack de avatares del topbar) --
+// se refresca en cada reloadState, ver mas abajo.
+function refreshBoardMembers(pizarraId) {
+  if (!pizarraId) { boardMembers = []; renderTopbarPresence(); return; }
+  pizarraApi.getBoardMembers(pizarraId)
+    .then((members) => { boardMembers = members || []; renderTopbarPresence(); })
+    .catch(() => { boardMembers = []; });
+}
+
+function renderTopbarPresence() {
+  const wrap = $("topbarPresenceStack");
+  if (!wrap) return;
+  const conectados = boardMembers
+    .filter((m) => m.id !== activeUserId())
+    .map((m) => ({ ...m, status: presenceStatus(m.id) }))
+    .filter((m) => m.status !== "red");
+  if (!conectados.length) { wrap.innerHTML = ""; return; }
+  const shown = conectados.slice(0, 4);
+  const extra = conectados.length - shown.length;
+  wrap.innerHTML = shown.map((m) => `
+    <span class="presence-avatar presence-avatar-${m.status}" title="${escHtml(m.nombre)} · ${PRESENCE_LABEL[m.status]}">${initialsOf(m.nombre)}</span>
+  `).join("") + (extra > 0 ? `<span class="presence-avatar presence-avatar-extra" title="${extra} mas conectados">+${extra}</span>` : "");
+}
+
+// Cualquier movimiento de mouse/teclado cuenta como actividad -- se manda
+// en el proximo heartbeat, no en cada evento (evita spamear el canal).
+["mousemove", "keydown", "click", "scroll", "touchstart"].forEach((evt) => {
+  window.addEventListener(evt, () => { lastLocalActivity = Date.now(); }, { passive: true });
+});
 
 // Ejecuta una mutacion async y muestra un toast si falla.
 async function withBusy(fn) {
@@ -542,6 +633,7 @@ async function boot() {
   state.profile = profile;
   state.config.currentUser = profile.nombre;
   state.config.rol = profile.rol;
+  startPresence();
 
   let pizarras = [];
   try { pizarras = await pizarraApi.listMyPizarras(); }
@@ -824,6 +916,7 @@ function bindEvents() {
       await withBusy(() => authApi.logout());
       state.profile = null;
       teardownBoardRealtimeSubscription();
+      stopPresence();
       showLoginScreen();
     });
   }
@@ -1113,6 +1206,7 @@ function renderUsuarios() {
 
   tbActivos.innerHTML = activos.map((u) => `
     <tr>
+      <td>${presenceDot(u.id)}</td>
       <td>${escHtml(u.nombre)}</td>
       <td>${escHtml(u.email)}</td>
       <td><span class="rol-badge rol-${u.rol.toLowerCase()}">${u.rol}</span></td>
@@ -1126,7 +1220,7 @@ function renderUsuarios() {
           ${u.id !== state.profile.id ? `<button class="ghost" style="font-size:12px;color:#dc2626" data-eliminar="${u.id}">Eliminar</button>` : ""}
         </div>
       </td>
-    </tr>`).join("") || `<tr><td colspan="5" style="color:var(--muted);text-align:center">Sin usuarios.</td></tr>`;
+    </tr>`).join("") || `<tr><td colspan="6" style="color:var(--muted);text-align:center">Sin usuarios.</td></tr>`;
 
   tbActivos.querySelectorAll("[data-eliminar]").forEach((btn) => {
     btn.addEventListener("click", async () => {
