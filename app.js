@@ -4972,7 +4972,12 @@ function wireFeedPanel(draft, mode) {
   // que solo reemplaza el innerHTML de #taskFeedList sin recrear el nodo.
   feedList?.addEventListener("click", (e) => {
     const img = e.target.closest(".feed-comment-body img");
-    if (img) openImagePreview(img.src);
+    if (img) { openImagePreview(img.src); return; }
+    // Los enlaces vienen del HTML crudo de Quill (sin target propio) --
+    // se intercepta el click en vez de bakear target="_blank" al guardar
+    // para que tambien funcione en comentarios ya guardados antes de esto.
+    const link = e.target.closest(".feed-comment-body a[href]");
+    if (link) { e.preventDefault(); window.open(link.href, "_blank", "noopener,noreferrer"); }
   });
   // Antes del early-return de abajo: "Editar"/"Eliminar" en un comentario
   // propio deben funcionar aunque el usuario actual no tenga permiso para
