@@ -274,15 +274,37 @@ let boardChannel = null;
 let boardChannelPizarraId = null;
 let pendingRemoteRefresh = false;
 let remoteChangeTimer = null;
+let boardResubscribeTimer = null;
 
-function ensureBoardRealtimeSubscription(pizarraId) {
-  if (pizarraId === boardChannelPizarraId) return;
+// force=true reabre la suscripcion aunque ya este "puesta" para esa misma
+// pizarraId -- lo usan el reintento de abajo (onBoardChannelStatus) y el
+// refresh al volver a la pestana (ver bindEvents/visibilitychange), que
+// necesitan poder recrear un canal que quedo colgado sin que cambie el id.
+function ensureBoardRealtimeSubscription(pizarraId, force = false) {
+  if (!force && pizarraId === boardChannelPizarraId) return;
   realtimeApi.unsubscribeBoard(boardChannel);
-  boardChannel = pizarraId ? realtimeApi.subscribeToBoard(pizarraId, onRemoteBoardChange) : null;
+  clearTimeout(boardResubscribeTimer);
+  boardChannel = pizarraId
+    ? realtimeApi.subscribeToBoard(pizarraId, onRemoteBoardChange, (status) => onBoardChannelStatus(pizarraId, status))
+    : null;
   boardChannelPizarraId = pizarraId || null;
 }
 
+// El socket de Realtime se puede caer en silencio (wifi, laptop en suspenso,
+// token vencido) sin que la app se entere -- antes no habia forma de
+// recuperarse salvo un F5 manual, que era justo el sintoma reportado
+// ("los cambios de otro usuario no se ven en vivo"). Con el status callback
+// de subscribeToBoard, un CHANNEL_ERROR/TIMED_OUT/CLOSED dispara un
+// reintento a los 3s (solo si seguimos en esa misma pizarra).
+function onBoardChannelStatus(pizarraId, status) {
+  if (status !== "CHANNEL_ERROR" && status !== "TIMED_OUT" && status !== "CLOSED") return;
+  if (pizarraId !== boardChannelPizarraId) return;
+  clearTimeout(boardResubscribeTimer);
+  boardResubscribeTimer = setTimeout(() => ensureBoardRealtimeSubscription(pizarraId, true), 3000);
+}
+
 function teardownBoardRealtimeSubscription() {
+  clearTimeout(boardResubscribeTimer);
   realtimeApi.unsubscribeBoard(boardChannel);
   boardChannel = null;
   boardChannelPizarraId = null;
@@ -314,8 +336,13 @@ function onRemoteBoardChange() {
 // a los miembros de la pizarra actual).
 // =========================================================
 const PRESENCE_HEARTBEAT_MS = 30000;
+// Mismo umbral que presenceStatus() usa para marcar a alguien "desconectado"
+// (rojo) a los demas -- si vos mismo llevas 60min sin mover el mouse/teclado,
+// tiene sentido que tu propia sesion se cierre, no solo que se vea roja.
+const IDLE_LOGOUT_MS = 60 * 60 * 1000;
 let presenceChannel = null;
 let presenceHeartbeatTimer = null;
+let idleLogoutTimer = null;
 let presenceLastActivity = {}; // userId -> timestamp ms de su ultima actividad conocida
 let lastLocalActivity = Date.now();
 let boardMembers = []; // creador + colaboradores aceptados de la pizarra actual (id/nombre/email)
@@ -324,14 +351,40 @@ function startPresence() {
   if (!state.profile || presenceChannel) return;
   presenceChannel = realtimeApi.subscribeToPresence(state.profile, onPresenceSync);
   presenceHeartbeatTimer = setInterval(sendPresenceHeartbeat, PRESENCE_HEARTBEAT_MS);
+  idleLogoutTimer = setInterval(checkIdleLogout, PRESENCE_HEARTBEAT_MS);
 }
 
 function stopPresence() {
   clearInterval(presenceHeartbeatTimer);
   presenceHeartbeatTimer = null;
+  clearInterval(idleLogoutTimer);
+  idleLogoutTimer = null;
   realtimeApi.unsubscribePresence(presenceChannel);
   presenceChannel = null;
   presenceLastActivity = {};
+}
+
+// Logout automatico por inactividad: chequea en el mismo tick que el
+// heartbeat de presencia (cada 30s) si paso 1 hora desde el ultimo
+// mousemove/keydown/click/scroll/touchstart local (ver listener mas abajo).
+async function checkIdleLogout() {
+  if (!state.profile) return;
+  if (Date.now() - lastLocalActivity < IDLE_LOGOUT_MS) return;
+  await performLogout();
+  showToast("Se cerro tu sesion por inactividad (60 minutos).");
+}
+
+// Logout compartido por los 4 puntos de salida (boton del topbar, boton del
+// selector de pizarras, "Volver al login" de cuenta pendiente/desactivada, y
+// el auto-logout por inactividad de arriba) -- antes cada uno repetia esta
+// secuencia a mano y alguno se olvidaba stopPresence(), dejando el heartbeat
+// corriendo despues de cerrar sesion.
+async function performLogout() {
+  await withBusy(() => authApi.logout());
+  state.profile = null;
+  teardownBoardRealtimeSubscription();
+  stopPresence();
+  showLoginScreen();
 }
 
 function sendPresenceHeartbeat() {
@@ -714,10 +767,7 @@ async function renderPizarraSwitcherScreen() {
 
   document.getElementById("pizarraSwitcherLogout")?.addEventListener("click", async () => {
     if (!confirm("Cerrar sesion?")) return;
-    await withBusy(() => authApi.logout());
-    state.profile = null;
-    teardownBoardRealtimeSubscription();
-    showLoginScreen();
+    await performLogout();
   });
 }
 
@@ -909,15 +959,24 @@ function bindEvents() {
     });
   });
 
+  // Red de seguridad independiente del estado del canal Realtime: al volver
+  // a esta pestana (otro monitor, otra app, la laptop durmiendo) se fuerza
+  // un refetch y se recrea la suscripcion, sin depender de haber detectado
+  // bien que el socket se habia caido (ver onBoardChannelStatus).
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    if (!state.currentPizarraId) return;
+    const modalAbierto = Boolean((els.modalTask && els.modalTask.open) || (els.modalForm && els.modalForm.open));
+    if (modalAbierto) return;
+    ensureBoardRealtimeSubscription(state.currentPizarraId, true);
+    reloadState(state.currentPizarraId);
+  });
+
   const logoutBtn = $("logoutBtn");
   if (logoutBtn) {
     logoutBtn.addEventListener("click", async () => {
       if (!confirm("Cerrar sesion?")) return;
-      await withBusy(() => authApi.logout());
-      state.profile = null;
-      teardownBoardRealtimeSubscription();
-      stopPresence();
-      showLoginScreen();
+      await performLogout();
     });
   }
 }
@@ -978,10 +1037,7 @@ function showAccessNotice(kind) {
     <div class="login-${isOff ? "error" : "success"}">${msg}</div>
     <button type="button" class="login-link" id="noticeLogout" style="margin-top:10px">Volver al login</button>`;
   $("noticeLogout").addEventListener("click", async () => {
-    await withBusy(() => authApi.logout());
-    state.profile = null;
-    teardownBoardRealtimeSubscription();
-    renderLogin();
+    await performLogout();
   });
 }
 
