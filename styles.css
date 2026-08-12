@@ -3100,6 +3100,21 @@ html[data-theme="dark"] .task-modal-footer .btn-delete:hover { background: rgba(
 .feed-comment-body img { max-width: 100%; border-radius: 6px; cursor: zoom-in; transition: opacity .1s ease; }
 .feed-comment-body img:hover { opacity: .88; }
 .feed-comment-body a { color: var(--primary); }
+/* Quill guarda listas ordenadas Y con vinetas con el mismo tag <ol>, y
+   distingue con el atributo data-list en cada <li> + un <span class="ql-ui">
+   marcador -- el glifo real (numero vs bullet) lo pone el CSS de Quill via
+   ::before, pero ese CSS esta scopeado a .ql-editor. Fuera del editor (aca,
+   el comentario ya guardado y renderizado de solo lectura) hay que repetir
+   esas reglas o el navegador muestra "1. 2. 3." para las dos. */
+.feed-comment-body ol { padding-left: 1.5em; margin: 0 0 6px; counter-reset: list-0; }
+.feed-comment-body ol:last-child { margin-bottom: 0; }
+.feed-comment-body ol > li { list-style-type: none; padding-left: 1.5em; position: relative; }
+.feed-comment-body ol > li > .ql-ui { display: inline-block; margin-left: -1.5em; margin-right: .3em; text-align: right; white-space: nowrap; width: 1.2em; }
+.feed-comment-body ol > li[data-list="bullet"] > .ql-ui::before { content: "\2022"; }
+.feed-comment-body ol > li[data-list="checked"] > .ql-ui::before { content: "\2611"; }
+.feed-comment-body ol > li[data-list="unchecked"] > .ql-ui::before { content: "\2610"; }
+.feed-comment-body ol > li[data-list="ordered"] { counter-increment: list-0; }
+.feed-comment-body ol > li[data-list="ordered"] > .ql-ui::before { content: counter(list-0, decimal) ". "; }
 
 .feed-comment-edit-link {
   border: 0; background: transparent; padding: 4px 2px 0; margin: 0;
@@ -3175,7 +3190,6 @@ html[data-theme="dark"] .feed-comment-edit-link { background: transparent; }
   display: flex; align-items: center; justify-content: center;
   font-family: inherit; font-weight: 800; font-size: 12px;
 }
-#taskFeedToolbar button.ql-italic { font-style: italic; font-weight: 600; }
 #taskFeedToolbar button svg { width: 14px; height: 14px; }
 #taskFeedToolbar button:hover { background: var(--bg); color: var(--text); }
 #taskFeedToolbar button.ql-active { background: var(--primary-soft); color: var(--primary); }

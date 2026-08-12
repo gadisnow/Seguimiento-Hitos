@@ -1997,7 +1997,11 @@ const ICONS = {
   ganttBarras: `<rect x="3.5" y="5" width="10" height="3" rx="1.5"/><rect x="7.5" y="10.5" width="13" height="3" rx="1.5"/><rect x="4.5" y="16" width="8" height="3" rx="1.5"/>`,
   historial: `<path d="M4.5 12a7.5 7.5 0 1 0 2.3-5.4"/><path d="M4.5 5.5v4h4"/><path d="M12 8.5v3.8l2.6 1.6"/>`,
   imagen: `<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M4 16.3l4.5-4.8 3.2 3.6 3-3.3L20.5 17"/>`,
-  descargar: `<path d="M12 3.5v11.5"/><path d="M7.5 11l4.5 4.5 4.5-4.5"/><path d="M4.5 17.5v2a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2"/>`
+  descargar: `<path d="M12 3.5v11.5"/><path d="M7.5 11l4.5 4.5 4.5-4.5"/><path d="M4.5 17.5v2a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2"/>`,
+  // Icono de cursiva para el toolbar de Quill (ver Object.assign(Quill.import("ui/icons"))
+  // mas abajo): reemplaza la "I" en texto italico, que a ese tamano se ve
+  // como una simple linea inclinada y no se reconoce como boton de cursiva.
+  cursiva: `<line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/>`
 };
 function icon(name, size = 16) {
   return `<svg class="icon-inline" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
@@ -2015,9 +2019,30 @@ Object.assign(Quill.import("ui/icons"), {
   image: qlIconSvg("imagen"),
   link: qlIconSvg("enlace"),
   bold: "B",
-  italic: "I",
+  italic: qlIconSvg("cursiva"),
   list: { ordered: qlIconSvg("listaNumerada", 14), bullet: qlIconSvg("lista", 14) },
 });
+
+// Handler propio del boton "Enlace" de los dos Quill de comentarios (composer
+// y edicion in-place): el handler default de Quill/SnowTheme no hace nada si
+// no hay texto seleccionado (corta en seco con "if (range.length === 0)
+// return"), lo que en este toolbar compacto se sentia como un boton roto.
+// Con seleccion, formatea ese texto como enlace; sin seleccion, inserta la
+// URL como texto propio ya formateado en la posicion del cursor.
+function quillLinkHandler(value) {
+  if (!value) { this.quill.format("link", false, Quill.sources.USER); return; }
+  const range = this.quill.getSelection(true);
+  if (!range) return;
+  const url = window.prompt("Ingresá la URL del enlace:");
+  if (!url) return;
+  const href = /^\S+@\S+\.\S+$/.test(url) ? `mailto:${url}` : (/^\w+:\/\//.test(url) ? url : `https://${url}`);
+  if (range.length === 0) {
+    this.quill.insertText(range.index, url, "link", href, Quill.sources.USER);
+    this.quill.setSelection(range.index + url.length, 0, Quill.sources.USER);
+  } else {
+    this.quill.formatText(range.index, range.length, "link", href, Quill.sources.USER);
+  }
+}
 
 // --------- Menu de acciones de la tarjeta Kanban (boton "⋯") ---------
 let activeKcardMenu = null;
@@ -4751,7 +4776,12 @@ function wireComentariosListEvents(draft, mode) {
   const comentario = (draft.comentarios || []).find((c) => c.id === editingComentarioId);
   editCommentQuillInstance = new Quill(editQuillContainer, {
     theme: "snow",
-    modules: { toolbar: [["bold", "italic"], [{ list: "ordered" }, { list: "bullet" }], ["link", "image"]] }
+    modules: {
+      toolbar: {
+        container: [["bold", "italic"], [{ list: "ordered" }, { list: "bullet" }], ["link", "image"]],
+        handlers: { link: quillLinkHandler }
+      }
+    }
   });
   if (comentario) editCommentQuillInstance.clipboard.dangerouslyPasteHTML(comentario.text);
   editCommentQuillInstance.focus();
@@ -4961,7 +4991,7 @@ function wireFeedPanel(draft, mode) {
   feedQuillInstance = new Quill(quillContainer, {
     theme: "snow",
     placeholder: "Escribi un comentario...",
-    modules: { toolbar: { container: "#taskFeedToolbar" } }
+    modules: { toolbar: { container: "#taskFeedToolbar", handlers: { link: quillLinkHandler } } }
   });
   // Ctrl/Cmd+Enter envia sin soltar el mouse — Enter solo hace salto de
   // linea (Quill), asi que no alcanza con eso para no interrumpir el typing.
