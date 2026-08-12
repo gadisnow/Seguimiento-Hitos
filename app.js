@@ -1030,7 +1030,7 @@ function renderLogin() {
       <div id="loginMsg"></div>
       <button type="submit" class="login-btn">Ingresar</button>
       <button type="button" class="login-link" id="goForgot">¿Olvidaste tu contraseña?</button>
-      <button type="button" class="login-link" id="goRegister">Solicitar acceso</button>
+      <button type="button" class="login-link" id="goRegister">Crear cuenta</button>
     </form>`;
   $("goForgot").addEventListener("click", renderForgotPassword);
   $("loginFormEl").addEventListener("submit", async (e) => {
@@ -1056,7 +1056,8 @@ function renderRegister() {
   if (!wrap) return;
   wrap.innerHTML = `
     <form class="login-form" id="regFormEl">
-      <label>Nombre completo<input type="text" id="regNombre" required /></label>
+      <label>Nombre<input type="text" id="regNombre" required /></label>
+      <label>Apellido<input type="text" id="regApellido" required /></label>
       <label>Email<input type="email" id="regEmail" required /></label>
       <label>Contraseña<input type="password" id="regPass" required /></label>
       <label>Confirmar contraseña<input type="password" id="regPass2" required /></label>
@@ -1068,7 +1069,7 @@ function renderRegister() {
   $("regFormEl").addEventListener("submit", async (e) => {
     e.preventDefault();
     const msg = $("regMsg");
-    const nombre = $("regNombre").value.trim();
+    const nombre = `${$("regNombre").value.trim()} ${$("regApellido").value.trim()}`.trim();
     const email  = $("regEmail").value.trim().toLowerCase();
     const pass   = $("regPass").value;
     const pass2  = $("regPass2").value;
@@ -4133,14 +4134,17 @@ function buildEtiquetasBlockHtml(draft, mode) {
     </div>`;
 }
 
-// Persistencia de acordeones abiertos/cerrados (Datos/Hitos/Gantt), mismo
-// patron que feedPanelVisible: prefijo "sgtemas_", string "1"/"0" en
-// localStorage, default abierto. Se lee directo de localStorage (no en una
-// variable de modulo) porque el bloque Hitos+Gantt se re-renderiza aparte
-// (ver refreshTaskGeneralPane) y necesita el mismo estado sin sincronizar
-// dos fuentes de verdad.
-function isAccordionOpen(key) {
-  return localStorage.getItem(`sgtemas_acc_${key}`) !== "0";
+// Persistencia de acordeones abiertos/cerrados (Datos/Gantt — Hitos no usa
+// esta funcion, ver wireAccordionToggle), mismo patron que feedPanelVisible:
+// prefijo "sgtemas_", string "1"/"0" en localStorage, default segun
+// defaultOpen. Se lee directo de localStorage (no en una variable de modulo)
+// porque el bloque Hitos+Gantt se re-renderiza aparte (ver
+// refreshTaskGeneralPane) y necesita el mismo estado sin sincronizar dos
+// fuentes de verdad.
+function isAccordionOpen(key, defaultOpen = true) {
+  const stored = localStorage.getItem(`sgtemas_acc_${key}`);
+  if (stored === null) return defaultOpen;
+  return stored !== "0";
 }
 function setAccordionOpen(key, open) {
   localStorage.setItem(`sgtemas_acc_${key}`, open ? "1" : "0");
@@ -4204,7 +4208,10 @@ function wireAccordionToggle(key) {
   if (!head || !body) return;
   head.addEventListener("click", () => {
     const opening = !accEl.classList.contains("open");
-    setAccordionOpen(key, opening);
+    // Hitos es el contenido principal del tema: se puede colapsar para esta
+    // vista, pero no se persiste — al reabrir el modal (mismo u otro tema)
+    // vuelve a abrir por defecto, a diferencia de Datos/Gantt.
+    if (key !== "hitos") setAccordionOpen(key, opening);
     animateAccordionToggle(accEl, body, opening);
   });
 }
@@ -4406,7 +4413,7 @@ function buildHitosGanttSectionHtml(draft, mode) {
   const totalH = draft.hitos.length;
   const doneH = draft.hitos.filter((h) => h.estado === "Cerrado").length;
   return `
-    <div class="task-accordion ${isAccordionOpen("hitos") ? "open" : ""}" data-accordion="hitos">
+    <div class="task-accordion open" data-accordion="hitos">
       ${accordionHeadHtml("hitos", "prioridad", "Hitos", totalH > 0 ? `${doneH}/${totalH}` : "")}
       <div class="task-accordion-body"><div class="task-accordion-body-inner">
         <div class="hito-compact-list" id="taskHitosList">${renderHitosCompactList(draft, { readonly: !editable })}</div>
@@ -4415,7 +4422,7 @@ function buildHitosGanttSectionHtml(draft, mode) {
       </div></div>
     </div>
 
-    <div class="task-accordion ${isAccordionOpen("gantt") ? "open" : ""}" data-accordion="gantt">
+    <div class="task-accordion ${isAccordionOpen("gantt", false) ? "open" : ""}" data-accordion="gantt">
       ${accordionHeadHtml("gantt", "ganttBarras", "Gantt")}
       <div class="task-accordion-body"><div class="task-accordion-body-inner">
         <div id="taskGanttWrap">${renderMiniGantt(draft)}</div>
@@ -4427,7 +4434,7 @@ function buildHitosGanttSectionHtml(draft, mode) {
 function buildGeneralTabHtml(draft, mode) {
   return `
     <div id="taskEtiquetasWrap">${buildEtiquetasBlockHtml(draft, mode)}</div>
-    <div class="task-accordion ${isAccordionOpen("datos") ? "open" : ""}" data-accordion="datos">
+    <div class="task-accordion ${isAccordionOpen("datos", false) ? "open" : ""}" data-accordion="datos">
       ${accordionHeadHtml("datos", "lista", "Datos")}
       <div class="task-accordion-body"><div class="task-accordion-body-inner">${buildDatosFieldsHtml(draft, mode)}</div></div>
     </div>

@@ -125,11 +125,15 @@ suben como archivo real a Storage (bucket privado `documentos`), con enlace por 
 
 
 
+
+
+
+
 <!-- cloude-code-toolbox:mcp-skills-awareness-begin -->
 
 ### MCP & Skills awareness (Cloude Code ToolBox)
 
-_Last synced: 2026-08-04T01:36:47.368Z._
+_Last synced: 2026-08-12T02:14:43.384Z._
 
 - **Full report:** `.claude/cloude-code-toolbox-mcp-skills-awareness.md` in this workspace (auto-overwritten on each scan). Use it as ground truth for configured servers and skill folders.
 - **MCP:** For **live tools** in Claude Code, enable the matching server via `/mcp`. Servers are configured in `~/.claude.json` (user) and `.mcp.json` (project).
@@ -154,6 +158,24 @@ _No active user-scoped servers in mcp.json._
 
 #### User skills
 
-_None found._
+- **impeccable** — `C:\Users\jorge\.claude\skills\impeccable` — Use when the user wants to design, redesign, shape, critique, audit, polish, clarify, distill, harden, optimize, adapt, animate, colorize, extract, or otherwise improve a frontend interface. Covers websites, landing page
+
+- **animate** — `C:\Users\jorge\.agents\skills\animate` — Build an animation from scratch, making the decisions in the order that determines whether it feels right — should it animate at all, what purpose, which tool, which properties, which curve and duration, how it interrupt
+
+- **animation-vocabulary** — `C:\Users\jorge\.agents\skills\animation-vocabulary` — Reverse-lookup glossary that turns a vague description of a web animation or motion effect into its exact term ("the bouncy thing when a popover opens" → Pop in; "the iOS rubber-band scroll" → Rubber-banding). Use when t
+
+- **apple-design** — `C:\Users\jorge\.agents\skills\apple-design` — Apple's approach to interface design and fluid, physical motion, translated for the web. Use when building or reviewing gesture-driven UI, spring animations, drag/swipe/sheet interactions, momentum and interruptible tran
+
+- **emil-design-eng** — `C:\Users\jorge\.agents\skills\emil-design-eng` — This skill encodes Emil Kowalski's philosophy on UI polish, component design, animation decisions, and the invisible details that make software feel great.
+
+- **find-animation-opportunities** — `C:\Users\jorge\.agents\skills\find-animation-opportunities` — Search a codebase or UI for places that don't animate but should, and reject everything that shouldn't. Read-only; it proposes motion with exact values, it does not implement it. Use when the user asks "what could be ani
+
+- **improve-animations** — `C:\Users\jorge\.agents\skills\improve-animations` — Survey a codebase's animation and motion code as a senior motion advisor, then produce a prioritized audit and self-contained implementation plans for other agents (or cheaper models) to execute. Read-only on source code
+
+- **pick-ui-library** — `C:\Users\jorge\.agents\skills\pick-ui-library` — Pick the right library for a given frontend task from a curated, opinionated list — numbers, OTP inputs, charts, command menus, virtualization, drag and drop, toasts, state, styling, and more. Only runs when explicitly i
+
+- **prototype** — `C:\Users\jorge\.agents\skills\prototype` — Build multiple genuinely different versions of a UI piece you describe, rendered behind a visual picker so you can flip through them live and promote the one that feels right. Only runs when explicitly invoked; it does n
+
+- **review-animations** — `C:\Users\jorge\.agents\skills\review-animations` — Reviews animation and motion code against a high craft bar derived from Emil Kowalski's design engineering philosophy. Default to flagging; approval is earned.
 
 <!-- cloude-code-toolbox:mcp-skills-awareness-end -->
