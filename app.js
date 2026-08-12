@@ -256,6 +256,7 @@ async function reloadState(pizarraId) {
   state.pizarraActual = data.pizarra;
   renderAll();
   ensureBoardRealtimeSubscription(data.pizarraId);
+  refreshBoardMembers(data.pizarraId);
 }
 
 // =========================================================
@@ -273,15 +274,37 @@ let boardChannel = null;
 let boardChannelPizarraId = null;
 let pendingRemoteRefresh = false;
 let remoteChangeTimer = null;
+let boardResubscribeTimer = null;
 
-function ensureBoardRealtimeSubscription(pizarraId) {
-  if (pizarraId === boardChannelPizarraId) return;
+// force=true reabre la suscripcion aunque ya este "puesta" para esa misma
+// pizarraId -- lo usan el reintento de abajo (onBoardChannelStatus) y el
+// refresh al volver a la pestana (ver bindEvents/visibilitychange), que
+// necesitan poder recrear un canal que quedo colgado sin que cambie el id.
+function ensureBoardRealtimeSubscription(pizarraId, force = false) {
+  if (!force && pizarraId === boardChannelPizarraId) return;
   realtimeApi.unsubscribeBoard(boardChannel);
-  boardChannel = pizarraId ? realtimeApi.subscribeToBoard(pizarraId, onRemoteBoardChange) : null;
+  clearTimeout(boardResubscribeTimer);
+  boardChannel = pizarraId
+    ? realtimeApi.subscribeToBoard(pizarraId, onRemoteBoardChange, (status) => onBoardChannelStatus(pizarraId, status))
+    : null;
   boardChannelPizarraId = pizarraId || null;
 }
 
+// El socket de Realtime se puede caer en silencio (wifi, laptop en suspenso,
+// token vencido) sin que la app se entere -- antes no habia forma de
+// recuperarse salvo un F5 manual, que era justo el sintoma reportado
+// ("los cambios de otro usuario no se ven en vivo"). Con el status callback
+// de subscribeToBoard, un CHANNEL_ERROR/TIMED_OUT/CLOSED dispara un
+// reintento a los 3s (solo si seguimos en esa misma pizarra).
+function onBoardChannelStatus(pizarraId, status) {
+  if (status !== "CHANNEL_ERROR" && status !== "TIMED_OUT" && status !== "CLOSED") return;
+  if (pizarraId !== boardChannelPizarraId) return;
+  clearTimeout(boardResubscribeTimer);
+  boardResubscribeTimer = setTimeout(() => ensureBoardRealtimeSubscription(pizarraId, true), 3000);
+}
+
 function teardownBoardRealtimeSubscription() {
+  clearTimeout(boardResubscribeTimer);
   realtimeApi.unsubscribeBoard(boardChannel);
   boardChannel = null;
   boardChannelPizarraId = null;
@@ -302,6 +325,127 @@ function onRemoteBoardChange() {
     reloadState(state.currentPizarraId);
   }, 500);
 }
+
+// =========================================================
+// Presence: quien esta conectado ahora mismo (ver src/realtimeApi.js).
+// Cada cliente manda un heartbeat con su ultima actividad local (mouse/
+// teclado/scroll); el resto calcula el color a partir de ese timestamp:
+// <=15min activo (verde), <=60min inactivo (amarillo), >60min o sin datos
+// de presencia = desconectado (rojo). Usado en la vista Usuarios (punto de
+// estado) y en el stack de avatares junto al boton Colaboradores (filtrado
+// a los miembros de la pizarra actual).
+// =========================================================
+const PRESENCE_HEARTBEAT_MS = 30000;
+// Mismo umbral que presenceStatus() usa para marcar a alguien "desconectado"
+// (rojo) a los demas -- si vos mismo llevas 60min sin mover el mouse/teclado,
+// tiene sentido que tu propia sesion se cierre, no solo que se vea roja.
+const IDLE_LOGOUT_MS = 60 * 60 * 1000;
+let presenceChannel = null;
+let presenceHeartbeatTimer = null;
+let idleLogoutTimer = null;
+let presenceLastActivity = {}; // userId -> timestamp ms de su ultima actividad conocida
+let lastLocalActivity = Date.now();
+let boardMembers = []; // creador + colaboradores aceptados de la pizarra actual (id/nombre/email)
+
+function startPresence() {
+  if (!state.profile || presenceChannel) return;
+  presenceChannel = realtimeApi.subscribeToPresence(state.profile, onPresenceSync);
+  presenceHeartbeatTimer = setInterval(sendPresenceHeartbeat, PRESENCE_HEARTBEAT_MS);
+  idleLogoutTimer = setInterval(checkIdleLogout, PRESENCE_HEARTBEAT_MS);
+}
+
+function stopPresence() {
+  clearInterval(presenceHeartbeatTimer);
+  presenceHeartbeatTimer = null;
+  clearInterval(idleLogoutTimer);
+  idleLogoutTimer = null;
+  realtimeApi.unsubscribePresence(presenceChannel);
+  presenceChannel = null;
+  presenceLastActivity = {};
+}
+
+// Logout automatico por inactividad: chequea en el mismo tick que el
+// heartbeat de presencia (cada 30s) si paso 1 hora desde el ultimo
+// mousemove/keydown/click/scroll/touchstart local (ver listener mas abajo).
+async function checkIdleLogout() {
+  if (!state.profile) return;
+  if (Date.now() - lastLocalActivity < IDLE_LOGOUT_MS) return;
+  await performLogout();
+  showToast("Se cerro tu sesion por inactividad (60 minutos).");
+}
+
+// Logout compartido por los 4 puntos de salida (boton del topbar, boton del
+// selector de pizarras, "Volver al login" de cuenta pendiente/desactivada, y
+// el auto-logout por inactividad de arriba) -- antes cada uno repetia esta
+// secuencia a mano y alguno se olvidaba stopPresence(), dejando el heartbeat
+// corriendo despues de cerrar sesion.
+async function performLogout() {
+  await withBusy(() => authApi.logout());
+  state.profile = null;
+  teardownBoardRealtimeSubscription();
+  stopPresence();
+  showLoginScreen();
+}
+
+function sendPresenceHeartbeat() {
+  realtimeApi.trackPresence(presenceChannel, { nombre: activeUserName(), last_activity: lastLocalActivity });
+}
+
+function onPresenceSync(rawState) {
+  const next = {};
+  for (const [userId, metas] of Object.entries(rawState)) {
+    next[userId] = metas.reduce((max, m) => Math.max(max, m.last_activity || 0), 0);
+  }
+  presenceLastActivity = next;
+  if (document.getElementById("view-usuarios")?.classList.contains("active")) renderUsuarios();
+  renderTopbarPresence();
+}
+
+function presenceStatus(userId) {
+  const last = presenceLastActivity[userId];
+  if (!last) return "red";
+  const diffMin = (Date.now() - last) / 60000;
+  if (diffMin <= 15) return "green";
+  if (diffMin <= 60) return "yellow";
+  return "red";
+}
+
+const PRESENCE_LABEL = { green: "Activo", yellow: "Inactivo (+15 min)", red: "Desconectado" };
+
+function presenceDot(userId) {
+  const status = presenceStatus(userId);
+  return `<span class="presence-dot presence-dot-${status}" title="${PRESENCE_LABEL[status]}"></span>`;
+}
+
+// Miembros de la pizarra abierta (para el stack de avatares del topbar) --
+// se refresca en cada reloadState, ver mas abajo.
+function refreshBoardMembers(pizarraId) {
+  if (!pizarraId) { boardMembers = []; renderTopbarPresence(); return; }
+  pizarraApi.getBoardMembers(pizarraId)
+    .then((members) => { boardMembers = members || []; renderTopbarPresence(); })
+    .catch(() => { boardMembers = []; });
+}
+
+function renderTopbarPresence() {
+  const wrap = $("topbarPresenceStack");
+  if (!wrap) return;
+  const conectados = boardMembers
+    .filter((m) => m.id !== activeUserId())
+    .map((m) => ({ ...m, status: presenceStatus(m.id) }))
+    .filter((m) => m.status !== "red");
+  if (!conectados.length) { wrap.innerHTML = ""; return; }
+  const shown = conectados.slice(0, 4);
+  const extra = conectados.length - shown.length;
+  wrap.innerHTML = shown.map((m) => `
+    <span class="presence-avatar presence-avatar-${m.status}" title="${escHtml(m.nombre)} · ${PRESENCE_LABEL[m.status]}">${initialsOf(m.nombre)}</span>
+  `).join("") + (extra > 0 ? `<span class="presence-avatar presence-avatar-extra" title="${extra} mas conectados">+${extra}</span>` : "");
+}
+
+// Cualquier movimiento de mouse/teclado cuenta como actividad -- se manda
+// en el proximo heartbeat, no en cada evento (evita spamear el canal).
+["mousemove", "keydown", "click", "scroll", "touchstart"].forEach((evt) => {
+  window.addEventListener(evt, () => { lastLocalActivity = Date.now(); }, { passive: true });
+});
 
 // Ejecuta una mutacion async y muestra un toast si falla.
 async function withBusy(fn) {
@@ -542,6 +686,7 @@ async function boot() {
   state.profile = profile;
   state.config.currentUser = profile.nombre;
   state.config.rol = profile.rol;
+  startPresence();
 
   let pizarras = [];
   try { pizarras = await pizarraApi.listMyPizarras(); }
@@ -622,10 +767,7 @@ async function renderPizarraSwitcherScreen() {
 
   document.getElementById("pizarraSwitcherLogout")?.addEventListener("click", async () => {
     if (!confirm("Cerrar sesion?")) return;
-    await withBusy(() => authApi.logout());
-    state.profile = null;
-    teardownBoardRealtimeSubscription();
-    showLoginScreen();
+    await performLogout();
   });
 }
 
@@ -817,14 +959,24 @@ function bindEvents() {
     });
   });
 
+  // Red de seguridad independiente del estado del canal Realtime: al volver
+  // a esta pestana (otro monitor, otra app, la laptop durmiendo) se fuerza
+  // un refetch y se recrea la suscripcion, sin depender de haber detectado
+  // bien que el socket se habia caido (ver onBoardChannelStatus).
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    if (!state.currentPizarraId) return;
+    const modalAbierto = Boolean((els.modalTask && els.modalTask.open) || (els.modalForm && els.modalForm.open));
+    if (modalAbierto) return;
+    ensureBoardRealtimeSubscription(state.currentPizarraId, true);
+    reloadState(state.currentPizarraId);
+  });
+
   const logoutBtn = $("logoutBtn");
   if (logoutBtn) {
     logoutBtn.addEventListener("click", async () => {
       if (!confirm("Cerrar sesion?")) return;
-      await withBusy(() => authApi.logout());
-      state.profile = null;
-      teardownBoardRealtimeSubscription();
-      showLoginScreen();
+      await performLogout();
     });
   }
 }
@@ -885,10 +1037,7 @@ function showAccessNotice(kind) {
     <div class="login-${isOff ? "error" : "success"}">${msg}</div>
     <button type="button" class="login-link" id="noticeLogout" style="margin-top:10px">Volver al login</button>`;
   $("noticeLogout").addEventListener("click", async () => {
-    await withBusy(() => authApi.logout());
-    state.profile = null;
-    teardownBoardRealtimeSubscription();
-    renderLogin();
+    await performLogout();
   });
 }
 
@@ -937,7 +1086,7 @@ function renderLogin() {
       <div id="loginMsg"></div>
       <button type="submit" class="login-btn">Ingresar</button>
       <button type="button" class="login-link" id="goForgot">¿Olvidaste tu contraseña?</button>
-      <button type="button" class="login-link" id="goRegister">Solicitar acceso</button>
+      <button type="button" class="login-link" id="goRegister">Crear cuenta</button>
     </form>`;
   $("goForgot").addEventListener("click", renderForgotPassword);
   $("loginFormEl").addEventListener("submit", async (e) => {
@@ -963,7 +1112,8 @@ function renderRegister() {
   if (!wrap) return;
   wrap.innerHTML = `
     <form class="login-form" id="regFormEl">
-      <label>Nombre completo<input type="text" id="regNombre" required /></label>
+      <label>Nombre<input type="text" id="regNombre" required /></label>
+      <label>Apellido<input type="text" id="regApellido" required /></label>
       <label>Email<input type="email" id="regEmail" required /></label>
       <label>Contraseña<input type="password" id="regPass" required /></label>
       <label>Confirmar contraseña<input type="password" id="regPass2" required /></label>
@@ -975,7 +1125,7 @@ function renderRegister() {
   $("regFormEl").addEventListener("submit", async (e) => {
     e.preventDefault();
     const msg = $("regMsg");
-    const nombre = $("regNombre").value.trim();
+    const nombre = `${$("regNombre").value.trim()} ${$("regApellido").value.trim()}`.trim();
     const email  = $("regEmail").value.trim().toLowerCase();
     const pass   = $("regPass").value;
     const pass2  = $("regPass2").value;
@@ -1113,6 +1263,7 @@ function renderUsuarios() {
 
   tbActivos.innerHTML = activos.map((u) => `
     <tr>
+      <td>${presenceDot(u.id)}</td>
       <td>${escHtml(u.nombre)}</td>
       <td>${escHtml(u.email)}</td>
       <td><span class="rol-badge rol-${u.rol.toLowerCase()}">${u.rol}</span></td>
@@ -1126,7 +1277,7 @@ function renderUsuarios() {
           ${u.id !== state.profile.id ? `<button class="ghost" style="font-size:12px;color:#dc2626" data-eliminar="${u.id}">Eliminar</button>` : ""}
         </div>
       </td>
-    </tr>`).join("") || `<tr><td colspan="5" style="color:var(--muted);text-align:center">Sin usuarios.</td></tr>`;
+    </tr>`).join("") || `<tr><td colspan="6" style="color:var(--muted);text-align:center">Sin usuarios.</td></tr>`;
 
   tbActivos.querySelectorAll("[data-eliminar]").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -1902,7 +2053,11 @@ const ICONS = {
   ganttBarras: `<rect x="3.5" y="5" width="10" height="3" rx="1.5"/><rect x="7.5" y="10.5" width="13" height="3" rx="1.5"/><rect x="4.5" y="16" width="8" height="3" rx="1.5"/>`,
   historial: `<path d="M4.5 12a7.5 7.5 0 1 0 2.3-5.4"/><path d="M4.5 5.5v4h4"/><path d="M12 8.5v3.8l2.6 1.6"/>`,
   imagen: `<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M4 16.3l4.5-4.8 3.2 3.6 3-3.3L20.5 17"/>`,
-  descargar: `<path d="M12 3.5v11.5"/><path d="M7.5 11l4.5 4.5 4.5-4.5"/><path d="M4.5 17.5v2a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2"/>`
+  descargar: `<path d="M12 3.5v11.5"/><path d="M7.5 11l4.5 4.5 4.5-4.5"/><path d="M4.5 17.5v2a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2"/>`,
+  // Icono de cursiva para el toolbar de Quill (ver Object.assign(Quill.import("ui/icons"))
+  // mas abajo): reemplaza la "I" en texto italico, que a ese tamano se ve
+  // como una simple linea inclinada y no se reconoce como boton de cursiva.
+  cursiva: `<line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/>`
 };
 function icon(name, size = 16) {
   return `<svg class="icon-inline" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
@@ -1920,9 +2075,30 @@ Object.assign(Quill.import("ui/icons"), {
   image: qlIconSvg("imagen"),
   link: qlIconSvg("enlace"),
   bold: "B",
-  italic: "I",
+  italic: qlIconSvg("cursiva"),
   list: { ordered: qlIconSvg("listaNumerada", 14), bullet: qlIconSvg("lista", 14) },
 });
+
+// Handler propio del boton "Enlace" de los dos Quill de comentarios (composer
+// y edicion in-place): el handler default de Quill/SnowTheme no hace nada si
+// no hay texto seleccionado (corta en seco con "if (range.length === 0)
+// return"), lo que en este toolbar compacto se sentia como un boton roto.
+// Con seleccion, formatea ese texto como enlace; sin seleccion, inserta la
+// URL como texto propio ya formateado en la posicion del cursor.
+function quillLinkHandler(value) {
+  if (!value) { this.quill.format("link", false, Quill.sources.USER); return; }
+  const range = this.quill.getSelection(true);
+  if (!range) return;
+  const url = window.prompt("Ingresá la URL del enlace:");
+  if (!url) return;
+  const href = /^\S+@\S+\.\S+$/.test(url) ? `mailto:${url}` : (/^\w+:\/\//.test(url) ? url : `https://${url}`);
+  if (range.length === 0) {
+    this.quill.insertText(range.index, url, "link", href, Quill.sources.USER);
+    this.quill.setSelection(range.index + url.length, 0, Quill.sources.USER);
+  } else {
+    this.quill.formatText(range.index, range.length, "link", href, Quill.sources.USER);
+  }
+}
 
 // --------- Menu de acciones de la tarjeta Kanban (boton "⋯") ---------
 let activeKcardMenu = null;
@@ -4039,14 +4215,17 @@ function buildEtiquetasBlockHtml(draft, mode) {
     </div>`;
 }
 
-// Persistencia de acordeones abiertos/cerrados (Datos/Hitos/Gantt), mismo
-// patron que feedPanelVisible: prefijo "sgtemas_", string "1"/"0" en
-// localStorage, default abierto. Se lee directo de localStorage (no en una
-// variable de modulo) porque el bloque Hitos+Gantt se re-renderiza aparte
-// (ver refreshTaskGeneralPane) y necesita el mismo estado sin sincronizar
-// dos fuentes de verdad.
-function isAccordionOpen(key) {
-  return localStorage.getItem(`sgtemas_acc_${key}`) !== "0";
+// Persistencia de acordeones abiertos/cerrados (Datos/Gantt — Hitos no usa
+// esta funcion, ver wireAccordionToggle), mismo patron que feedPanelVisible:
+// prefijo "sgtemas_", string "1"/"0" en localStorage, default segun
+// defaultOpen. Se lee directo de localStorage (no en una variable de modulo)
+// porque el bloque Hitos+Gantt se re-renderiza aparte (ver
+// refreshTaskGeneralPane) y necesita el mismo estado sin sincronizar dos
+// fuentes de verdad.
+function isAccordionOpen(key, defaultOpen = true) {
+  const stored = localStorage.getItem(`sgtemas_acc_${key}`);
+  if (stored === null) return defaultOpen;
+  return stored !== "0";
 }
 function setAccordionOpen(key, open) {
   localStorage.setItem(`sgtemas_acc_${key}`, open ? "1" : "0");
@@ -4110,7 +4289,10 @@ function wireAccordionToggle(key) {
   if (!head || !body) return;
   head.addEventListener("click", () => {
     const opening = !accEl.classList.contains("open");
-    setAccordionOpen(key, opening);
+    // Hitos es el contenido principal del tema: se puede colapsar para esta
+    // vista, pero no se persiste — al reabrir el modal (mismo u otro tema)
+    // vuelve a abrir por defecto, a diferencia de Datos/Gantt.
+    if (key !== "hitos") setAccordionOpen(key, opening);
     animateAccordionToggle(accEl, body, opening);
   });
 }
@@ -4312,7 +4494,7 @@ function buildHitosGanttSectionHtml(draft, mode) {
   const totalH = draft.hitos.length;
   const doneH = draft.hitos.filter((h) => h.estado === "Cerrado").length;
   return `
-    <div class="task-accordion ${isAccordionOpen("hitos") ? "open" : ""}" data-accordion="hitos">
+    <div class="task-accordion open" data-accordion="hitos">
       ${accordionHeadHtml("hitos", "prioridad", "Hitos", totalH > 0 ? `${doneH}/${totalH}` : "")}
       <div class="task-accordion-body"><div class="task-accordion-body-inner">
         <div class="hito-compact-list" id="taskHitosList">${renderHitosCompactList(draft, { readonly: !editable })}</div>
@@ -4321,7 +4503,7 @@ function buildHitosGanttSectionHtml(draft, mode) {
       </div></div>
     </div>
 
-    <div class="task-accordion ${isAccordionOpen("gantt") ? "open" : ""}" data-accordion="gantt">
+    <div class="task-accordion ${isAccordionOpen("gantt", false) ? "open" : ""}" data-accordion="gantt">
       ${accordionHeadHtml("gantt", "ganttBarras", "Gantt")}
       <div class="task-accordion-body"><div class="task-accordion-body-inner">
         <div id="taskGanttWrap">${renderMiniGantt(draft)}</div>
@@ -4333,7 +4515,7 @@ function buildHitosGanttSectionHtml(draft, mode) {
 function buildGeneralTabHtml(draft, mode) {
   return `
     <div id="taskEtiquetasWrap">${buildEtiquetasBlockHtml(draft, mode)}</div>
-    <div class="task-accordion ${isAccordionOpen("datos") ? "open" : ""}" data-accordion="datos">
+    <div class="task-accordion ${isAccordionOpen("datos", false) ? "open" : ""}" data-accordion="datos">
       ${accordionHeadHtml("datos", "lista", "Datos")}
       <div class="task-accordion-body"><div class="task-accordion-body-inner">${buildDatosFieldsHtml(draft, mode)}</div></div>
     </div>
@@ -4650,7 +4832,12 @@ function wireComentariosListEvents(draft, mode) {
   const comentario = (draft.comentarios || []).find((c) => c.id === editingComentarioId);
   editCommentQuillInstance = new Quill(editQuillContainer, {
     theme: "snow",
-    modules: { toolbar: [["bold", "italic"], [{ list: "ordered" }, { list: "bullet" }], ["link", "image"]] }
+    modules: {
+      toolbar: {
+        container: [["bold", "italic"], [{ list: "ordered" }, { list: "bullet" }], ["link", "image"]],
+        handlers: { link: quillLinkHandler }
+      }
+    }
   });
   if (comentario) editCommentQuillInstance.clipboard.dangerouslyPasteHTML(comentario.text);
   editCommentQuillInstance.focus();
@@ -4841,7 +5028,12 @@ function wireFeedPanel(draft, mode) {
   // que solo reemplaza el innerHTML de #taskFeedList sin recrear el nodo.
   feedList?.addEventListener("click", (e) => {
     const img = e.target.closest(".feed-comment-body img");
-    if (img) openImagePreview(img.src);
+    if (img) { openImagePreview(img.src); return; }
+    // Los enlaces vienen del HTML crudo de Quill (sin target propio) --
+    // se intercepta el click en vez de bakear target="_blank" al guardar
+    // para que tambien funcione en comentarios ya guardados antes de esto.
+    const link = e.target.closest(".feed-comment-body a[href]");
+    if (link) { e.preventDefault(); window.open(link.href, "_blank", "noopener,noreferrer"); }
   });
   // Antes del early-return de abajo: "Editar"/"Eliminar" en un comentario
   // propio deben funcionar aunque el usuario actual no tenga permiso para
@@ -4860,7 +5052,7 @@ function wireFeedPanel(draft, mode) {
   feedQuillInstance = new Quill(quillContainer, {
     theme: "snow",
     placeholder: "Escribi un comentario...",
-    modules: { toolbar: { container: "#taskFeedToolbar" } }
+    modules: { toolbar: { container: "#taskFeedToolbar", handlers: { link: quillLinkHandler } } }
   });
   // Ctrl/Cmd+Enter envia sin soltar el mouse — Enter solo hace salto de
   // linea (Quill), asi que no alcanza con eso para no interrumpir el typing.

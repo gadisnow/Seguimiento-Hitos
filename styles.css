@@ -192,6 +192,30 @@ h1.wordmark, span.wordmark {
   flex-shrink: 0;
 }
 
+/* Stack de avatares de colaboradores de la pizarra actual conectados ahora
+   mismo (excluye al propio usuario) -- estilo Google Docs/Figma, se
+   superponen con margen negativo. Vacio (nadie mas conectado) no ocupa
+   espacio. */
+.topbar-presence-stack {
+  display: flex;
+  align-items: center;
+}
+.presence-avatar {
+  width: 28px; height: 28px;
+  border-radius: 999px;
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #18181B, #2E2E33);
+  border: 2px solid var(--bg);
+  margin-left: -8px;
+  flex-shrink: 0;
+}
+.topbar-presence-stack .presence-avatar:first-child { margin-left: 0; }
+.presence-avatar-green  { box-shadow: 0 0 0 2px #22c55e; }
+.presence-avatar-yellow { box-shadow: 0 0 0 2px #eab308; }
+.presence-avatar-extra  { background: var(--muted); }
+
 /* ============== User menu ============== */
 .user-menu { position: relative; }
 
@@ -3076,6 +3100,21 @@ html[data-theme="dark"] .task-modal-footer .btn-delete:hover { background: rgba(
 .feed-comment-body img { max-width: 100%; border-radius: 6px; cursor: zoom-in; transition: opacity .1s ease; }
 .feed-comment-body img:hover { opacity: .88; }
 .feed-comment-body a { color: var(--primary); }
+/* Quill guarda listas ordenadas Y con vinetas con el mismo tag <ol>, y
+   distingue con el atributo data-list en cada <li> + un <span class="ql-ui">
+   marcador -- el glifo real (numero vs bullet) lo pone el CSS de Quill via
+   ::before, pero ese CSS esta scopeado a .ql-editor. Fuera del editor (aca,
+   el comentario ya guardado y renderizado de solo lectura) hay que repetir
+   esas reglas o el navegador muestra "1. 2. 3." para las dos. */
+.feed-comment-body ol { padding-left: 1.5em; margin: 0 0 6px; counter-reset: list-0; }
+.feed-comment-body ol:last-child { margin-bottom: 0; }
+.feed-comment-body ol > li { list-style-type: none; padding-left: 1.5em; position: relative; }
+.feed-comment-body ol > li > .ql-ui { display: inline-block; margin-left: -1.5em; margin-right: .3em; text-align: right; white-space: nowrap; width: 1.2em; }
+.feed-comment-body ol > li[data-list="bullet"] > .ql-ui::before { content: "\2022"; }
+.feed-comment-body ol > li[data-list="checked"] > .ql-ui::before { content: "\2611"; }
+.feed-comment-body ol > li[data-list="unchecked"] > .ql-ui::before { content: "\2610"; }
+.feed-comment-body ol > li[data-list="ordered"] { counter-increment: list-0; }
+.feed-comment-body ol > li[data-list="ordered"] > .ql-ui::before { content: counter(list-0, decimal) ". "; }
 
 .feed-comment-edit-link {
   border: 0; background: transparent; padding: 4px 2px 0; margin: 0;
@@ -3151,7 +3190,6 @@ html[data-theme="dark"] .feed-comment-edit-link { background: transparent; }
   display: flex; align-items: center; justify-content: center;
   font-family: inherit; font-weight: 800; font-size: 12px;
 }
-#taskFeedToolbar button.ql-italic { font-style: italic; font-weight: 600; }
 #taskFeedToolbar button svg { width: 14px; height: 14px; }
 #taskFeedToolbar button:hover { background: var(--bg); color: var(--text); }
 #taskFeedToolbar button.ql-active { background: var(--primary-soft); color: var(--primary); }
@@ -3884,6 +3922,17 @@ html[data-theme="dark"] .prog-bar { background: var(--border); }
 
 html[data-theme="dark"] .rol-editor { background: rgba(59,130,246,0.22); color: #93c5fd; }
 html[data-theme="dark"] .rol-viewer { background: rgba(148,163,184,0.22); color: #94a3b8; }
+
+/* Presencia: verde <=15min de actividad, amarillo <=60min, rojo desconectado
+   o sin datos de presencia (ver presenceStatus() en app.js). */
+.presence-dot {
+  display: inline-block;
+  width: 9px; height: 9px;
+  border-radius: 999px;
+}
+.presence-dot-green  { background: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,0.18); }
+.presence-dot-yellow { background: #eab308; box-shadow: 0 0 0 2px rgba(234,179,8,0.18); }
+.presence-dot-red    { background: #ef4444; box-shadow: 0 0 0 2px rgba(239,68,68,0.14); }
 
 .login-card .brand-icon {
   display: block;
