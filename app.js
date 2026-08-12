@@ -340,6 +340,14 @@ const PRESENCE_HEARTBEAT_MS = 30000;
 // (rojo) a los demas -- si vos mismo llevas 60min sin mover el mouse/teclado,
 // tiene sentido que tu propia sesion se cierre, no solo que se vea roja.
 const IDLE_LOGOUT_MS = 60 * 60 * 1000;
+// lastLocalActivity es una variable en memoria: si se cierra el navegador o
+// el SO descarta la pestana (laptop suspendida, tab discarded), se pierde y
+// un boot() nuevo la reinicia en "ahora", sin recordar que en realidad hacia
+// horas que no habia actividad -- la sesion de Supabase (que dura mucho mas
+// que 60min) quedaba entrando directo sin pasar por el chequeo de inactividad.
+// Se persiste en localStorage para que boot() pueda reconstruir cuanto
+// tiempo real paso antes de confiar en una sesion existente.
+const LAST_ACTIVITY_LS_KEY = "sgtemas_last_activity";
 let presenceChannel = null;
 let presenceHeartbeatTimer = null;
 let idleLogoutTimer = null;
@@ -369,6 +377,7 @@ function stopPresence() {
 // mousemove/keydown/click/scroll/touchstart local (ver listener mas abajo).
 async function checkIdleLogout() {
   if (!state.profile) return;
+  localStorage.setItem(LAST_ACTIVITY_LS_KEY, String(lastLocalActivity));
   if (Date.now() - lastLocalActivity < IDLE_LOGOUT_MS) return;
   await performLogout();
   showToast("Se cerro tu sesion por inactividad (60 minutos).");
@@ -382,6 +391,7 @@ async function checkIdleLogout() {
 async function performLogout() {
   await withBusy(() => authApi.logout());
   state.profile = null;
+  localStorage.removeItem(LAST_ACTIVITY_LS_KEY);
   teardownBoardRealtimeSubscription();
   stopPresence();
   showLoginScreen();
@@ -675,6 +685,21 @@ async function boot() {
 
   if (!session) { showLoginScreen(); return; }
 
+  // La sesion de Supabase (dura dias via refresh token) no sabe nada de
+  // nuestro umbral de 60min de inactividad -- eso solo vivia en la variable
+  // lastLocalActivity, que se pierde si se cierra el navegador o el SO
+  // descarta la pestana. Reconstruimos esa marca desde localStorage antes de
+  // confiar en la sesion: si paso el umbral, cerramos sesion aca en vez de
+  // dejar entrar directo (ver LAST_ACTIVITY_LS_KEY).
+  const storedActivity = Number(localStorage.getItem(LAST_ACTIVITY_LS_KEY));
+  if (storedActivity && Date.now() - storedActivity >= IDLE_LOGOUT_MS) {
+    localStorage.removeItem(LAST_ACTIVITY_LS_KEY);
+    await authApi.logout();
+    showLoginScreen();
+    showToast("Se cerro tu sesion por inactividad (60 minutos).");
+    return;
+  }
+
   let profile = null;
   try { profile = await authApi.loadProfile(); }
   catch (e) { console.error(e); }
@@ -686,6 +711,8 @@ async function boot() {
   state.profile = profile;
   state.config.currentUser = profile.nombre;
   state.config.rol = profile.rol;
+  lastLocalActivity = Date.now();
+  localStorage.setItem(LAST_ACTIVITY_LS_KEY, String(lastLocalActivity));
   startPresence();
 
   let pizarras = [];
