@@ -323,7 +323,7 @@ function onRemoteBoardChange() {
       return;
     }
     reloadState(state.currentPizarraId);
-  }, 500);
+  }, 150);
 }
 
 // =========================================================
@@ -2952,7 +2952,46 @@ function renderCalendar() {
     els.calGrid.innerHTML = html;
   }
 
+  fitCalendarDayCells(events);
   bindCalGrid(events);
+}
+
+// El alto real de cada fila (1fr) depende de cuanto viewport le queda
+// disponible al grid, que varia con la resolucion/zoom del usuario -- el
+// mismo CAL_DAY_MAX_VISIBLE que entra comodo en una pantalla puede
+// desbordar en otra mas chica. Antes ese desborde lo absorbia
+// overflow-y:auto en .cal-day (ver comentario en styles.css), pero eso
+// mostraba la barra de scroll nativa (con flechitas en Windows) en vez del
+// link "+X mas" -- dos comportamientos distintos segun la pantalla del
+// usuario. Esta pasada mide el desborde real despues de insertar el HTML y
+// saca eventos del final hasta que entra, ajustando (o creando) el boton
+// "+X mas" para que siempre refleje exactamente lo que quedo oculto.
+function fitCalendarDayCells(events) {
+  els.calGrid.querySelectorAll(".cal-day").forEach((day) => {
+    const date = day.dataset.date;
+    while (day.scrollHeight > day.clientHeight + 1) {
+      const evs = day.querySelectorAll(".cal-event");
+      const last = evs[evs.length - 1];
+      if (!last) break;
+      last.remove();
+    }
+    const totalDelDia = events.filter((e) => e.fecha === date).length;
+    const visiblesAhora = day.querySelectorAll(".cal-event").length;
+    const extra = totalDelDia - visiblesAhora;
+    let moreBtn = day.querySelector(".cal-more");
+    if (extra > 0) {
+      if (!moreBtn) {
+        moreBtn = document.createElement("button");
+        moreBtn.type = "button";
+        moreBtn.className = "cal-more";
+        moreBtn.dataset.calMore = date;
+        day.appendChild(moreBtn);
+      }
+      moreBtn.textContent = `+${extra} más`;
+    } else if (moreBtn) {
+      moreBtn.remove();
+    }
+  });
 }
 
 function bindCalGrid(events) {
