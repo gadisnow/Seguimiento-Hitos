@@ -3998,14 +3998,14 @@ function buildHitoEditPanelHtml(tema, hito) {
       <div id="hitoPanelError-${hito.id}" class="hito-panel-error hidden"></div>
 
       <div class="hito-panel-grid-2col">
-        <label>Nombre<input name="nombre" value="${escHtml(hito.nombre)}" required /></label>
-        <label>Estado<select name="estado">${STATES.map((s) => `<option ${hito.estado === s ? "selected" : ""}>${s}</option>`).join("")}</select></label>
+        <label>Nombre<input data-field="nombre" value="${escHtml(hito.nombre)}" required /></label>
+        <label>Estado<select data-field="estado">${STATES.map((s) => `<option ${hito.estado === s ? "selected" : ""}>${s}</option>`).join("")}</select></label>
       </div>
 
       <div class="task-section-title">Dependencia</div>
       <div class="hito-panel-grid-2col">
-        <label>Predecesor<select name="predecesorId" id="hitoPanelPredecesor-${hito.id}">${predOpts}</select></label>
-        <label>Tipo de vínculo<select name="tipoVinculo" id="hitoPanelTipo-${hito.id}" ${tienePredecesor ? "" : "disabled"}>${tipoOpts}</select></label>
+        <label>Predecesor<select id="hitoPanelPredecesor-${hito.id}">${predOpts}</select></label>
+        <label>Tipo de vínculo<select id="hitoPanelTipo-${hito.id}" ${tienePredecesor ? "" : "disabled"}>${tipoOpts}</select></label>
       </div>
       <p class="hito-panel-help" id="hitoPanelTipoAyuda-${hito.id}">${tienePredecesor ? TIPO_VINCULO_INFO[tipoActual].ayuda : "Elegí un predecesor para habilitar el tipo de vínculo."}</p>
 
@@ -4013,13 +4013,13 @@ function buildHitoEditPanelHtml(tema, hito) {
         <button type="button" class="hito-modo-btn ${modoFecha === "fecha" ? "active" : ""}" data-hito-modo="fecha">Fecha específica</button>
         <button type="button" class="hito-modo-btn ${modoFecha === "dias" ? "active" : ""}" data-hito-modo="dias" ${tienePredecesor ? "" : "disabled"}>Desfasaje (días)</button>
       </div>
-      <input type="hidden" name="modoFecha" id="hitoPanelModoFecha-${hito.id}" value="${modoFecha}" />
+      <input type="hidden" id="hitoPanelModoFecha-${hito.id}" value="${modoFecha}" />
       <p class="hito-panel-help" id="hitoPanelModoAyuda-${hito.id}">${tienePredecesor ? hitoPanelModoAyudaTexto(tipoActual) : ""}</p>
 
       <div class="hito-panel-grid-2col">
-        <label id="hitoPanelCampoFecha-${hito.id}" class="${modoFecha === "fecha" ? "" : "hidden"}">Fecha<input type="date" name="fechaManual" value="${hito.fechaManual || hito.fechaLimite || ""}" /></label>
-        <label id="hitoPanelCampoDesfasaje-${hito.id}" class="${modoFecha === "dias" ? "" : "hidden"}">Desfasaje (días, admite negativos)<input type="number" name="desfasajeDias" value="${hito.desfasajeDias ?? 0}" step="1" /></label>
-        <label>Duración propia (días)<input type="number" name="duracionPropia" value="${hito.duracionPropia ?? 4}" min="1" step="1" /></label>
+        <label id="hitoPanelCampoFecha-${hito.id}" class="${modoFecha === "fecha" ? "" : "hidden"}">Fecha<input type="date" data-field="fechaManual" value="${hito.fechaManual || hito.fechaLimite || ""}" /></label>
+        <label id="hitoPanelCampoDesfasaje-${hito.id}" class="${modoFecha === "dias" ? "" : "hidden"}">Desfasaje (días, admite negativos)<input type="number" data-field="desfasajeDias" value="${hito.desfasajeDias ?? 0}" step="1" /></label>
+        <label>Duración propia (días)<input type="number" data-field="duracionPropia" value="${hito.duracionPropia ?? 4}" min="1" step="1" /></label>
       </div>
 
       <div class="task-section-title">Responsable</div>
@@ -4036,7 +4036,7 @@ function buildHitoEditPanelHtml(tema, hito) {
           Este hito tiene expediente propio
         </label>
         <div id="hitoPanelExpWrap-${hito.id}" class="${hito.expediente ? "" : "hidden"}">${buildGdeToggleWidget(hito.expediente || "")}</div>
-        <label>Descripción<textarea name="descripcion">${escHtml(hito.descripcion || "")}</textarea></label>
+        <label>Descripción<textarea data-field="descripcion">${escHtml(hito.descripcion || "")}</textarea></label>
       </details>
     </div>`;
 }
@@ -4135,8 +4135,16 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
     toggleHitoEditPanel(tema, hito.id, refreshCallback);
   });
 
+  // El panel vive anidado dentro de <form id="taskForm"> (el modal del
+  // tema). Enter en un input de texto dispara el submit implicito de ESE
+  // form, no de este panel -- sin este guard, guardaria el tema entero
+  // (y con el bug de nombres duplicados de abajo, pisaba su titulo).
+  panelWrap.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") e.preventDefault();
+  });
+
   document.getElementById(`hitoPanelSaveBtn-${hito.id}`).addEventListener("click", async () => {
-    const nombre = panelWrap.querySelector('[name="nombre"]').value.trim();
+    const nombre = panelWrap.querySelector('[data-field="nombre"]').value.trim();
     if (!nombre) { showToast("El nombre del hito es requerido"); return; }
 
     const usaTemaResp = usaTemaRespChk.checked;
@@ -4150,13 +4158,13 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
       return;
     }
 
-    const estado = panelWrap.querySelector('[name="estado"]').value;
+    const estado = panelWrap.querySelector('[data-field="estado"]').value;
     const modoFecha = predecesorId ? modoHidden.value : "fecha";
-    const fechaManual = panelWrap.querySelector('[name="fechaManual"]')?.value || "";
+    const fechaManual = panelWrap.querySelector('[data-field="fechaManual"]')?.value || "";
     if (modoFecha === "fecha" && !fechaManual) { showToast("Completá la fecha"); return; }
-    const desfasajeDiasRaw = panelWrap.querySelector('[name="desfasajeDias"]')?.value;
-    const duracionPropiaRaw = panelWrap.querySelector('[name="duracionPropia"]')?.value;
-    const descripcion = panelWrap.querySelector('[name="descripcion"]')?.value || "";
+    const desfasajeDiasRaw = panelWrap.querySelector('[data-field="desfasajeDias"]')?.value;
+    const duracionPropiaRaw = panelWrap.querySelector('[data-field="duracionPropia"]')?.value;
+    const descripcion = panelWrap.querySelector('[data-field="descripcion"]')?.value || "";
     const hiddenExp = document.getElementById(`${idPrefix}gdeNumeroHidden`);
     const expediente = ownExpChk.checked ? (hiddenExp?.value.trim() || "") : "";
 
