@@ -3527,9 +3527,8 @@ html[data-theme="dark"] .hito-dep-chip { background: var(--card); border-color: 
 .hito-edit-panel-wrap.hidden { display: none; }
 .hito-edit-panel {
   margin: 4px 0 2px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
-  background: #e3e8f0; display: grid; gap: 4px;
+  background: var(--bg); display: grid; gap: 4px;
 }
-html[data-theme="dark"] .hito-edit-panel { background: #0b1220; }
 .hito-panel-topbar {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   margin: -8px -10px 2px; padding: 6px 10px; border-bottom: 1px solid var(--border);
@@ -3566,6 +3565,64 @@ html[data-theme="dark"] .hito-panel-error { color: #fca5a5; }
 }
 .hito-modo-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
 .hito-modo-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Rediseno v3 del panel de edicion de hito: status dot, banners de
+   congelado, sub-toggle de fecha, chips de responsable, acordeon de
+   expediente. Reusa tokens/paleta existente -- ver badgeClass()/STATE_COLORS
+   para el mapeo de color por estado, .etiqueta-chip como referencia de
+   forma para los chips. */
+.hito-panel-status-select { display: inline-flex; align-items: center; position: relative; width: 100%; }
+.hito-panel-status-dot { position: absolute; left: 7px; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; }
+#taskForm .hito-edit-panel .hito-panel-status-select select { padding-left: 20px; }
+
+.hito-panel-frozen-banner {
+  display: flex; align-items: flex-start; gap: 7px;
+  border-radius: 6px; padding: 6px 8px; font-size: 11.5px;
+}
+.hito-panel-frozen-banner svg { flex-shrink: 0; margin-top: 1px; }
+.hito-panel-frozen-banner.amber { background: var(--bloqueado-soft); border: 1px solid var(--bloqueado); color: #92400e; }
+.hito-panel-frozen-banner.red { background: rgba(220,38,38,0.1); border: 1px solid rgba(220,38,38,0.35); color: #b91c1c; }
+html[data-theme="dark"] .hito-panel-frozen-banner.amber { color: #fcd34d; }
+html[data-theme="dark"] .hito-panel-frozen-banner.red { color: #fca5a5; }
+
+.hito-panel-link-btn {
+  border: none; background: none; color: var(--primary); font-size: 11px; font-weight: 600;
+  cursor: pointer; padding: 3px 0; text-align: left;
+}
+.hito-panel-link-btn:hover { text-decoration: underline; }
+.hito-panel-link-btn:disabled { color: var(--muted); cursor: not-allowed; text-decoration: none; }
+
+.hito-panel-readout { font-size: 10.5px; color: var(--muted); }
+
+.hito-edit-panel .task-accordion { margin-bottom: 0; }
+.hito-edit-panel .task-accordion-head { padding: 8px 10px; }
+.hito-edit-panel .task-accordion-body-inner { padding: 10px; }
+
+.resp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.resp-chips:empty { display: none; }
+.resp-chip {
+  display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px 3px 6px;
+  border-radius: 10px; font-size: 11px; background: var(--card); border: 1px solid var(--border);
+}
+.resp-chip-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.resp-chip-remove { border: 0; background: transparent; padding: 0; color: inherit; opacity: .6; cursor: pointer; display: flex; }
+.resp-chip-remove:hover { opacity: 1; }
+.resp-chip-empty { font-size: 11px; color: var(--muted); }
+
+.resp-avatar-stack { position: relative; display: inline-flex; }
+.resp-avatar-extra {
+  position: absolute; right: -4px; bottom: -4px; min-width: 13px; height: 13px; padding: 0 2px;
+  border-radius: 999px; background: var(--muted); color: #fff; font-size: 8px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; border: 1.5px solid var(--card);
+}
+
+/* Congelado: campos visibles pero grises, nunca ocultos. */
+.hito-edit-panel.frozen-tema input:disabled,
+.hito-edit-panel.frozen-tema select:disabled,
+.hito-edit-panel.frozen-hito input:disabled,
+.hito-edit-panel.frozen-hito select:disabled {
+  opacity: .55; background: var(--card);
+}
 
 /* Inline "add hito" form */
 .hito-inline-form {

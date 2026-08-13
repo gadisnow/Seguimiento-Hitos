@@ -98,6 +98,7 @@ export function hitoFromRow(r) {
     desfasajeDias: r.desfasaje_dias === null || r.desfasaje_dias === undefined ? null : Number(r.desfasaje_dias),
     fechaManual: toDateStr(r.fecha_manual),
     duracionPropia: Number.isFinite(Number(r.duracion_propia)) ? Number(r.duracion_propia) : 4,
+    fechaMinima: toDateStr(r.fecha_minima),
     orden: r.orden
   };
 }
@@ -117,7 +118,8 @@ export function hitoToRow(ui) {
     modo_fecha: ui.modoFecha || "fecha",
     desfasaje_dias: ui.desfasajeDias === "" || ui.desfasajeDias === undefined || ui.desfasajeDias === null ? null : Number(ui.desfasajeDias),
     fecha_manual: orNull(ui.fechaManual),
-    duracion_propia: Number.isFinite(Number(ui.duracionPropia)) ? Number(ui.duracionPropia) : 4
+    duracion_propia: Number.isFinite(Number(ui.duracionPropia)) ? Number(ui.duracionPropia) : 4,
+    fecha_minima: orNull(ui.fechaMinima)
   };
 }
 
