@@ -249,7 +249,7 @@ h1.wordmark, span.wordmark {
   padding: 6px;
 }
 
-.user-menu.open .user-menu-dropdown { display: block; }
+.user-menu.open .user-menu-dropdown { display: block; animation: contextMenuIn .12s var(--ease-out); }
 
 .user-menu-header {
   display: flex;
@@ -838,11 +838,11 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
   min-width: 0;
   cursor: grab;
   box-shadow: 0 1px 2px rgba(15,23,42,0.04);
-  transition: border-color .15s, box-shadow .15s;
+  transition: border-color .15s, box-shadow .15s, transform .1s ease-out;
 }
 
 .kcard:hover { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
-.kcard:active { cursor: grabbing; }
+.kcard:active { cursor: grabbing; transform: scale(.98); }
 .kcard.dragging { opacity: 0.4; }
 .kcard.landed {
   animation: kcardLanded .5s var(--ease-out);
@@ -1403,7 +1403,7 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
   inset: 0;
   background: rgba(15,23,42,0.6);
   opacity: 0;
-  transition: opacity .2s ease;
+  transition: opacity .2s var(--ease-out);
   z-index: 70;
   pointer-events: none;
 }
@@ -1424,7 +1424,7 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
   border-radius: 18px;
   border: 1px solid var(--border);
   box-shadow: 0 24px 80px rgba(15,23,42,0.18);
-  transition: transform .2s ease, opacity .2s ease;
+  transition: transform .2s var(--ease-out), opacity .2s var(--ease-out);
   z-index: 80;
   display: grid;
   grid-template-rows: auto 1fr;
@@ -1776,7 +1776,7 @@ dialog#modalNewResp::backdrop {
   overflow: hidden;
 }
 
-.resp-dropdown.open .resp-dropdown-panel { display: block; }
+.resp-dropdown.open .resp-dropdown-panel { display: block; animation: contextMenuIn .12s var(--ease-out); }
 
 .resp-dropdown-options {
   max-height: 260px;
@@ -2007,7 +2007,7 @@ dialog#modalNewResp::backdrop {
   box-shadow: 0 8px 24px rgba(15,23,42,0.22);
   z-index: 200;
   opacity: 0;
-  transition: opacity .2s, transform .2s;
+  transition: opacity .2s var(--ease-out), transform .2s var(--ease-out);
   pointer-events: none;
   white-space: nowrap;
 }
@@ -2167,7 +2167,7 @@ dialog#modalNewResp::backdrop {
   background: var(--card); border: 1px solid var(--border); border-radius: 12px;
   box-shadow: var(--shadow); padding: 6px; display: none; z-index: 20;
 }
-.split-menu.open { display: block; }
+.split-menu.open { display: block; animation: contextMenuIn .12s var(--ease-out); }
 .split-menu-item {
   display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
   border: none; background: transparent; padding: 9px 10px; font-size: 13px;
@@ -2887,6 +2887,7 @@ html[data-theme="dark"] #taskForm textarea.task-modal-title-input { background: 
 .task-modal-edit-pencil {
   border: none; background: none; cursor: pointer; color: var(--muted);
   padding: 6px; border-radius: 6px; display: flex; flex-shrink: 0;
+  transition: transform .1s ease-out;
 }
 .task-modal-edit-pencil:hover { background: var(--bg); color: var(--text); }
 .task-modal-edit-pencil:active { transform: scale(.97); }
@@ -3154,6 +3155,7 @@ html[data-theme="dark"] .feed-comment-edit-link { background: transparent; }
 .task-comment-context button {
   border: none; background: none; color: var(--primary); cursor: pointer; opacity: .7;
   width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  transition: transform .1s ease-out;
 }
 .task-comment-context button:hover { opacity: 1; }
 .task-comment-context button:active { transform: scale(.97); }
@@ -3171,6 +3173,7 @@ html[data-theme="dark"] .feed-comment-edit-link { background: transparent; }
   font-size: 13px;
   font-weight: 600;
   border-radius: 8px;
+  transition: transform .1s ease-out;
 }
 .task-feed-send:active { transform: scale(.97); }
 
@@ -3292,9 +3295,10 @@ details.task-section[open] > summary.task-section-title { margin-bottom: 10px; }
   width: 100%; display: flex; align-items: center; gap: 12px;
   padding: 14px 16px; border: 0; background: var(--card); color: var(--text);
   font: inherit; text-align: left; cursor: pointer;
+  transition: transform .1s ease-out;
 }
 .task-accordion-head:hover { background: var(--bg); }
-.task-accordion-head:active { transform: scale(.995); }
+.task-accordion-head:active { transform: scale(.97); }
 .task-accordion.open > .task-accordion-head { background: var(--primary-soft); }
 .task-accordion-icon { width: 20px; height: 20px; flex-shrink: 0; color: var(--muted); display: flex; }
 .task-accordion-icon svg { width: 100%; height: 100%; }
@@ -3458,6 +3462,7 @@ html[data-theme="dark"] .hito-item.editing { background: rgba(251,146,60,0.14); 
 .hito-comment-btn {
   border: none; background: none; color: var(--muted); cursor: pointer; flex-shrink: 0;
   width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center;
+  transition: transform .1s ease-out;
 }
 .hito-comment-btn:hover { background: var(--primary-soft); color: var(--primary); }
 .hito-comment-btn:active { transform: scale(.97); }
@@ -3467,7 +3472,8 @@ html[data-theme="dark"] .hito-comment-btn { color: var(--muted); }
 }
 @media (prefers-reduced-motion: reduce) {
   .hito-comment-btn:active, .lock-btn:active, .task-modal-edit-pencil:active,
-  .task-accordion-head:active, .task-feed-send:active, .task-comment-context button:active {
+  .task-accordion-head:active, .task-feed-send:active, .task-comment-context button:active,
+  .kcard:active {
     transform: none;
   }
   .task-comment-context,
@@ -3982,7 +3988,8 @@ html[data-theme="dark"] .rol-viewer { background: rgba(148,163,184,0.22); color:
   /* Menus contextuales (kcard-menu/board-menu/cal-day-popover): mismo
      criterio que los dialogos de arriba -- se conserva el fade, se saca
      el translateY(-4px) de entrada (ver @keyframes contextMenuIn). */
-  .kcard-menu, .board-menu, .cal-day-popover {
+  .kcard-menu, .board-menu, .cal-day-popover,
+  .user-menu.open .user-menu-dropdown, .split-menu.open, .resp-dropdown.open .resp-dropdown-panel {
     animation: contextFadeIn .12s var(--ease-out);
   }
 

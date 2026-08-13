@@ -340,6 +340,14 @@ const PRESENCE_HEARTBEAT_MS = 30000;
 // (rojo) a los demas -- si vos mismo llevas 60min sin mover el mouse/teclado,
 // tiene sentido que tu propia sesion se cierre, no solo que se vea roja.
 const IDLE_LOGOUT_MS = 60 * 60 * 1000;
+// lastLocalActivity es una variable en memoria: si se cierra el navegador o
+// el SO descarta la pestana (laptop suspendida, tab discarded), se pierde y
+// un boot() nuevo la reinicia en "ahora", sin recordar que en realidad hacia
+// horas que no habia actividad -- la sesion de Supabase (que dura mucho mas
+// que 60min) quedaba entrando directo sin pasar por el chequeo de inactividad.
+// Se persiste en localStorage para que boot() pueda reconstruir cuanto
+// tiempo real paso antes de confiar en una sesion existente.
+const LAST_ACTIVITY_LS_KEY = "sgtemas_last_activity";
 let presenceChannel = null;
 let presenceHeartbeatTimer = null;
 let idleLogoutTimer = null;
@@ -369,6 +377,7 @@ function stopPresence() {
 // mousemove/keydown/click/scroll/touchstart local (ver listener mas abajo).
 async function checkIdleLogout() {
   if (!state.profile) return;
+  localStorage.setItem(LAST_ACTIVITY_LS_KEY, String(lastLocalActivity));
   if (Date.now() - lastLocalActivity < IDLE_LOGOUT_MS) return;
   await performLogout();
   showToast("Se cerro tu sesion por inactividad (60 minutos).");
@@ -382,6 +391,7 @@ async function checkIdleLogout() {
 async function performLogout() {
   await withBusy(() => authApi.logout());
   state.profile = null;
+  localStorage.removeItem(LAST_ACTIVITY_LS_KEY);
   teardownBoardRealtimeSubscription();
   stopPresence();
   showLoginScreen();
@@ -675,6 +685,21 @@ async function boot() {
 
   if (!session) { showLoginScreen(); return; }
 
+  // La sesion de Supabase (dura dias via refresh token) no sabe nada de
+  // nuestro umbral de 60min de inactividad -- eso solo vivia en la variable
+  // lastLocalActivity, que se pierde si se cierra el navegador o el SO
+  // descarta la pestana. Reconstruimos esa marca desde localStorage antes de
+  // confiar en la sesion: si paso el umbral, cerramos sesion aca en vez de
+  // dejar entrar directo (ver LAST_ACTIVITY_LS_KEY).
+  const storedActivity = Number(localStorage.getItem(LAST_ACTIVITY_LS_KEY));
+  if (storedActivity && Date.now() - storedActivity >= IDLE_LOGOUT_MS) {
+    localStorage.removeItem(LAST_ACTIVITY_LS_KEY);
+    await authApi.logout();
+    showLoginScreen();
+    showToast("Se cerro tu sesion por inactividad (60 minutos).");
+    return;
+  }
+
   let profile = null;
   try { profile = await authApi.loadProfile(); }
   catch (e) { console.error(e); }
@@ -686,6 +711,8 @@ async function boot() {
   state.profile = profile;
   state.config.currentUser = profile.nombre;
   state.config.rol = profile.rol;
+  lastLocalActivity = Date.now();
+  localStorage.setItem(LAST_ACTIVITY_LS_KEY, String(lastLocalActivity));
   startPresence();
 
   let pizarras = [];
@@ -3971,14 +3998,14 @@ function buildHitoEditPanelHtml(tema, hito) {
       <div id="hitoPanelError-${hito.id}" class="hito-panel-error hidden"></div>
 
       <div class="hito-panel-grid-2col">
-        <label>Nombre<input name="nombre" value="${escHtml(hito.nombre)}" required /></label>
-        <label>Estado<select name="estado">${STATES.map((s) => `<option ${hito.estado === s ? "selected" : ""}>${s}</option>`).join("")}</select></label>
+        <label>Nombre<input data-field="nombre" value="${escHtml(hito.nombre)}" required /></label>
+        <label>Estado<select data-field="estado">${STATES.map((s) => `<option ${hito.estado === s ? "selected" : ""}>${s}</option>`).join("")}</select></label>
       </div>
 
       <div class="task-section-title">Dependencia</div>
       <div class="hito-panel-grid-2col">
-        <label>Predecesor<select name="predecesorId" id="hitoPanelPredecesor-${hito.id}">${predOpts}</select></label>
-        <label>Tipo de vínculo<select name="tipoVinculo" id="hitoPanelTipo-${hito.id}" ${tienePredecesor ? "" : "disabled"}>${tipoOpts}</select></label>
+        <label>Predecesor<select id="hitoPanelPredecesor-${hito.id}">${predOpts}</select></label>
+        <label>Tipo de vínculo<select id="hitoPanelTipo-${hito.id}" ${tienePredecesor ? "" : "disabled"}>${tipoOpts}</select></label>
       </div>
       <p class="hito-panel-help" id="hitoPanelTipoAyuda-${hito.id}">${tienePredecesor ? TIPO_VINCULO_INFO[tipoActual].ayuda : "Elegí un predecesor para habilitar el tipo de vínculo."}</p>
 
@@ -3986,13 +4013,13 @@ function buildHitoEditPanelHtml(tema, hito) {
         <button type="button" class="hito-modo-btn ${modoFecha === "fecha" ? "active" : ""}" data-hito-modo="fecha">Fecha específica</button>
         <button type="button" class="hito-modo-btn ${modoFecha === "dias" ? "active" : ""}" data-hito-modo="dias" ${tienePredecesor ? "" : "disabled"}>Desfasaje (días)</button>
       </div>
-      <input type="hidden" name="modoFecha" id="hitoPanelModoFecha-${hito.id}" value="${modoFecha}" />
+      <input type="hidden" id="hitoPanelModoFecha-${hito.id}" value="${modoFecha}" />
       <p class="hito-panel-help" id="hitoPanelModoAyuda-${hito.id}">${tienePredecesor ? hitoPanelModoAyudaTexto(tipoActual) : ""}</p>
 
       <div class="hito-panel-grid-2col">
-        <label id="hitoPanelCampoFecha-${hito.id}" class="${modoFecha === "fecha" ? "" : "hidden"}">Fecha<input type="date" name="fechaManual" value="${hito.fechaManual || hito.fechaLimite || ""}" /></label>
-        <label id="hitoPanelCampoDesfasaje-${hito.id}" class="${modoFecha === "dias" ? "" : "hidden"}">Desfasaje (días, admite negativos)<input type="number" name="desfasajeDias" value="${hito.desfasajeDias ?? 0}" step="1" /></label>
-        <label>Duración propia (días)<input type="number" name="duracionPropia" value="${hito.duracionPropia ?? 4}" min="1" step="1" /></label>
+        <label id="hitoPanelCampoFecha-${hito.id}" class="${modoFecha === "fecha" ? "" : "hidden"}">Fecha<input type="date" data-field="fechaManual" value="${hito.fechaManual || hito.fechaLimite || ""}" /></label>
+        <label id="hitoPanelCampoDesfasaje-${hito.id}" class="${modoFecha === "dias" ? "" : "hidden"}">Desfasaje (días, admite negativos)<input type="number" data-field="desfasajeDias" value="${hito.desfasajeDias ?? 0}" step="1" /></label>
+        <label>Duración propia (días)<input type="number" data-field="duracionPropia" value="${hito.duracionPropia ?? 4}" min="1" step="1" /></label>
       </div>
 
       <div class="task-section-title">Responsable</div>
@@ -4009,7 +4036,7 @@ function buildHitoEditPanelHtml(tema, hito) {
           Este hito tiene expediente propio
         </label>
         <div id="hitoPanelExpWrap-${hito.id}" class="${hito.expediente ? "" : "hidden"}">${buildGdeToggleWidget(hito.expediente || "")}</div>
-        <label>Descripción<textarea name="descripcion">${escHtml(hito.descripcion || "")}</textarea></label>
+        <label>Descripción<textarea data-field="descripcion">${escHtml(hito.descripcion || "")}</textarea></label>
       </details>
     </div>`;
 }
@@ -4108,8 +4135,16 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
     toggleHitoEditPanel(tema, hito.id, refreshCallback);
   });
 
+  // El panel vive anidado dentro de <form id="taskForm"> (el modal del
+  // tema). Enter en un input de texto dispara el submit implicito de ESE
+  // form, no de este panel -- sin este guard, guardaria el tema entero
+  // (y con el bug de nombres duplicados de abajo, pisaba su titulo).
+  panelWrap.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") e.preventDefault();
+  });
+
   document.getElementById(`hitoPanelSaveBtn-${hito.id}`).addEventListener("click", async () => {
-    const nombre = panelWrap.querySelector('[name="nombre"]').value.trim();
+    const nombre = panelWrap.querySelector('[data-field="nombre"]').value.trim();
     if (!nombre) { showToast("El nombre del hito es requerido"); return; }
 
     const usaTemaResp = usaTemaRespChk.checked;
@@ -4123,13 +4158,13 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
       return;
     }
 
-    const estado = panelWrap.querySelector('[name="estado"]').value;
+    const estado = panelWrap.querySelector('[data-field="estado"]').value;
     const modoFecha = predecesorId ? modoHidden.value : "fecha";
-    const fechaManual = panelWrap.querySelector('[name="fechaManual"]')?.value || "";
+    const fechaManual = panelWrap.querySelector('[data-field="fechaManual"]')?.value || "";
     if (modoFecha === "fecha" && !fechaManual) { showToast("Completá la fecha"); return; }
-    const desfasajeDiasRaw = panelWrap.querySelector('[name="desfasajeDias"]')?.value;
-    const duracionPropiaRaw = panelWrap.querySelector('[name="duracionPropia"]')?.value;
-    const descripcion = panelWrap.querySelector('[name="descripcion"]')?.value || "";
+    const desfasajeDiasRaw = panelWrap.querySelector('[data-field="desfasajeDias"]')?.value;
+    const duracionPropiaRaw = panelWrap.querySelector('[data-field="duracionPropia"]')?.value;
+    const descripcion = panelWrap.querySelector('[data-field="descripcion"]')?.value || "";
     const hiddenExp = document.getElementById(`${idPrefix}gdeNumeroHidden`);
     const expediente = ownExpChk.checked ? (hiddenExp?.value.trim() || "") : "";
 
