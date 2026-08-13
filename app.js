@@ -3671,13 +3671,17 @@ function wireDiasBadge(inputEl, badgeEl, getFechaCierre) {
 }
 
 function respAvatarHtml(fullName) {
-  const name = (fullName || "").split(",")[0].trim();
+  const nombres = (fullName || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const name = nombres[0] || "";
   if (!name) return `<span class="resp-avatar-sm" style="background:var(--muted)" title="Sin responsable">?</span>`;
   const idx = state.responsables.findIndex((r) => [r.nombre, r.apellido].filter(Boolean).join(" ") === name);
   const fallbackIdx = parseInt(simpleHash(name), 10) || 0;
   const color = RESP_PALETTE[(idx >= 0 ? idx : fallbackIdx) % RESP_PALETTE.length];
   const initials = name.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-  return `<span class="resp-avatar-sm" style="background:${color}" title="${escHtml(fullName || "")}">${initials}</span>`;
+  const extra = nombres.length > 1
+    ? `<span class="resp-avatar-extra" title="${escHtml(nombres.slice(1).join(", "))}">+${nombres.length - 1}</span>`
+    : "";
+  return `<span class="resp-avatar-stack"><span class="resp-avatar-sm" style="background:${color}" title="${escHtml(fullName || "")}">${initials}</span>${extra}</span>`;
 }
 
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -3721,12 +3725,20 @@ function autoResizeTextarea(el) {
 const TIPO_VINCULO_INFO = {
   FC: { label: "Fin-Comienzo", ayuda: "Arranca cuando termina el predecesor." },
   CC: { label: "Comienzo-Comienzo", ayuda: "Arranca el mismo dia que arranca el predecesor." },
-  FF: { label: "Fin-Fin", ayuda: "Termina el mismo dia que termina el predecesor." }
+  FF: { label: "Fin-Fin", ayuda: "Termina el mismo dia que termina el predecesor." },
+  CF: { label: "Comienzo-Fin", ayuda: "Termina cuando arranca el predecesor." }
 };
 
+// Que extremo del predecesor ancla a este hito (FC/FF miran el fin del
+// predecesor; CC/CF miran su comienzo), y si ese ancla determina el FIN de
+// este hito (FF/CF) o su INICIO (FC/CC). Reemplaza los ternarios de a pares
+// que habia antes de agregar CF -- con 4 tipos, un binario ya no alcanza.
+const ANCLA_PREDECESOR_FIELD = { FC: "fechaLimite", CC: "fechaInicio", FF: "fechaLimite", CF: "fechaInicio" };
+const ANCLA_RESULTADO_ES_FIN = { FC: false, CC: false, FF: true, CF: true };
+
 function hitoPanelModoAyudaTexto(tipo) {
-  return tipo === "FF"
-    ? "Con vinculo Fin-Fin podes fijar una fecha comprometida: si el predecesor se atrasa y ya no se llega, este hito NO se mueve solo — se marca critico."
+  return ANCLA_RESULTADO_ES_FIN[tipo]
+    ? "Con este vinculo podes fijar una fecha comprometida: si el predecesor se atrasa y ya no se llega, este hito NO se mueve solo — se marca critico."
     : "Este hito se mueve automaticamente cuando cambia el predecesor, conservando la distancia configurada (dias o fecha) y su propia duracion.";
 }
 
@@ -3788,18 +3800,18 @@ function calcularFechasHito(hito, predecesor) {
   }
 
   const tipo = hito.tipoVinculo || "FC";
-  const anclaPredecesor = tipo === "CC" ? predecesor.fechaInicio : predecesor.fechaLimite;
+  const anclaPredecesor = predecesor[ANCLA_PREDECESOR_FIELD[tipo]];
   // "dias": desfasaje relativo, siempre en cascada con el predecesor. "fecha": el
   // hito guarda una fecha propia (fechaManual) — para FC/CC esa fecha se desplaza
   // explicitamente en cascada cuando el predecesor cambia (ver desplazarCascadaPorDelta,
-  // conserva la distancia configurada); para FF representa un compromiso externo
+  // conserva la distancia configurada); para FF/CF representa un compromiso externo
   // fijo que NO se mueve solo, y el hito se marca "critico" si deja de ser alcanzable.
   const anclaResultado = hito.modoFecha === "dias"
     ? sumarDias(anclaPredecesor, Number(hito.desfasajeDias) || 0)
     : (hito.fechaManual || anclaPredecesor);
 
   let fechaInicio, fechaLimite;
-  if (tipo === "FF") {
+  if (ANCLA_RESULTADO_ES_FIN[tipo]) {
     fechaLimite = anclaResultado;
     fechaInicio = sumarDias(fechaLimite, -duracion);
   } else {
@@ -3807,6 +3819,24 @@ function calcularFechasHito(hito, predecesor) {
     fechaLimite = sumarDias(fechaInicio, duracion);
   }
   return { fechaInicio, fechaLimite, anclaPredecesor, anclaResultado };
+}
+
+// Aplica el piso opcional "no arrancar antes de" (fechaMinima) DESPUES de
+// calcularFechasHito -- si se aplicara adentro, contaminaria anclaPredecesor/
+// anclaResultado que calcularCascadaHitos usa para las alertas de desfasaje
+// (esas deben reflejar el ancla SIN clampear). Solo aplica en modo "dias"
+// con predecesor -- en modo "fecha" o sin predecesor, fechaMinima se ignora
+// aunque tenga un valor viejo cargado.
+function aplicarClampFechaMinima(hito, r) {
+  if (hito.modoFecha === "dias" && hito.fechaMinima && r.fechaInicio < hito.fechaMinima) {
+    const duracion = Number(hito.duracionPropia) || 0;
+    r.fechaInicio = hito.fechaMinima;
+    r.fechaLimite = sumarDias(hito.fechaMinima, duracion);
+    hito.__pospuestoPorRestriccion = true;
+  } else {
+    hito.__pospuestoPorRestriccion = false;
+  }
+  return r;
 }
 
 // Aproximacion optimista de holgura (NO es un CPM completo con rutas
@@ -3825,7 +3855,7 @@ function calcularCriticoHito(hito, hitos) {
   function explorar(sucesor, duracionAcumulada, profundidad) {
     if (profundidad > hitos.length + 1) return; // guarda defensiva
     const duracionConEste = duracionAcumulada + (Number(sucesor.duracionPropia) || 0);
-    if (sucesor.tipoVinculo === "FF" && sucesor.modoFecha === "fecha") {
+    if (ANCLA_RESULTADO_ES_FIN[sucesor.tipoVinculo] && sucesor.modoFecha === "fecha") {
       const fechaMinima = sumarDias(hito.fechaLimite, duracionConEste);
       const excesoDias = daysBetween(sucesor.fechaLimite, fechaMinima);
       if (excesoDias > 0 && (!peor || excesoDias > peor.excesoDias)) {
@@ -3854,15 +3884,15 @@ function propagarCascadaPorDelta(hitos, snapshotAntes, excludeId) {
   const porId = new Map(hitos.map((h) => [h.id, h]));
   ordenTopologicoHitos(hitos).forEach((h) => {
     const predecesor = h.predecesorId ? porId.get(h.predecesorId) : null;
-    if (h.id !== excludeId && predecesor && h.modoFecha === "fecha" && h.tipoVinculo !== "FF" && h.fechaManual) {
+    if (h.id !== excludeId && predecesor && h.modoFecha === "fecha" && !ANCLA_RESULTADO_ES_FIN[h.tipoVinculo] && h.fechaManual) {
       const antesPred = snapshotAntes.get(predecesor.id);
       if (antesPred) {
-        const anclaCampo = h.tipoVinculo === "CC" ? "fechaInicio" : "fechaLimite";
+        const anclaCampo = ANCLA_PREDECESOR_FIELD[h.tipoVinculo || "FC"];
         const delta = daysBetween(antesPred[anclaCampo], predecesor[anclaCampo]);
         if (delta) h.fechaManual = sumarDias(h.fechaManual, delta);
       }
     }
-    if (h.id !== excludeId) Object.assign(h, calcularFechasHito(h, predecesor));
+    if (h.id !== excludeId) Object.assign(h, aplicarClampFechaMinima(h, calcularFechasHito(h, predecesor)));
   });
 }
 
@@ -3874,7 +3904,7 @@ function calcularCascadaHitos(hitos) {
   const porId = new Map(hitos.map((h) => [h.id, h]));
   ordenTopologicoHitos(hitos).forEach((h) => {
     const predecesor = h.predecesorId ? porId.get(h.predecesorId) : null;
-    const { fechaInicio, fechaLimite, anclaPredecesor, anclaResultado } = calcularFechasHito(h, predecesor);
+    const { fechaInicio, fechaLimite, anclaPredecesor, anclaResultado } = aplicarClampFechaMinima(h, calcularFechasHito(h, predecesor));
     h.fechaInicio = fechaInicio;
     h.fechaLimite = fechaLimite;
     if (h.predecesorId && anclaPredecesor != null) {
@@ -3976,7 +4006,7 @@ function renderMiniGantt(tema) {
     const critico = Boolean(h.__critico);
     const fueraDeSecuencia = Boolean(h.__alertaFueraDeSecuencia);
     const cls = ["gantt-bar-rect", badgeClass(h.estado), fueraDeSecuencia ? "alerta-dura" : "", critico ? "alerta-critico" : ""].filter(Boolean).join(" ");
-    const title = [h.nombre, h.estado, fueraDeSecuencia ? "Fuera de secuencia" : "", critico ? "Critico" : ""].filter(Boolean).join(" · ");
+    const title = [h.nombre, h.estado, fueraDeSecuencia ? "Fuera de secuencia" : "", critico ? "Critico" : "", h.__pospuestoPorRestriccion ? "Pospuesto por restriccion" : ""].filter(Boolean).join(" · ");
     return `<rect class="${cls}" x="${x}" y="${y}" width="${w}" height="${GANTT_BAR_H}" rx="3.5"><title>${escHtml(title)}</title></rect>`;
   }).join("");
 
@@ -3998,10 +4028,12 @@ function renderMiniGantt(tema) {
     const linkCls = h.__alertaFueraDeSecuencia ? "gantt-link alerta" : "gantt-link";
     const dotCls = h.__alertaFueraDeSecuencia ? "gantt-link-dot alerta" : "gantt-link-dot";
 
-    if (tipo === "FF") {
-      // ambos extremos "fin": la conexion sale y entra por la derecha, con un
-      // loop hacia afuera para no cruzar las barras.
-      const startX = Math.max(predX0, predX1);
+    if (tipo === "FF" || tipo === "CF") {
+      // Ambos casos llegan al FIN del sucesor (mismo destino que FF) -- la
+      // conexion entra por la derecha, con un loop hacia afuera para no
+      // cruzar las barras. Difieren en el origen: FF sale del fin del
+      // predecesor (como FC), CF sale de su comienzo (como CC).
+      const startX = tipo === "CF" ? Math.min(predX0, predX1) : Math.max(predX0, predX1);
       const endX = Math.max(sucX0, sucX1);
       const loopX = Math.max(startX, endX) + 14;
       return `<path class="${linkCls}" d="M ${startX} ${predY} L ${loopX} ${predY} L ${loopX} ${sucY} L ${endX} ${sucY}"></path>
@@ -4077,6 +4109,9 @@ function hitoAlertBadgesHtml(hito) {
     const c = hito.__critico;
     out.push(`<span class="hito-alert-badge alert-critico" title="Aun en el mejor escenario no se llega a '${escHtml(c.hitoObjetivoNombre)}' (${fmtDateNice(c.fechaComprometida)}): se excede por ${c.excesoDias}d">${icon("alerta", 12)} Crítico</span>`);
   }
+  if (hito.__pospuestoPorRestriccion) {
+    out.push(`<span class="hito-alert-badge alert-desfasaje" title="El inicio calculado quedaba antes de la fecha minima configurada ('No arrancar antes de') -- se pospuso para respetarla">${icon("alerta", 12)} Pospuesto por restricción</span>`);
+  }
   return out.join("");
 }
 
@@ -4124,6 +4159,23 @@ function renderHitosCompactList(tema, opts = {}) {
 // modo de fecha, duracion, responsable propio/heredado, expediente).
 // Reemplaza al viejo modal chico para la edicion desde el tab Hitos.
 // =========================================================
+// Expedientes "de este tema" para el selector del panel de hito: no hay FK
+// real entre expedientes y temas (expedientes.tema_asociado es texto libre
+// sin garantia de match, ver normalizeExpNumero) -- se derivan mirando el
+// propio tema.expediente + el expediente de cada uno de sus hitos, igual
+// criterio que collectExpedienteRefs() pero acotado a UN tema. A diferencia
+// de collectExpedienteRefs (que itera state.temas), esto funciona tambien
+// para un tema recien creado que todavia no esta en state.temas.
+function temaExpedienteOptions(tema) {
+  const vistos = new Set();
+  const out = [];
+  [tema.expediente, ...tema.hitos.map((h) => h.expediente)].filter(Boolean).forEach((numero) => {
+    const key = normalizeExpNumero(numero);
+    if (!vistos.has(key)) { vistos.add(key); out.push(numero); }
+  });
+  return out;
+}
+
 function buildHitoEditPanelHtml(tema, hito) {
   const otrosHitos = tema.hitos.filter((h) => h.id !== hito.id);
   const predOpts = `<option value="">Ninguno</option>` + otrosHitos.map((h) =>
@@ -4132,7 +4184,7 @@ function buildHitoEditPanelHtml(tema, hito) {
 
   const tienePredecesor = Boolean(hito.predecesorId);
   const tipoActual = hito.tipoVinculo || "FC";
-  const tipoOpts = ["FC", "CC", "FF"].map((t) =>
+  const tipoOpts = ["FC", "CC", "FF", "CF"].map((t) =>
     `<option value="${t}" ${tipoActual === t ? "selected" : ""}>${t} — ${TIPO_VINCULO_INFO[t].label}</option>`
   ).join("");
 
@@ -4140,59 +4192,123 @@ function buildHitoEditPanelHtml(tema, hito) {
   const usaRespPropio = Boolean(hito.responsable);
   const respTemaNombre = respDisplay(tema.responsable) || "sin asignar";
 
+  // Congelado: cerrar el TEMA bloquea todo (la reapertura vive un nivel mas
+  // arriba, no en este panel); cerrar el HITO bloquea todo menos su propio
+  // Estado (la unica salida es volver a un estado anterior desde aca mismo).
+  const temaCerrado = tema.estado === "Cerrado";
+  const hitoCerrado = hito.estado === "Cerrado";
+  const dAll = (temaCerrado || hitoCerrado) ? "disabled" : "";
+  const dEstado = temaCerrado ? "disabled" : "";
+  const frozenClass = temaCerrado ? "frozen-tema" : (hitoCerrado ? "frozen-hito" : "");
+
+  const duracionActual = Number(hito.duracionPropia) || 0;
+  const finActual = hito.fechaManual || hito.fechaLimite || fmtDate(new Date());
+  const inicioActual = sumarDias(finActual, -duracionActual);
+  const tieneRestriccion = Boolean(hito.fechaMinima);
+  const statusToken = `var(--${badgeClass(hito.estado).slice(2)})`;
+
+  const expedienteActual = hito.expediente || "";
+  const expedienteOpts = temaExpedienteOptions(tema);
+  if (expedienteActual && !expedienteOpts.some((n) => normalizeExpNumero(n) === normalizeExpNumero(expedienteActual))) {
+    expedienteOpts.push(expedienteActual);
+  }
+  const expedienteOptsHtml = [`<option value="">— Ninguno vinculado todavía —</option>`]
+    .concat(expedienteOpts.map((n) => `<option value="${escHtml(n)}" ${normalizeExpNumero(n) === normalizeExpNumero(expedienteActual) ? "selected" : ""}>${escHtml(n)}</option>`))
+    .join("");
+
   return `
-    <div class="hito-edit-panel">
+    <div class="hito-edit-panel ${frozenClass}">
       <div class="hito-panel-topbar">
         <span class="hito-panel-topbar-title">Editando hito</span>
         <div class="hito-panel-topbar-actions">
           <button type="button" class="ghost" id="hitoPanelCancelBtn-${hito.id}">Cancelar</button>
-          <button type="button" class="primary" id="hitoPanelSaveBtn-${hito.id}">Guardar</button>
+          <button type="button" class="primary" id="hitoPanelSaveBtn-${hito.id}" ${dEstado}>Guardar</button>
         </div>
       </div>
+
+      ${temaCerrado ? `<div class="hito-panel-frozen-banner red">${icon("candado", 14)} Este tema está cerrado. Ningún hito dentro se puede editar hasta reabrirlo — cambiá el estado del tema, no el del hito.</div>` : ""}
+      ${!temaCerrado && hitoCerrado ? `<div class="hito-panel-frozen-banner amber">${icon("candado", 14)} Este hito está cerrado: ningún campo se puede editar. Cambiá el Estado a uno anterior para volver a editarlo.</div>` : ""}
       ${hito.__critico ? `<div class="hito-panel-critico-banner">${icon("alerta", 14)} <strong>Crítico:</strong> aun en el mejor escenario no se llega a "${escHtml(hito.__critico.hitoObjetivoNombre)}" (${fmtDateNice(hito.__critico.fechaComprometida)}) — se excede por ${hito.__critico.excesoDias}d.</div>` : ""}
       <div id="hitoPanelError-${hito.id}" class="hito-panel-error hidden"></div>
 
       <div class="hito-panel-grid-2col">
-        <label>Nombre<input data-field="nombre" value="${escHtml(hito.nombre)}" required /></label>
-        <label>Estado<select data-field="estado">${STATES.map((s) => `<option ${hito.estado === s ? "selected" : ""}>${s}</option>`).join("")}</select></label>
+        <label>Nombre<input data-field="nombre" value="${escHtml(hito.nombre)}" required ${dAll} /></label>
+        <label>Estado
+          <span class="hito-panel-status-select">
+            <span class="hito-panel-status-dot" id="hitoPanelStatusDot-${hito.id}" style="background:${statusToken}"></span>
+            <select data-field="estado" ${dEstado}>${STATES.map((s) => `<option ${hito.estado === s ? "selected" : ""}>${s}</option>`).join("")}</select>
+          </span>
+        </label>
       </div>
+      <p class="hito-panel-help">${tema.hitos.filter((h) => h.estado !== "Cerrado").length} de ${tema.hitos.length} hitos del tema todavía no están cerrados.</p>
 
       <div class="task-section-title">Dependencia</div>
       <div class="hito-panel-grid-2col">
-        <label>Predecesor<select id="hitoPanelPredecesor-${hito.id}">${predOpts}</select></label>
-        <label>Tipo de vínculo<select id="hitoPanelTipo-${hito.id}" ${tienePredecesor ? "" : "disabled"}>${tipoOpts}</select></label>
+        <label>Predecesor<select id="hitoPanelPredecesor-${hito.id}" ${dAll}>${predOpts}</select></label>
+        <label>Tipo de vínculo<select id="hitoPanelTipo-${hito.id}" ${tienePredecesor ? dAll : "disabled"}>${tipoOpts}</select></label>
       </div>
       <p class="hito-panel-help" id="hitoPanelTipoAyuda-${hito.id}">${tienePredecesor ? TIPO_VINCULO_INFO[tipoActual].ayuda : "Elegí un predecesor para habilitar el tipo de vínculo."}</p>
 
       <div class="hito-panel-modo-toggle" role="group" aria-label="Modo de fecha">
-        <button type="button" class="hito-modo-btn ${modoFecha === "fecha" ? "active" : ""}" data-hito-modo="fecha">Fecha específica</button>
-        <button type="button" class="hito-modo-btn ${modoFecha === "dias" ? "active" : ""}" data-hito-modo="dias" ${tienePredecesor ? "" : "disabled"}>Desfasaje (días)</button>
+        <button type="button" class="hito-modo-btn ${modoFecha === "fecha" ? "active" : ""}" data-hito-modo="fecha" ${tienePredecesor ? "disabled" : dAll}>Fecha específica</button>
+        <button type="button" class="hito-modo-btn ${modoFecha === "dias" ? "active" : ""}" data-hito-modo="dias" ${tienePredecesor ? dAll : "disabled"}>Desfasaje (días)</button>
       </div>
       <input type="hidden" id="hitoPanelModoFecha-${hito.id}" value="${modoFecha}" />
       <p class="hito-panel-help" id="hitoPanelModoAyuda-${hito.id}">${tienePredecesor ? hitoPanelModoAyudaTexto(tipoActual) : ""}</p>
 
-      <div class="hito-panel-grid-2col">
-        <label id="hitoPanelCampoFecha-${hito.id}" class="${modoFecha === "fecha" ? "" : "hidden"}">Fecha<input type="date" data-field="fechaManual" value="${hito.fechaManual || hito.fechaLimite || ""}" /></label>
-        <label id="hitoPanelCampoDesfasaje-${hito.id}" class="${modoFecha === "dias" ? "" : "hidden"}">Desfasaje (días, admite negativos)<input type="number" data-field="desfasajeDias" value="${hito.desfasajeDias ?? 0}" step="1" /></label>
-        <label>Duración propia (días)<input type="number" data-field="duracionPropia" value="${hito.duracionPropia ?? 4}" min="1" step="1" /></label>
+      <div id="hitoPanelCampoFecha-${hito.id}" class="${modoFecha === "fecha" ? "" : "hidden"}">
+        ${!tienePredecesor ? `
+          <div class="hito-panel-modo-toggle hito-panel-submodo" role="group" aria-label="Como cargar la fecha" id="hitoPanelSubmodo-${hito.id}">
+            <button type="button" class="hito-modo-btn active" data-hito-submodo="rango" ${dAll}>Por fechas de inicio y fin</button>
+            <button type="button" class="hito-modo-btn" data-hito-submodo="duracion" ${dAll}>Por duración en días</button>
+          </div>
+          <label>Inicio<input type="date" id="hitoPanelInicioAux-${hito.id}" value="${inicioActual}" ${dAll} /></label>
+          <label>Vencimiento<input type="date" data-field="fechaManual" value="${finActual}" ${dAll} /></label>
+        ` : `
+          <p class="hito-panel-help">Este hito tiene predecesor y fecha fija — una combinación que ya no se carga desde acá. Pasalo a Desfasaje (días) o quitá el predecesor para poder editarlo.</p>
+          <label>Fecha<input type="date" data-field="fechaManual" value="${hito.fechaManual || hito.fechaLimite || ""}" ${dAll} /></label>
+        `}
       </div>
+      <div id="hitoPanelCampoDesfasaje-${hito.id}" class="${modoFecha === "dias" ? "" : "hidden"}">
+        <label>Desfasaje (días, admite negativos)<input type="number" data-field="desfasajeDias" value="${hito.desfasajeDias ?? 0}" step="1" ${dAll} /></label>
+        <div id="hitoPanelRestriccionBlock-${hito.id}">
+          <button type="button" class="hito-panel-link-btn ${tieneRestriccion ? "hidden" : ""}" id="hitoPanelRestriccionToggle-${hito.id}" ${dAll}>+ Agregar restricción de fecha mínima</button>
+          <div id="hitoPanelRestriccionField-${hito.id}" class="${tieneRestriccion ? "" : "hidden"}">
+            <label>No arrancar antes de<input type="date" id="hitoPanelFechaMinima-${hito.id}" value="${hito.fechaMinima || ""}" ${dAll} /></label>
+            <p class="hito-panel-help">Si el predecesor termina antes de esta fecha, el inicio se pospone hasta acá. No reemplaza el desfasaje, es un piso que se suma por encima.</p>
+          </div>
+        </div>
+      </div>
+      <label>Duración propia (días)<input type="number" data-field="duracionPropia" value="${hito.duracionPropia ?? 4}" min="1" step="1" ${dAll} /></label>
+      <div class="hito-panel-readout">Inicio ${fmtDateNice(hito.fechaInicio)} — Vencimiento ${fmtDateNice(hito.fechaLimite)} · ${duracionActual} día${duracionActual === 1 ? "" : "s"}</div>
 
       <div class="task-section-title">Responsable</div>
       <label class="task-check-row">
-        <input type="checkbox" id="hitoPanelUsaTemaResp-${hito.id}" ${usaRespPropio ? "" : "checked"} />
+        <input type="checkbox" id="hitoPanelUsaTemaResp-${hito.id}" ${usaRespPropio ? "" : "checked"} ${dAll} />
         Usar el de la tarea (${escHtml(respTemaNombre)})
       </label>
-      <div id="hitoPanelRespWrap-${hito.id}" class="${usaRespPropio ? "" : "hidden"}">${buildRespSelector(hito.responsable || "")}</div>
+      <div id="hitoPanelRespWrap-${hito.id}" class="${usaRespPropio ? "" : "hidden"}">
+        <div class="resp-chips" id="hitoPanelRespChips-${hito.id}"></div>
+        ${buildRespSelector(hito.responsable || "")}
+      </div>
 
-      <details class="task-section">
-        <summary class="task-section-title">Expediente y descripción</summary>
-        <label class="task-check-row">
-          <input type="checkbox" id="hitoPanelOwnExpChk-${hito.id}" ${hito.expediente ? "checked" : ""} />
-          Este hito tiene expediente propio
-        </label>
-        <div id="hitoPanelExpWrap-${hito.id}" class="${hito.expediente ? "" : "hidden"}">${buildGdeToggleWidget(hito.expediente || "")}</div>
-        <label>Descripción<textarea data-field="descripcion">${escHtml(hito.descripcion || "")}</textarea></label>
-      </details>
+      <div class="task-accordion ${expedienteActual ? "open" : ""}" data-hito-exp-accordion id="hitoPanelExpAccordion-${hito.id}">
+        <button type="button" class="task-accordion-head" data-hito-exp-head>
+          <span class="task-accordion-icon">${icon("conectado", 18)}</span>
+          <span class="task-accordion-label mono">Expediente</span>
+          <span class="task-accordion-chev">${icon("chevronAbajo", 16)}</span>
+        </button>
+        <div class="task-accordion-body"><div class="task-accordion-body-inner">
+          <label class="task-check-row">
+            <input type="checkbox" id="hitoPanelOwnExpChk-${hito.id}" ${expedienteActual ? "checked" : ""} ${dAll} />
+            Este hito tiene expediente propio
+          </label>
+          <div id="hitoPanelExpWrap-${hito.id}" class="${expedienteActual ? "" : "hidden"}">
+            <label>Expediente vinculado<select data-field="expediente" id="hitoPanelExpSelect-${hito.id}" ${dAll}>${expedienteOptsHtml}</select></label>
+            <button type="button" class="hito-panel-link-btn" id="hitoPanelCrearExpBtn-${hito.id}" ${dAll}>+ Crear expediente nuevo</button>
+          </div>
+        </div></div>
+      </div>
     </div>`;
 }
 
@@ -4232,17 +4348,64 @@ function toggleHitoEditPanel(tema, hitoId, refreshCallback) {
 }
 
 function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
-  const idPrefix = `hito-${hito.id}-`;
   initRespDropdowns(panelWrap);
 
+  // Expediente: select de expedientes del propio tema (ver
+  // temaExpedienteOptions), no el widget de pegar/armar GDE que usan el
+  // tema y el dialogo rapido -- alcance acotado a este panel, ver plan.
   const expWrap = document.getElementById(`hitoPanelExpWrap-${hito.id}`);
-  wireGdeToggleWidget(expWrap.querySelector("[data-gde-toggle]"), hito.expediente || "", "pegar", idPrefix);
   const ownExpChk = document.getElementById(`hitoPanelOwnExpChk-${hito.id}`);
   ownExpChk.addEventListener("change", () => expWrap.classList.toggle("hidden", !ownExpChk.checked));
+  const expedienteSelect = document.getElementById(`hitoPanelExpSelect-${hito.id}`);
+  const crearExpBtn = document.getElementById(`hitoPanelCrearExpBtn-${hito.id}`);
+  crearExpBtn?.addEventListener("click", () => {
+    openExpedienteForm({ temaAsociado: tema.nombre }, (numero) => {
+      let opt = [...expedienteSelect.options].find((o) => normalizeExpNumero(o.value) === normalizeExpNumero(numero));
+      if (!opt) {
+        opt = document.createElement("option");
+        opt.value = numero;
+        opt.textContent = numero;
+        expedienteSelect.appendChild(opt);
+      }
+      expedienteSelect.value = opt.value;
+    });
+  });
 
+  // Acordeon "Expediente": reusa el CSS de .task-accordion pero no
+  // wireAccordionToggle (hace lookup global por key + persiste en
+  // localStorage -- colisionaria entre hitos distintos). Se llama directo
+  // a animateAccordionToggle, que si es generica/reusable con elementos.
+  const expAccordion = document.getElementById(`hitoPanelExpAccordion-${hito.id}`);
+  const expHead = expAccordion.querySelector("[data-hito-exp-head]");
+  const expBody = expAccordion.querySelector(".task-accordion-body");
+  expHead.addEventListener("click", () => {
+    animateAccordionToggle(expAccordion, expBody, !expAccordion.classList.contains("open"));
+  });
+
+  // Responsable: chips removibles sobre el mismo checkbox-dropdown
+  // multi-select que ya usan temas/expedientes (buildRespSelector) -- sin
+  // cambio de esquema, solo una capa de render nueva sobre resp_cb.
   const usaTemaRespChk = document.getElementById(`hitoPanelUsaTemaResp-${hito.id}`);
   const respWrap = document.getElementById(`hitoPanelRespWrap-${hito.id}`);
+  const respChipsEl = document.getElementById(`hitoPanelRespChips-${hito.id}`);
   usaTemaRespChk.addEventListener("change", () => respWrap.classList.toggle("hidden", usaTemaRespChk.checked));
+  function renderRespChips() {
+    const checked = [...respWrap.querySelectorAll('[name="resp_cb"]:checked')].map((cb) => cb.value);
+    respChipsEl.innerHTML = checked.map((nombre) => {
+      const idx = state.responsables.findIndex((r) => [r.nombre, r.apellido].filter(Boolean).join(" ") === nombre);
+      const color = RESP_PALETTE[(idx >= 0 ? idx : parseInt(simpleHash(nombre), 10) || 0) % RESP_PALETTE.length];
+      return `<span class="resp-chip"><span class="resp-chip-dot" style="background:${color}"></span>${escHtml(nombre)}<button type="button" class="resp-chip-remove" data-resp-chip-remove="${escHtml(nombre)}" aria-label="Quitar responsable">${icon("cerrar", 10)}</button></span>`;
+    }).join("") || `<span class="resp-chip-empty">Todavía no asignaste a nadie.</span>`;
+    respChipsEl.querySelectorAll("[data-resp-chip-remove]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const cb = [...respWrap.querySelectorAll('[name="resp_cb"]')].find((c) => c.value === btn.dataset.respChipRemove);
+        if (cb) { cb.checked = false; }
+        renderRespChips();
+      });
+    });
+  }
+  respWrap.addEventListener("change", (e) => { if (e.target.name === "resp_cb") renderRespChips(); });
+  renderRespChips();
 
   const predecesorSelect = document.getElementById(`hitoPanelPredecesor-${hito.id}`);
   const tipoSelect = document.getElementById(`hitoPanelTipo-${hito.id}`);
@@ -4250,6 +4413,7 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
   const modoHidden = document.getElementById(`hitoPanelModoFecha-${hito.id}`);
   const campoFecha = document.getElementById(`hitoPanelCampoFecha-${hito.id}`);
   const campoDesfasaje = document.getElementById(`hitoPanelCampoDesfasaje-${hito.id}`);
+  const restriccionBlock = document.getElementById(`hitoPanelRestriccionBlock-${hito.id}`);
   const modoBtns = panelWrap.querySelectorAll("[data-hito-modo]");
   const errorBox = document.getElementById(`hitoPanelError-${hito.id}`);
   const modoAyuda = document.getElementById(`hitoPanelModoAyuda-${hito.id}`);
@@ -4259,12 +4423,25 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
   function actualizarDisponibilidadPredecesor() {
     const tienePred = Boolean(predecesorSelect.value);
     tipoSelect.disabled = !tienePred;
-    modoBtns.forEach((b) => { if (b.dataset.hitoModo === "dias") b.disabled = !tienePred; });
+    // Con predecesor, "Fecha especifica" ya no es una opcion valida (solo
+    // Desfasaje) -- sin predecesor es al reves, es el unico modo posible.
+    modoBtns.forEach((b) => {
+      if (b.dataset.hitoModo === "dias") b.disabled = !tienePred;
+      if (b.dataset.hitoModo === "fecha") b.disabled = tienePred;
+    });
     if (!tienePred) {
       modoHidden.value = "fecha";
       modoBtns.forEach((b) => b.classList.toggle("active", b.dataset.hitoModo === "fecha"));
       campoFecha.classList.remove("hidden");
       campoDesfasaje.classList.add("hidden");
+      restriccionBlock.classList.add("hidden");
+    } else if (modoHidden.value === "fecha") {
+      // Predecesor recien agregado sobre un hito que estaba en "fecha" (sin
+      // predecesor siempre es fecha) -- pasa a Desfasaje automatico.
+      modoHidden.value = "dias";
+      modoBtns.forEach((b) => b.classList.toggle("active", b.dataset.hitoModo === "dias"));
+      campoFecha.classList.add("hidden");
+      campoDesfasaje.classList.remove("hidden");
     }
     tipoAyuda.textContent = tienePred
       ? TIPO_VINCULO_INFO[tipoSelect.value || "FC"].ayuda
@@ -4284,7 +4461,59 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
     modoBtns.forEach((x) => x.classList.toggle("active", x === b));
     campoFecha.classList.toggle("hidden", b.dataset.hitoModo !== "fecha");
     campoDesfasaje.classList.toggle("hidden", b.dataset.hitoModo !== "dias");
+    restriccionBlock.classList.toggle("hidden", b.dataset.hitoModo !== "dias");
   }));
+
+  // Estado + punto de color: reusa el mismo mapeo que badgeClass(), sin
+  // inventar una paleta nueva para el panel.
+  const estadoSelect = panelWrap.querySelector('[data-field="estado"]');
+  const estadoDot = document.getElementById(`hitoPanelStatusDot-${hito.id}`);
+  estadoSelect?.addEventListener("change", () => {
+    estadoDot.style.background = `var(--${badgeClass(estadoSelect.value).slice(2)})`;
+  });
+
+  // Sub-modo "por fechas de inicio y fin" / "por duracion": capa de UI
+  // pura sobre fechaManual/duracionPropia (sin campos nuevos ni cambio de
+  // esquema) -- Inicio es un input auxiliar, nunca se lee al guardar.
+  const inicioAux = document.getElementById(`hitoPanelInicioAux-${hito.id}`);
+  const submodoWrap = document.getElementById(`hitoPanelSubmodo-${hito.id}`);
+  if (inicioAux && submodoWrap) {
+    const fechaManualInput = panelWrap.querySelector('[data-field="fechaManual"]');
+    const duracionInput = panelWrap.querySelector('[data-field="duracionPropia"]');
+    let submodo = "rango";
+    function syncSubmodo() {
+      duracionInput.readOnly = submodo === "rango";
+      fechaManualInput.readOnly = submodo === "duracion";
+    }
+    function recomputar() {
+      if (!inicioAux.value) return;
+      if (submodo === "rango") {
+        if (fechaManualInput.value) duracionInput.value = Math.max(1, daysBetween(inicioAux.value, fechaManualInput.value) || 1);
+      } else {
+        fechaManualInput.value = sumarDias(inicioAux.value, parseInt(duracionInput.value, 10) || 1);
+      }
+    }
+    submodoWrap.querySelectorAll("[data-hito-submodo]").forEach((b) => b.addEventListener("click", () => {
+      if (b.disabled) return;
+      submodo = b.dataset.hitoSubmodo;
+      submodoWrap.querySelectorAll("[data-hito-submodo]").forEach((x) => x.classList.toggle("active", x === b));
+      syncSubmodo();
+      recomputar();
+    }));
+    inicioAux.addEventListener("input", recomputar);
+    fechaManualInput.addEventListener("input", () => { if (submodo === "rango") recomputar(); });
+    duracionInput.addEventListener("input", () => { if (submodo === "duracion") recomputar(); });
+    syncSubmodo();
+  }
+
+  // Restriccion "no arrancar antes de": detras de un link, colapsada salvo
+  // que ya tenga valor cargado.
+  const restriccionToggleBtn = document.getElementById(`hitoPanelRestriccionToggle-${hito.id}`);
+  const restriccionField = document.getElementById(`hitoPanelRestriccionField-${hito.id}`);
+  restriccionToggleBtn?.addEventListener("click", () => {
+    restriccionToggleBtn.classList.add("hidden");
+    restriccionField.classList.remove("hidden");
+  });
 
   document.getElementById(`hitoPanelCancelBtn-${hito.id}`).addEventListener("click", () => {
     toggleHitoEditPanel(tema, hito.id, refreshCallback);
@@ -4315,26 +4544,36 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
 
     const estado = panelWrap.querySelector('[data-field="estado"]').value;
     const modoFecha = predecesorId ? modoHidden.value : "fecha";
+    // Con predecesor, "fecha especifica" ya no es una combinacion valida
+    // (ver actualizarDisponibilidadPredecesor) -- esto solo puede pasar si
+    // el hito ya tenia esa combinacion guardada de antes (legacy) y el
+    // usuario no la toco: bloquear el guardado en vez de convertirla en
+    // silencio a un desfasaje que nunca configuro.
+    if (predecesorId && modoFecha === "fecha") {
+      errorBox.textContent = "Con predecesor, el modo debe ser Desfasaje (días) — pasalo a Desfasaje o quitá el predecesor para poder guardar.";
+      errorBox.classList.remove("hidden");
+      return;
+    }
     const fechaManual = panelWrap.querySelector('[data-field="fechaManual"]')?.value || "";
     if (modoFecha === "fecha" && !fechaManual) { showToast("Completá la fecha"); return; }
     const desfasajeDiasRaw = panelWrap.querySelector('[data-field="desfasajeDias"]')?.value;
     const duracionPropiaRaw = panelWrap.querySelector('[data-field="duracionPropia"]')?.value;
-    const descripcion = panelWrap.querySelector('[data-field="descripcion"]')?.value || "";
-    const hiddenExp = document.getElementById(`${idPrefix}gdeNumeroHidden`);
-    const expediente = ownExpChk.checked ? (hiddenExp?.value.trim() || "") : "";
+    const fechaMinimaInput = document.getElementById(`hitoPanelFechaMinima-${hito.id}`);
+    const expediente = ownExpChk.checked ? (expedienteSelect?.value.trim() || "") : "";
 
     const fechasAntes = new Map(tema.hitos.map((h) => [h.id, `${h.fechaInicio}|${h.fechaLimite}`]));
     const snapshotAntes = new Map(tema.hitos.map((h) => [h.id, { fechaInicio: h.fechaInicio, fechaLimite: h.fechaLimite }]));
 
     Object.assign(hito, {
-      nombre, estado, descripcion, expediente,
+      nombre, estado, expediente,
       responsable: usaTemaResp ? "" : resp,
       predecesorId,
       tipoVinculo: predecesorId ? (tipoSelect.value || "FC") : null,
       modoFecha,
       desfasajeDias: predecesorId && modoFecha === "dias" ? (parseInt(desfasajeDiasRaw, 10) || 0) : null,
       fechaManual: modoFecha === "fecha" ? fechaManual : "",
-      duracionPropia: Math.max(1, parseInt(duracionPropiaRaw, 10) || 4)
+      duracionPropia: Math.max(1, parseInt(duracionPropiaRaw, 10) || 4),
+      fechaMinima: predecesorId && modoFecha === "dias" ? (fechaMinimaInput?.value || null) : null
     });
 
     if (hito.estado === "Cerrado") {
@@ -6257,8 +6496,15 @@ function wireGdeToggleWidget(wrap, existingNumero, initialMode, idPrefix = "") {
   });
 }
 
-function openExpedienteForm(existing = null) {
-  const isEdit = Boolean(existing);
+// onCreated(numero): si se pasa, el submit de un expediente NUEVO evita
+// reloadState() (reemplazaria state.temas completo mientras el modal de
+// tema sigue abierto -- dejaria huerfano el "draft" que ese modal edita,
+// ver comentario en ensureBoardRealtimeSubscription mas arriba sobre por
+// que el refresh de Realtime se difiere con un modal abierto). En cambio
+// empuja el registro a mano a state.expedientes y solo re-renderiza el tab
+// Expedientes, y le devuelve el numero recien creado al llamador.
+function openExpedienteForm(existing = null, onCreated = null) {
+  const isEdit = Boolean(existing?.numero);
   els.dynamicForm.innerHTML = `
     <h3>${isEdit ? "Editar expediente" : "Nuevo expediente"}</h3>
     ${buildGdeWidget(existing?.numero || "")}
@@ -6291,13 +6537,25 @@ function openExpedienteForm(existing = null) {
     const ok = await withBusy(async () => {
       if (isEdit) {
         await dataApi.updateExpediente(existing.numero, data);
+        await reloadState();
       } else {
         await dataApi.createExpediente(data);
+        if (onCreated) {
+          state.expedientes.push({
+            numero: data.numero, gde: data.gde || "", temaAsociado: data.temaAsociado || "",
+            fechaInicio: data.fechaInicio || "", fechaLimite: data.fechaLimite || "",
+            ultimaActualizacion: data.ultimaActualizacion || "", responsable: data.responsable || "",
+            estado: data.estado || "Activo", documentos: [], historial: []
+          });
+          renderExpedientes();
+        } else {
+          await reloadState();
+        }
       }
-      await reloadState();
     });
     if (!ok) return;
     els.modalForm.close();
+    if (!isEdit && onCreated) onCreated(data.numero);
   };
   els.modalForm.showModal();
 }
