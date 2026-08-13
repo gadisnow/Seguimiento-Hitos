@@ -1304,9 +1304,12 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
    el mes. Con un min-height fijo mas alto que esa porcion, un mes de 6
    semanas empuja el grid entero mas alla del alto de .main.main-fill y
    la ultima fila queda cortada/fuera de la tarjeta (bug reportado). Al
-   dejar que 1fr reparta libremente, cada fila usa lo que le toca y, en el
-   caso raro de que ni así entre el contenido, overflow-y:auto scrollea
-   solo esa celda en vez de romper el layout general. */
+   dejar que 1fr reparta libremente, cada fila usa lo que le toca. Si el
+   contenido no entra (una fila 1fr sale mas baja en pantallas/zooms con
+   menos alto disponible), fitCalendarDayCells() en app.js recorta eventos
+   del final y ajusta "+X mas" antes de que el usuario vea nada -- por eso
+   overflow-y queda en hidden y no auto: un scrollbar nativo (con flechitas
+   en Windows) se veia distinto segun la resolucion del usuario. */
 .cal-day {
   background: #f9fbfe;
   border: 1px solid var(--border);
@@ -1317,7 +1320,7 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
   display: grid;
   gap: 3px;
   align-content: start;
-  overflow-y: auto;
+  overflow-y: hidden;
 }
 
 .cal-day.today { border-color: var(--primary); background: var(--primary-soft); }
@@ -1337,13 +1340,12 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
   text-overflow: ellipsis;
 }
 
-/* "+X mas" al estilo Google Calendar — solo en la vista Mes, donde las
-   celdas son chicas (dayCell() ahi cap a CAL_DAY_MAX_VISIBLE, ver app.js);
-   3 dias/semana laboral/semana completa pasan Infinity y muestran todo,
-   porque esas celdas tienen mucho mas alto disponible. El resto de un dia
-   con "+X mas" se ve en el popover que abre este boton (openCalDayPopover);
-   el overflow-y:auto de .cal-day queda como red de seguridad para el caso
-   raro de un dia con demasiados eventos incluso sin cap. */
+/* "+X mas" al estilo Google Calendar — en la vista Mes lo genera dayCell()
+   con el cap fijo CAL_DAY_MAX_VISIBLE (ver app.js); 3 dias/semana laboral/
+   semana completa pasan Infinity porque esas celdas tienen mucho mas alto
+   disponible, pero si aun asi un dia desborda, fitCalendarDayCells() crea
+   este mismo boton dinamicamente. El resto de un dia con "+X mas" se ve en
+   el popover que abre este boton (openCalDayPopover). */
 .cal-more {
   border: 0;
   background: transparent;
