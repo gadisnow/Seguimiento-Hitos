@@ -565,6 +565,7 @@ const els = {
   cfgPassActual:      $("cfgPassActual"),
   cfgPassNueva:       $("cfgPassNueva"),
   cfgPassConfirmar:   $("cfgPassConfirmar"),
+  mfaCardBody:        $("mfaCardBody"),
   userMenu:           $("userMenu"),
   userMenuTrigger:    $("userMenuTrigger"),
   userMenuDropdown:   $("userMenuDropdown"),
@@ -666,15 +667,22 @@ function renderAppVersion() {
   el.textContent = `Notby V.${major}.${minor}`;
 }
 
+// Muestra el chrome del login (pantalla completa, centrado) sin decidir todavia
+// que formulario renderizar adentro -- lo comparten el camino de password
+// recovery, el gate de MFA y showLoginScreen().
+function showLoginScreenChrome() {
+  const ls = $("loginScreen");
+  const app = document.querySelector(".app");
+  if (ls) { ls.style.display = "grid"; ls.style.placeItems = "center"; }
+  if (app) app.style.display = "none";
+}
+
 // Resuelve la sesion de Supabase y decide que pantalla mostrar.
 async function boot() {
   // La sesion vino de clickear el link de "olvide mi contrasena": no es un
   // login normal, hay que forzar elegir una nueva antes de entrar a la app.
   if (authApi.isPasswordRecovery()) {
-    const ls = $("loginScreen");
-    const app = document.querySelector(".app");
-    if (ls) { ls.style.display = "grid"; ls.style.placeItems = "center"; }
-    if (app) app.style.display = "none";
+    showLoginScreenChrome();
     renderNewPassword();
     return;
   }
@@ -697,6 +705,19 @@ async function boot() {
     await authApi.logout();
     showLoginScreen();
     showToast("Se cerro tu sesion por inactividad (60 minutos).");
+    return;
+  }
+
+  // 2FA (opcional, TOTP): si el usuario ya enrolo y verifico un factor, la
+  // sesion recien autenticada por password queda en aal1 -- nextLevel pasa a
+  // aal2 y hay que desafiarlo antes de cargar su perfil/datos. Quien nunca
+  // activo 2FA sigue con currentLevel === nextLevel siempre, asi que este
+  // chequeo es un no-op para el resto de los usuarios.
+  let aal = null;
+  try { aal = await authApi.mfaGetAal(); } catch (e) { console.error(e); }
+  if (aal && aal.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+    showLoginScreenChrome();
+    renderMfaChallenge();
     return;
   }
 
@@ -1028,6 +1049,7 @@ function showView(view) {
   if (view === "responsables") renderResponsables();
   if (view === "usuarios") renderUsuarios();
   if (view === "mispizarras") renderMisPizarras();
+  if (view === "configuracion") renderSeguridadCard();
 }
 
 function navigateTo(view) {
@@ -1038,10 +1060,7 @@ function navigateTo(view) {
 }
 
 function showLoginScreen() {
-  const ls = $("loginScreen");
-  const app = document.querySelector(".app");
-  if (ls) { ls.style.display = "grid"; ls.style.placeItems = "center"; }
-  if (app) app.style.display = "none";
+  showLoginScreenChrome();
   if (els.pizarraSwitcher) els.pizarraSwitcher.classList.remove("open");
   renderLogin();
 }
@@ -1282,6 +1301,54 @@ function renderNewPassword() {
     } catch (err) {
       if (btn) { btn.disabled = false; btn.textContent = "Guardar contraseña"; }
       msg.innerHTML = `<div class="login-error">No se pudo actualizar la contraseña. Volvé a pedir un código.</div>`;
+    }
+  });
+}
+
+// Pantalla de desafio de 2FA -- boot() redirige aca (en vez de cargar el
+// perfil) cuando la sesion recien autenticada por password esta en aal1 pero
+// el usuario tiene un factor TOTP verificado (nextLevel aal2). Quien nunca
+// activo 2FA nunca pasa por esta pantalla.
+async function renderMfaChallenge() {
+  const wrap = $("loginFormWrap");
+  if (!wrap) return;
+  let factorId = null;
+  try {
+    const factors = await authApi.mfaListFactors();
+    factorId = factors.totp?.find((f) => f.status === "verified")?.id || null;
+  } catch (e) { console.error(e); }
+
+  wrap.innerHTML = `
+    <form class="login-form" id="mfaChallengeFormEl">
+      <p class="login-sub" style="margin:0 0 4px">Ingresá el código de 6 dígitos de tu app de autenticación.</p>
+      <label>Código<input type="text" id="mfaCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required autofocus /></label>
+      <div id="mfaChallengeMsg"></div>
+      <button type="submit" class="login-btn">Verificar</button>
+    </form>
+    <button type="button" class="link" id="mfaLogoutBtn" style="margin-top:10px;border:0;background:transparent;cursor:pointer;display:block">Cerrar sesión</button>
+  `;
+
+  $("mfaLogoutBtn").addEventListener("click", async () => {
+    await authApi.logout();
+    showLoginScreen();
+  });
+
+  $("mfaChallengeFormEl").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msg = $("mfaChallengeMsg");
+    const code = $("mfaCode").value.trim();
+    if (!factorId) {
+      msg.innerHTML = `<div class="login-error">No se encontró tu método de verificación. Cerrá sesión y contactá a un administrador.</div>`;
+      return;
+    }
+    const btn = e.target.querySelector(".login-btn");
+    if (btn) { btn.disabled = true; btn.textContent = "Verificando..."; }
+    try {
+      await authApi.mfaChallengeAndVerify(factorId, code);
+      await boot();
+    } catch (err) {
+      if (btn) { btn.disabled = false; btn.textContent = "Verificar"; }
+      msg.innerHTML = `<div class="login-error">Código inválido o expirado. Probá de nuevo.</div>`;
     }
   });
 }
@@ -1629,6 +1696,86 @@ function renderConfig() {
     if (els.userMenuName) els.userMenuName.textContent = state.config.currentUser;
     if (els.dropdownUserName) els.dropdownUserName.textContent = state.config.currentUser;
   }
+}
+
+// 2FA opcional (TOTP) -- solo se pide/consulta cuando el usuario entra a
+// Configuracion (ver showView), no en cada renderAll() como renderConfig().
+let mfaFactorsCache = null;
+
+async function renderSeguridadCard() {
+  if (!els.mfaCardBody) return;
+  try { mfaFactorsCache = await authApi.mfaListFactors(); }
+  catch (e) { console.error(e); mfaFactorsCache = null; }
+
+  const factor = mfaFactorsCache?.totp?.find((f) => f.status === "verified") || null;
+  els.mfaCardBody.innerHTML = factor
+    ? `
+      <p>Activada — método agregado el ${fmtDateNice(String(factor.created_at).slice(0, 10))}.</p>
+      <button type="button" class="ghost" id="mfaDisableBtn" style="color:#dc2626">Desactivar</button>
+    `
+    : `
+      <p style="color:var(--muted)">No está activada. Sumá un paso extra de seguridad con una app de autenticación (Google Authenticator, Authy, etc).</p>
+      <button type="button" class="primary" id="mfaEnableBtn">Activar</button>
+    `;
+
+  $("mfaEnableBtn")?.addEventListener("click", openMfaEnrollModal);
+  $("mfaDisableBtn")?.addEventListener("click", async () => {
+    if (!confirm("¿Desactivar la verificación en dos pasos? Ya no se te va a pedir un código extra al iniciar sesión.")) return;
+    const ok = await withBusy(() => authApi.mfaUnenroll(factor.id));
+    if (ok) { showToast("Autenticación de dos factores desactivada."); renderSeguridadCard(); }
+  });
+}
+
+// Modal de enrolamiento: se abre ya (con un placeholder) y se puebla cuando
+// responde enroll(), mismo patron que openColaboradoresModal -- se percibe
+// mas rapido que esperar a la red antes de mostrar el dialog. La limpieza
+// del factor sin verificar se engancha al evento nativo "close" del dialog
+// (no solo al click de Cancelar) para cubrir tambien la tecla Escape.
+function openMfaEnrollModal() {
+  let verified = false;
+  let factorId = null;
+
+  els.dynamicForm.innerHTML = `<p style="color:var(--muted)">Generando código...</p>`;
+  els.modalForm.showModal();
+
+  const onClose = () => {
+    els.modalForm.removeEventListener("close", onClose);
+    if (!verified && factorId) authApi.mfaUnenroll(factorId).catch(() => {});
+  };
+  els.modalForm.addEventListener("close", onClose);
+
+  authApi.mfaEnroll().then((data) => {
+    factorId = data.id;
+    const qrSvg = DOMPurify.sanitize(data.totp.qr_code, { USE_PROFILES: { svg: true, svgFilters: true } });
+    els.dynamicForm.innerHTML = `
+      <h3>Activar verificación en dos pasos</h3>
+      <p>Escaneá este código con tu app de autenticación:</p>
+      <div style="display:flex;justify-content:center;margin:12px 0">${qrSvg}</div>
+      <p style="font-size:12px;color:var(--muted)">¿No podés escanear? Ingresá este código manualmente: <code>${escHtml(data.totp.secret)}</code></p>
+      <label>Código de 6 dígitos<input id="mfaEnrollCode" type="text" inputmode="numeric" maxlength="6" required autofocus /></label>
+      <div id="mfaEnrollMsg"></div>
+      <div class="btn-group" style="justify-content:flex-end;margin-top:6px">
+        <button class="primary" type="submit">Verificar y activar</button>
+        <button class="ghost js-close-modal-form" type="button">Cancelar</button>
+      </div>
+    `;
+    els.dynamicForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const code = $("mfaEnrollCode").value.trim();
+      const msg = $("mfaEnrollMsg");
+      try {
+        await authApi.mfaChallengeAndVerify(factorId, code);
+        verified = true;
+        els.modalForm.close();
+        showToast("Autenticación de dos factores activada.");
+        renderSeguridadCard();
+      } catch (err) {
+        msg.innerHTML = `<div class="login-error">Código inválido. Probá de nuevo.</div>`;
+      }
+    };
+  }).catch(() => {
+    els.dynamicForm.innerHTML = `<div class="login-error">No se pudo generar el código. Cerrá esta ventana y probá de nuevo.</div>`;
+  });
 }
 
 // =========================================================

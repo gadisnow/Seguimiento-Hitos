@@ -169,3 +169,33 @@ export async function touchLastAccess() {
     .update({ ultimo_acceso: new Date().toISOString() })
     .eq("id", _profile.id);
 }
+
+// ---------------- MFA (2FA opcional, TOTP) ----------------
+export async function mfaListFactors() {
+  const { data, error } = await supabase.auth.mfa.listFactors();
+  if (error) throw error;
+  return data; // { totp: [{ id, status, friendly_name, created_at, ... }], phone: [] }
+}
+
+export async function mfaGetAal() {
+  const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (error) throw error;
+  return data; // { currentLevel, nextLevel, currentAuthenticationMethods }
+}
+
+export async function mfaEnroll() {
+  const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp" });
+  if (error) throw error;
+  return data; // { id, totp: { qr_code, secret, uri } }
+}
+
+export async function mfaChallengeAndVerify(factorId, code) {
+  const { data, error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code });
+  if (error) throw error;
+  return data;
+}
+
+export async function mfaUnenroll(factorId) {
+  const { error } = await supabase.auth.mfa.unenroll({ factorId });
+  if (error) throw error;
+}
