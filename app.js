@@ -4404,9 +4404,15 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
   // buildHitoEditPanelHtml) -- al cambiar de modo se reubica fisicamente en
   // el slot del modo activo en vez de duplicarlo.
   function moverDuracionASlot(modo) {
-    const label = panelWrap.querySelector('[data-field="duracionPropia"]')?.closest("label");
+    const input = panelWrap.querySelector('[data-field="duracionPropia"]');
+    const label = input?.closest("label");
     const target = modo === "fecha" ? duracionSlotFecha : duracionSlotDesfasaje;
     if (label && target && label.parentElement !== target) target.appendChild(label);
+    // En modo Desfasaje la duracion siempre es editable -- si el hito
+    // arranco sin predecesor (sub-modo "por fechas", donde el campo queda
+    // de solo lectura porque se autocalcula) y recien ahi se le agrega un
+    // predecesor, ese readOnly no debe sobrevivir al pasar a Desfasaje.
+    if (modo === "dias" && input) input.readOnly = false;
   }
 
   function limpiarError() { errorBox.classList.add("hidden"); errorBox.textContent = ""; }
