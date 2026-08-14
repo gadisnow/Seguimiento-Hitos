@@ -1580,6 +1580,18 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
   font-family: inherit;
 }
 
+/* Ojo para mostrar/ocultar contraseña (Configuracion -> Cambiar
+   contraseña) -- el input queda con lugar a la derecha para el boton,
+   que alterna type="password"/"text" por JS (ver wirePasswordToggles). */
+.pass-field-wrap { position: relative; display: block; }
+.pass-field-wrap input { width: 100%; box-sizing: border-box; padding-right: 34px; }
+.pass-toggle-btn {
+  position: absolute; right: 3px; top: 50%; transform: translateY(-50%);
+  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent; color: var(--muted); cursor: pointer; border-radius: 6px;
+}
+.pass-toggle-btn:hover { background: var(--primary-soft); color: var(--primary); }
+
 #dynamicForm {
   display: grid;
   gap: 10px;

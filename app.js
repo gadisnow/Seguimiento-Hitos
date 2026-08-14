@@ -973,6 +973,7 @@ function bindEvents() {
     }
   });
 
+  wirePasswordToggles();
   wireReportFiltersPanel();
 
   document.addEventListener("click", (e) => {
@@ -2237,6 +2238,8 @@ const ICONS = {
   imagen: `<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M4 16.3l4.5-4.8 3.2 3.6 3-3.3L20.5 17"/>`,
   descargar: `<path d="M12 3.5v11.5"/><path d="M7.5 11l4.5 4.5 4.5-4.5"/><path d="M4.5 17.5v2a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2"/>`,
   reloj: `<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2.5"/>`,
+  ojo: `<circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/>`,
+  ojoTachado: `<circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><line x1="3" y1="3" x2="21" y2="21"/>`,
   // Icono de cursiva para el toolbar de Quill (ver Object.assign(Quill.import("ui/icons"))
   // mas abajo): reemplaza la "I" en texto italico, que a ese tamano se ve
   // como una simple linea inclinada y no se reconoce como boton de cursiva.
@@ -2244,6 +2247,23 @@ const ICONS = {
 };
 function icon(name, size = 16) {
   return `<svg class="icon-inline" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
+}
+
+// Ojo de mostrar/ocultar contraseña (Configuracion -> Cambiar contraseña).
+// Botones estaticos en index.html (data-pass-toggle="<id del input>"), se
+// cablean una sola vez en bindEvents() -- no hace falta delegar porque no
+// se regeneran dinamicamente como el resto de los formularios de la app.
+function wirePasswordToggles() {
+  document.querySelectorAll("[data-pass-toggle]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const input = $(btn.dataset.passToggle);
+      if (!input) return;
+      const mostrando = input.type === "text";
+      input.type = mostrando ? "password" : "text";
+      btn.innerHTML = icon(mostrando ? "ojo" : "ojoTachado");
+      btn.setAttribute("aria-label", mostrando ? "Mostrar contraseña" : "Ocultar contraseña");
+    });
+  });
 }
 // El toolbar de Quill (composer de comentarios) trae sus propios SVG por
 // defecto. Theme.buildButtons pisa el innerHTML de cada <button class="ql-*">
