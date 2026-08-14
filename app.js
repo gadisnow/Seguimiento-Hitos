@@ -3580,10 +3580,13 @@ function closeDrawer() {
 // =========================================================
 // Forms (CRUD)
 // =========================================================
-function buildRespSelector(currentValue) {
+// Solo el widget (sin la etiqueta "Responsable *" envolvente) -- para
+// contextos que ya muestran su propio titulo de seccion, ver
+// buildHitoEditPanelHtml. buildRespSelector es el uso normal, con label.
+function buildRespDropdown(currentValue) {
   const selected = (currentValue || "").split(",").map((s) => s.trim()).filter(Boolean);
   if (!state.responsables.length) {
-    return `<label><span>Responsable <span style="color:#dc2626">*</span></span><input name="responsable" value="${escHtml(currentValue || "")}" required /></label>`;
+    return `<input name="responsable" value="${escHtml(currentValue || "")}" />`;
   }
   const opts = state.responsables.map((r) => {
     const full = [r.nombre, r.apellido].filter(Boolean).join(" ");
@@ -3593,20 +3596,22 @@ function buildRespSelector(currentValue) {
   const displayLabel = selected.length ? escHtml(selected.join(", ")) : "-- Seleccionar --";
   const placeholderClass = selected.length ? "" : "placeholder";
   return `
-    <label><span>Responsable <span style="color:#dc2626">*</span></span>
-      <div class="resp-dropdown">
-        <button type="button" class="resp-dropdown-trigger">
-          <span class="resp-dropdown-label ${placeholderClass}">${displayLabel}</span>
-          <span class="resp-dropdown-arrow">${icon("chevronAbajo", 12)}</span>
-        </button>
-        <div class="resp-dropdown-panel">
-          <div class="resp-dropdown-options">${opts}</div>
-          <div class="resp-dropdown-footer">
-            <button type="button" class="resp-dropdown-addnew">+ Agregar nuevo responsable</button>
-          </div>
+    <div class="resp-dropdown">
+      <button type="button" class="resp-dropdown-trigger">
+        <span class="resp-dropdown-label ${placeholderClass}">${displayLabel}</span>
+        <span class="resp-dropdown-arrow">${icon("chevronAbajo", 12)}</span>
+      </button>
+      <div class="resp-dropdown-panel">
+        <div class="resp-dropdown-options">${opts}</div>
+        <div class="resp-dropdown-footer">
+          <button type="button" class="resp-dropdown-addnew">+ Agregar nuevo responsable</button>
         </div>
       </div>
-    </label>`;
+    </div>`;
+}
+
+function buildRespSelector(currentValue) {
+  return `<label><span>Responsable <span style="color:#dc2626">*</span></span>${buildRespDropdown(currentValue)}</label>`;
 }
 
 function getSelectedResp(form) {
@@ -3774,12 +3779,6 @@ const TIPO_VINCULO_INFO = {
 // que habia antes de agregar CF -- con 4 tipos, un binario ya no alcanza.
 const ANCLA_PREDECESOR_FIELD = { FC: "fechaLimite", CC: "fechaInicio", FF: "fechaLimite", CF: "fechaInicio" };
 const ANCLA_RESULTADO_ES_FIN = { FC: false, CC: false, FF: true, CF: true };
-
-function hitoPanelModoAyudaTexto(tipo) {
-  return ANCLA_RESULTADO_ES_FIN[tipo]
-    ? "Con este vinculo podes fijar una fecha comprometida: si el predecesor se atrasa y ya no se llega, este hito NO se mueve solo — se marca critico."
-    : "Este hito se mueve automaticamente cuando cambia el predecesor, conservando la distancia configurada (dias o fecha) y su propia duracion.";
-}
 
 function hitoPorId(hitos, id) { return hitos.find((h) => h.id === id) || null; }
 
@@ -4197,24 +4196,6 @@ function renderHitosCompactList(tema, opts = {}) {
 // Panel de edicion expandible por fila de hito (predecesor, tipo de vinculo,
 // modo de fecha, duracion, responsable propio/heredado, expediente).
 // Reemplaza al viejo modal chico para la edicion desde el tab Hitos.
-// =========================================================
-// Expedientes "de este tema" para el selector del panel de hito: no hay FK
-// real entre expedientes y temas (expedientes.tema_asociado es texto libre
-// sin garantia de match, ver normalizeExpNumero) -- se derivan mirando el
-// propio tema.expediente + el expediente de cada uno de sus hitos, igual
-// criterio que collectExpedienteRefs() pero acotado a UN tema. A diferencia
-// de collectExpedienteRefs (que itera state.temas), esto funciona tambien
-// para un tema recien creado que todavia no esta en state.temas.
-function temaExpedienteOptions(tema) {
-  const vistos = new Set();
-  const out = [];
-  [tema.expediente, ...tema.hitos.map((h) => h.expediente)].filter(Boolean).forEach((numero) => {
-    const key = normalizeExpNumero(numero);
-    if (!vistos.has(key)) { vistos.add(key); out.push(numero); }
-  });
-  return out;
-}
-
 function buildHitoEditPanelHtml(tema, hito) {
   const otrosHitos = tema.hitos.filter((h) => h.id !== hito.id);
   const predOpts = `<option value="">Ninguno</option>` + otrosHitos.map((h) =>
@@ -4228,8 +4209,6 @@ function buildHitoEditPanelHtml(tema, hito) {
   ).join("");
 
   const modoFecha = tienePredecesor ? (hito.modoFecha || "fecha") : "fecha";
-  const usaRespPropio = Boolean(hito.responsable);
-  const respTemaNombre = respDisplay(tema.responsable) || "sin asignar";
 
   // Congelado: cerrar el TEMA bloquea todo (la reapertura vive un nivel mas
   // arriba, no en este panel); cerrar el HITO bloquea todo menos su propio
@@ -4247,13 +4226,6 @@ function buildHitoEditPanelHtml(tema, hito) {
   const statusToken = `var(--${badgeClass(hito.estado).slice(2)})`;
 
   const expedienteActual = hito.expediente || "";
-  const expedienteOpts = temaExpedienteOptions(tema);
-  if (expedienteActual && !expedienteOpts.some((n) => normalizeExpNumero(n) === normalizeExpNumero(expedienteActual))) {
-    expedienteOpts.push(expedienteActual);
-  }
-  const expedienteOptsHtml = [`<option value="">— Ninguno vinculado todavía —</option>`]
-    .concat(expedienteOpts.map((n) => `<option value="${escHtml(n)}" ${normalizeExpNumero(n) === normalizeExpNumero(expedienteActual) ? "selected" : ""}>${escHtml(n)}</option>`))
-    .join("");
 
   return `
     <div class="hito-edit-panel ${frozenClass}">
@@ -4279,7 +4251,6 @@ function buildHitoEditPanelHtml(tema, hito) {
           </span>
         </label>
       </div>
-      <p class="hito-panel-help">${tema.hitos.filter((h) => h.estado !== "Cerrado").length} de ${tema.hitos.length} hitos del tema todavía no están cerrados.</p>
 
       <div class="task-section-title">Dependencia</div>
       <div class="hito-panel-grid-2col">
@@ -4293,7 +4264,6 @@ function buildHitoEditPanelHtml(tema, hito) {
         <button type="button" class="hito-modo-btn ${modoFecha === "dias" ? "active" : ""}" data-hito-modo="dias" ${tienePredecesor ? dAll : "disabled"}>Desfasaje (días)</button>
       </div>
       <input type="hidden" id="hitoPanelModoFecha-${hito.id}" value="${modoFecha}" />
-      <p class="hito-panel-help" id="hitoPanelModoAyuda-${hito.id}">${tienePredecesor ? hitoPanelModoAyudaTexto(tipoActual) : ""}</p>
 
       <div id="hitoPanelCampoFecha-${hito.id}" class="${modoFecha === "fecha" ? "" : "hidden"}">
         ${!tienePredecesor ? `
@@ -4301,8 +4271,10 @@ function buildHitoEditPanelHtml(tema, hito) {
             <button type="button" class="hito-modo-btn active" data-hito-submodo="rango" ${dAll}>Por fechas de inicio y fin</button>
             <button type="button" class="hito-modo-btn" data-hito-submodo="duracion" ${dAll}>Por duración en días</button>
           </div>
-          <label>Inicio<input type="date" id="hitoPanelInicioAux-${hito.id}" value="${inicioActual}" ${dAll} /></label>
-          <label>Vencimiento<input type="date" data-field="fechaManual" value="${finActual}" ${dAll} /></label>
+          <div class="hito-panel-grid-2col">
+            <label>Inicio<input type="date" id="hitoPanelInicioAux-${hito.id}" value="${inicioActual}" ${dAll} /></label>
+            <label>Vencimiento<input type="date" data-field="fechaManual" value="${finActual}" ${dAll} /></label>
+          </div>
         ` : `
           <p class="hito-panel-help">Este hito tiene predecesor y fecha fija — una combinación que ya no se carga desde acá. Pasalo a Desfasaje (días) o quitá el predecesor para poder editarlo.</p>
           <label>Fecha<input type="date" data-field="fechaManual" value="${hito.fechaManual || hito.fechaLimite || ""}" ${dAll} /></label>
@@ -4318,36 +4290,18 @@ function buildHitoEditPanelHtml(tema, hito) {
           </div>
         </div>
       </div>
-      <label>Duración propia (días)<input type="number" data-field="duracionPropia" value="${hito.duracionPropia ?? 4}" min="1" step="1" ${dAll} /></label>
-      <div class="hito-panel-readout">Inicio ${fmtDateNice(hito.fechaInicio)} — Vencimiento ${fmtDateNice(hito.fechaLimite)} · ${duracionActual} día${duracionActual === 1 ? "" : "s"}</div>
+      <div class="hito-panel-grid-2col">
+        <label>Duración propia (días)<input type="number" data-field="duracionPropia" value="${hito.duracionPropia ?? 4}" min="1" step="1" ${dAll} /></label>
+        <div class="hito-panel-readout">Inicio ${fmtDateNice(hito.fechaInicio)} — Vencimiento ${fmtDateNice(hito.fechaLimite)} · ${duracionActual} día${duracionActual === 1 ? "" : "s"}</div>
+      </div>
 
       <div class="task-section-title">Responsable</div>
-      <label class="task-check-row">
-        <input type="checkbox" id="hitoPanelUsaTemaResp-${hito.id}" ${usaRespPropio ? "" : "checked"} ${dAll} />
-        Usar el de la tarea (${escHtml(respTemaNombre)})
-      </label>
-      <div id="hitoPanelRespWrap-${hito.id}" class="${usaRespPropio ? "" : "hidden"}">
+      <div class="hito-panel-resp-row" id="hitoPanelRespWrap-${hito.id}">
         <div class="resp-chips" id="hitoPanelRespChips-${hito.id}"></div>
-        ${buildRespSelector(hito.responsable || "")}
+        ${buildRespDropdown(hito.responsable || tema.responsable || "")}
       </div>
 
-      <div class="task-accordion ${expedienteActual ? "open" : ""}" data-hito-exp-accordion id="hitoPanelExpAccordion-${hito.id}">
-        <button type="button" class="task-accordion-head" data-hito-exp-head>
-          <span class="task-accordion-icon">${icon("conectado", 18)}</span>
-          <span class="task-accordion-label mono">Expediente</span>
-          <span class="task-accordion-chev">${icon("chevronAbajo", 16)}</span>
-        </button>
-        <div class="task-accordion-body"><div class="task-accordion-body-inner">
-          <label class="task-check-row">
-            <input type="checkbox" id="hitoPanelOwnExpChk-${hito.id}" ${expedienteActual ? "checked" : ""} ${dAll} />
-            Este hito tiene expediente propio
-          </label>
-          <div id="hitoPanelExpWrap-${hito.id}" class="${expedienteActual ? "" : "hidden"}">
-            <label>Expediente vinculado<select data-field="expediente" id="hitoPanelExpSelect-${hito.id}" ${dAll}>${expedienteOptsHtml}</select></label>
-            <button type="button" class="hito-panel-link-btn" id="hitoPanelCrearExpBtn-${hito.id}" ${dAll}>+ Crear expediente nuevo</button>
-          </div>
-        </div></div>
-      </div>
+      <label>Expediente<input type="text" data-field="expediente" value="${escHtml(expedienteActual)}" placeholder="Número de expediente" ${dAll} /></label>
     </div>`;
 }
 
@@ -4389,45 +4343,15 @@ function toggleHitoEditPanel(tema, hitoId, refreshCallback) {
 function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
   initRespDropdowns(panelWrap);
 
-  // Expediente: select de expedientes del propio tema (ver
-  // temaExpedienteOptions), no el widget de pegar/armar GDE que usan el
-  // tema y el dialogo rapido -- alcance acotado a este panel, ver plan.
-  const expWrap = document.getElementById(`hitoPanelExpWrap-${hito.id}`);
-  const ownExpChk = document.getElementById(`hitoPanelOwnExpChk-${hito.id}`);
-  ownExpChk.addEventListener("change", () => expWrap.classList.toggle("hidden", !ownExpChk.checked));
-  const expedienteSelect = document.getElementById(`hitoPanelExpSelect-${hito.id}`);
-  const crearExpBtn = document.getElementById(`hitoPanelCrearExpBtn-${hito.id}`);
-  crearExpBtn?.addEventListener("click", () => {
-    openExpedienteForm({ temaAsociado: tema.nombre }, (numero) => {
-      let opt = [...expedienteSelect.options].find((o) => normalizeExpNumero(o.value) === normalizeExpNumero(numero));
-      if (!opt) {
-        opt = document.createElement("option");
-        opt.value = numero;
-        opt.textContent = numero;
-        expedienteSelect.appendChild(opt);
-      }
-      expedienteSelect.value = opt.value;
-    });
-  });
-
-  // Acordeon "Expediente": reusa el CSS de .task-accordion pero no
-  // wireAccordionToggle (hace lookup global por key + persiste en
-  // localStorage -- colisionaria entre hitos distintos). Se llama directo
-  // a animateAccordionToggle, que si es generica/reusable con elementos.
-  const expAccordion = document.getElementById(`hitoPanelExpAccordion-${hito.id}`);
-  const expHead = expAccordion.querySelector("[data-hito-exp-head]");
-  const expBody = expAccordion.querySelector(".task-accordion-body");
-  expHead.addEventListener("click", () => {
-    animateAccordionToggle(expAccordion, expBody, !expAccordion.classList.contains("open"));
-  });
-
   // Responsable: chips removibles sobre el mismo checkbox-dropdown
-  // multi-select que ya usan temas/expedientes (buildRespSelector) -- sin
-  // cambio de esquema, solo una capa de render nueva sobre resp_cb.
-  const usaTemaRespChk = document.getElementById(`hitoPanelUsaTemaResp-${hito.id}`);
+  // multi-select que ya usan temas/expedientes (buildRespDropdown) -- sin
+  // cambio de esquema, solo una capa de render nueva sobre resp_cb. Sin
+  // checkbox de "usar el de la tarea": el valor por defecto (tema.responsable)
+  // ya viene precargado como seleccion inicial (ver buildHitoEditPanelHtml) --
+  // quitar el chip deja el hito sin responsable, sin ningun estado intermedio
+  // de "herencia" que sincronizar.
   const respWrap = document.getElementById(`hitoPanelRespWrap-${hito.id}`);
   const respChipsEl = document.getElementById(`hitoPanelRespChips-${hito.id}`);
-  usaTemaRespChk.addEventListener("change", () => respWrap.classList.toggle("hidden", usaTemaRespChk.checked));
   function renderRespChips() {
     const checked = [...respWrap.querySelectorAll('[name="resp_cb"]:checked')].map((cb) => cb.value);
     respChipsEl.innerHTML = checked.map((nombre) => {
@@ -4455,7 +4379,6 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
   const restriccionBlock = document.getElementById(`hitoPanelRestriccionBlock-${hito.id}`);
   const modoBtns = panelWrap.querySelectorAll("[data-hito-modo]");
   const errorBox = document.getElementById(`hitoPanelError-${hito.id}`);
-  const modoAyuda = document.getElementById(`hitoPanelModoAyuda-${hito.id}`);
 
   function limpiarError() { errorBox.classList.add("hidden"); errorBox.textContent = ""; }
 
@@ -4485,13 +4408,11 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
     tipoAyuda.textContent = tienePred
       ? TIPO_VINCULO_INFO[tipoSelect.value || "FC"].ayuda
       : "Elegí un predecesor para habilitar el tipo de vínculo.";
-    if (modoAyuda) modoAyuda.textContent = tienePred ? hitoPanelModoAyudaTexto(tipoSelect.value || "FC") : "";
     limpiarError();
   }
   predecesorSelect.addEventListener("change", actualizarDisponibilidadPredecesor);
   tipoSelect.addEventListener("change", () => {
     tipoAyuda.textContent = TIPO_VINCULO_INFO[tipoSelect.value]?.ayuda || "";
-    if (modoAyuda) modoAyuda.textContent = hitoPanelModoAyudaTexto(tipoSelect.value);
   });
 
   modoBtns.forEach((b) => b.addEventListener("click", () => {
@@ -4570,9 +4491,7 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
     const nombre = panelWrap.querySelector('[data-field="nombre"]').value.trim();
     if (!nombre) { showToast("El nombre del hito es requerido"); return; }
 
-    const usaTemaResp = usaTemaRespChk.checked;
-    const resp = usaTemaResp ? "" : getSelectedResp(panelWrap);
-    if (!usaTemaResp && !resp) { showToast("Selecciona al menos un responsable, o usa el de la tarea"); return; }
+    const resp = getSelectedResp(panelWrap);
 
     const predecesorId = predecesorSelect.value || null;
     if (predecesorId && predecesorGeneraCiclo(tema.hitos, hito.id, predecesorId)) {
@@ -4598,14 +4517,14 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
     const desfasajeDiasRaw = panelWrap.querySelector('[data-field="desfasajeDias"]')?.value;
     const duracionPropiaRaw = panelWrap.querySelector('[data-field="duracionPropia"]')?.value;
     const fechaMinimaInput = document.getElementById(`hitoPanelFechaMinima-${hito.id}`);
-    const expediente = ownExpChk.checked ? (expedienteSelect?.value.trim() || "") : "";
+    const expediente = panelWrap.querySelector('[data-field="expediente"]').value.trim();
 
     const fechasAntes = new Map(tema.hitos.map((h) => [h.id, `${h.fechaInicio}|${h.fechaLimite}`]));
     const snapshotAntes = new Map(tema.hitos.map((h) => [h.id, { fechaInicio: h.fechaInicio, fechaLimite: h.fechaLimite }]));
 
     Object.assign(hito, {
       nombre, estado, expediente,
-      responsable: usaTemaResp ? "" : resp,
+      responsable: resp,
       predecesorId,
       tipoVinculo: predecesorId ? (tipoSelect.value || "FC") : null,
       modoFecha,

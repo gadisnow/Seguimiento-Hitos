@@ -3594,11 +3594,13 @@ html[data-theme="dark"] .hito-panel-frozen-banner.red { color: #fca5a5; }
 .hito-panel-link-btn:hover { text-decoration: underline; }
 .hito-panel-link-btn:disabled { color: var(--muted); cursor: not-allowed; text-decoration: none; }
 
-.hito-panel-readout { font-size: 10.5px; color: var(--muted); }
+.hito-panel-readout { font-size: 10.5px; color: var(--muted); align-self: end; padding-bottom: 7px; }
 
-.hito-edit-panel .task-accordion { margin-bottom: 0; }
-.hito-edit-panel .task-accordion-head { padding: 8px 10px; }
-.hito-edit-panel .task-accordion-body-inner { padding: 10px; }
+/* Chips + dropdown en una misma linea (quitar el checkbox "usar el de la
+   tarea" dejo ambos como el unico control de responsable, ver plan). */
+.hito-panel-resp-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.hito-panel-resp-row .resp-chips { margin-bottom: 0; flex: 1 1 auto; }
+.hito-panel-resp-row .resp-dropdown { flex: 1 1 180px; max-width: 240px; }
 
 .resp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 .resp-chips:empty { display: none; }
