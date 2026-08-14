@@ -2236,6 +2236,7 @@ const ICONS = {
   historial: `<path d="M4.5 12a7.5 7.5 0 1 0 2.3-5.4"/><path d="M4.5 5.5v4h4"/><path d="M12 8.5v3.8l2.6 1.6"/>`,
   imagen: `<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M4 16.3l4.5-4.8 3.2 3.6 3-3.3L20.5 17"/>`,
   descargar: `<path d="M12 3.5v11.5"/><path d="M7.5 11l4.5 4.5 4.5-4.5"/><path d="M4.5 17.5v2a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2"/>`,
+  reloj: `<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2.5"/>`,
   // Icono de cursiva para el toolbar de Quill (ver Object.assign(Quill.import("ui/icons"))
   // mas abajo): reemplaza la "I" en texto italico, que a ese tamano se ve
   // como una simple linea inclinada y no se reconoce como boton de cursiva.
@@ -4212,8 +4213,12 @@ function buildHitoEditPanelHtml(tema, hito) {
 
   const tienePredecesor = Boolean(hito.predecesorId);
   const tipoActual = hito.tipoVinculo || "FC";
+  // Solo el codigo en la opcion (no "FC — Fin-Comienzo") -- el label largo
+  // hacia que el desplegable nativo del <select> se abriera mucho mas ancho
+  // que el propio campo. El nombre completo se explica en el texto de ayuda
+  // de abajo (TIPO_VINCULO_INFO[...].ayuda), no hace falta repetirlo aca.
   const tipoOpts = ["FC", "CC", "FF", "CF"].map((t) =>
-    `<option value="${t}" ${tipoActual === t ? "selected" : ""}>${t} — ${TIPO_VINCULO_INFO[t].label}</option>`
+    `<option value="${t}" ${tipoActual === t ? "selected" : ""}>${t}</option>`
   ).join("");
 
   const modoFecha = tienePredecesor ? (hito.modoFecha || "fecha") : "fecha";
@@ -4307,7 +4312,7 @@ function buildHitoEditPanelHtml(tema, hito) {
           </div>
         </div>
       </div>
-      <div class="hito-panel-readout">Inicio ${fmtDateNice(hito.fechaInicio)} — Vencimiento ${fmtDateNice(hito.fechaLimite)} · ${duracionActual} día${duracionActual === 1 ? "" : "s"}</div>
+      <div class="hito-panel-readout">${icon("reloj", 14)} Inicio ${fmtDateNice(hito.fechaInicio)} → Vencimiento ${fmtDateNice(hito.fechaLimite)} · ${duracionActual} día${duracionActual === 1 ? "" : "s"}</div>
 
       <div class="hito-panel-resp-row" id="hitoPanelRespWrap-${hito.id}">
         <div class="resp-chips" id="hitoPanelRespChips-${hito.id}"></div>
