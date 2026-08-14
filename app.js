@@ -5450,22 +5450,22 @@ function wireDocDownloads(container, onDeleted) {
   });
 }
 
-function buildDocumentosTabHtml(tema) {
+function buildDocumentosTabHtml(tema, mode) {
   const docHtml = tema.documentos.length
     ? tema.documentos.map((d) => renderDocItem(d, { showDelete: true })).join("")
     : `<p style="color:var(--muted)">Sin documentos adjuntos.</p>`;
   return `
     <div id="taskDocList">${docHtml}</div>
-    ${puedeEditar() ? `<button type="button" class="col-add" id="taskUploadDocBtn" style="margin-top:10px">${icon("adjunto", 14)} Adjuntar documento</button>` : ""}
+    ${mode === "edit" && puedeEditar() ? `<button type="button" class="col-add" id="taskUploadDocBtn" style="margin-top:10px">${icon("adjunto", 14)} Adjuntar documento</button>` : ""}
   `;
 }
 
-function wireDocumentosTabEvents(draft) {
+function wireDocumentosTabEvents(draft, mode) {
   wireDocDownloads(document.getElementById("taskDocList"), (doc) => {
     draft.documentos = draft.documentos.filter((x) => x.id !== doc.id);
     dataApi.logActivity(draft.id, `Documento eliminado: ${doc.nombre}`).catch(() => {});
     renderAll();
-    refreshTaskDocumentosPane(draft);
+    refreshTaskDocumentosPane(draft, mode);
   });
   const btn = document.getElementById("taskUploadDocBtn");
   if (!btn) return;
@@ -5482,18 +5482,18 @@ function wireDocumentosTabEvents(draft) {
         draft.documentos.push(doc);
         state.documentos.push(doc);
         renderAll();
-        refreshTaskDocumentosPane(draft);
+        refreshTaskDocumentosPane(draft, mode);
       });
     };
     input.click();
   });
 }
 
-function refreshTaskDocumentosPane(draft) {
+function refreshTaskDocumentosPane(draft, mode) {
   const pane = els.taskForm.querySelector('.task-pane[data-task-pane="documentos"]');
   if (!pane) return;
-  pane.innerHTML = buildDocumentosTabHtml(draft);
-  wireDocumentosTabEvents(draft);
+  pane.innerHTML = buildDocumentosTabHtml(draft, mode);
+  wireDocumentosTabEvents(draft, mode);
   const tabBtn = els.taskForm.querySelector('.task-tab[data-task-tab="documentos"]');
   if (tabBtn) tabBtn.textContent = `Documentos${draft.documentos.length ? ` (${draft.documentos.length})` : ""}`;
 }
@@ -5642,7 +5642,7 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
 
           <div class="task-modal-content">
             <div class="task-pane ${activeTab === "general" ? "active" : ""}" data-task-pane="general">${buildGeneralTabHtml(draft, mode)}</div>
-            <div class="task-pane ${activeTab === "documentos" ? "active" : ""}" data-task-pane="documentos">${buildDocumentosTabHtml(draft)}</div>
+            <div class="task-pane ${activeTab === "documentos" ? "active" : ""}" data-task-pane="documentos">${buildDocumentosTabHtml(draft, mode)}</div>
             ${accesorioHabilitado("expediente") ? `<div class="task-pane ${activeTab === "expediente" ? "active" : ""}" data-task-pane="expediente">${buildExpedienteTabHtml(draft, mode)}</div>` : ""}
             ${accesorioHabilitado("planillas") ? `<div class="task-pane ${activeTab === "planillas" ? "active" : ""}" data-task-pane="planillas">${buildPlanillasTabHtml()}</div>` : ""}
           </div>
@@ -5662,7 +5662,7 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
     wireAccordionToggle("hitos");
     wireAccordionToggle("gantt");
     if (editable) wireAddHitoInline(draft);
-    wireDocumentosTabEvents(draft);
+    wireDocumentosTabEvents(draft, mode);
     if (accesorioHabilitado("expediente")) wireExpedienteTabEvents(draft, mode);
     wireFeedPanel(draft, mode);
     document.getElementById("taskConectarAccesorioBtn")?.addEventListener("click", openConectarAccesorioModal);
