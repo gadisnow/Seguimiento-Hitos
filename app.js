@@ -3583,7 +3583,11 @@ function closeDrawer() {
 // Solo el widget (sin la etiqueta "Responsable *" envolvente) -- para
 // contextos que ya muestran su propio titulo de seccion, ver
 // buildHitoEditPanelHtml. buildRespSelector es el uso normal, con label.
-function buildRespDropdown(currentValue) {
+// compact: true reemplaza el boton-trigger (que repite los nombres
+// seleccionados como texto) por un cuadrado "+" -- para cuando esos nombres
+// ya se muestran aparte como chips (ver hito-panel-resp-row) y mostrarlos
+// dos veces es redundante.
+function buildRespDropdown(currentValue, { compact = false } = {}) {
   const selected = (currentValue || "").split(",").map((s) => s.trim()).filter(Boolean);
   if (!state.responsables.length) {
     return `<input name="responsable" value="${escHtml(currentValue || "")}" />`;
@@ -3595,12 +3599,15 @@ function buildRespDropdown(currentValue) {
   }).join("");
   const displayLabel = selected.length ? escHtml(selected.join(", ")) : "-- Seleccionar --";
   const placeholderClass = selected.length ? "" : "placeholder";
-  return `
-    <div class="resp-dropdown">
-      <button type="button" class="resp-dropdown-trigger">
+  const triggerHtml = compact
+    ? `<button type="button" class="resp-dropdown-trigger resp-dropdown-trigger-compact" aria-label="Agregar responsable">+</button>`
+    : `<button type="button" class="resp-dropdown-trigger">
         <span class="resp-dropdown-label ${placeholderClass}">${displayLabel}</span>
         <span class="resp-dropdown-arrow">${icon("chevronAbajo", 12)}</span>
-      </button>
+      </button>`;
+  return `
+    <div class="resp-dropdown">
+      ${triggerHtml}
       <div class="resp-dropdown-panel">
         <div class="resp-dropdown-options">${opts}</div>
         <div class="resp-dropdown-footer">
@@ -3623,6 +3630,7 @@ function getSelectedResp(form) {
 
 function updateRespLabel(dd) {
   const label = dd.querySelector(".resp-dropdown-label");
+  if (!label) return; // trigger compacto (buildRespDropdown compact:true): sin texto que sincronizar
   const checked = [...dd.querySelectorAll('[name="resp_cb"]:checked')].map((cb) => cb.value);
   if (checked.length) { label.textContent = checked.join(", "); label.classList.remove("placeholder"); }
   else { label.textContent = "-- Seleccionar --"; label.classList.add("placeholder"); }
@@ -4227,10 +4235,16 @@ function buildHitoEditPanelHtml(tema, hito) {
 
   const expedienteActual = hito.expediente || "";
 
+  // Campo compartido por los dos modos (fecha/dias) -- una sola instancia real
+  // en el DOM para no repetir data-field="duracionPropia" (el save leia solo
+  // una copia segun el orden del DOM, bug ya resuelto antes). Se ubica en el
+  // slot del modo actual al construir el HTML; wireHitoEditPanel la reubica
+  // fisicamente (moveDuracionASlot) cuando el usuario cambia de modo.
+  const duracionFieldHtml = `<label>Duración propia (días)<input type="number" data-field="duracionPropia" value="${hito.duracionPropia ?? 4}" min="1" step="1" ${dAll} /></label>`;
+
   return `
     <div class="hito-edit-panel ${frozenClass}">
       <div class="hito-panel-topbar">
-        <span class="hito-panel-topbar-title">Editando hito</span>
         <div class="hito-panel-topbar-actions">
           <button type="button" class="ghost" id="hitoPanelCancelBtn-${hito.id}">Cancelar</button>
           <button type="button" class="primary" id="hitoPanelSaveBtn-${hito.id}" ${dEstado}>Guardar</button>
@@ -4242,7 +4256,7 @@ function buildHitoEditPanelHtml(tema, hito) {
       ${hito.__critico ? `<div class="hito-panel-critico-banner">${icon("alerta", 14)} <strong>Crítico:</strong> aun en el mejor escenario no se llega a "${escHtml(hito.__critico.hitoObjetivoNombre)}" (${fmtDateNice(hito.__critico.fechaComprometida)}) — se excede por ${hito.__critico.excesoDias}d.</div>` : ""}
       <div id="hitoPanelError-${hito.id}" class="hito-panel-error hidden"></div>
 
-      <div class="hito-panel-grid-2col">
+      <div class="hito-panel-row-tight">
         <label>Nombre<input data-field="nombre" value="${escHtml(hito.nombre)}" required ${dAll} /></label>
         <label>Estado
           <span class="hito-panel-status-select">
@@ -4252,8 +4266,7 @@ function buildHitoEditPanelHtml(tema, hito) {
         </label>
       </div>
 
-      <div class="task-section-title">Dependencia</div>
-      <div class="hito-panel-grid-2col">
+      <div class="hito-panel-row-tight">
         <label>Predecesor<select id="hitoPanelPredecesor-${hito.id}" ${dAll}>${predOpts}</select></label>
         <label>Tipo de vínculo<select id="hitoPanelTipo-${hito.id}" ${tienePredecesor ? dAll : "disabled"}>${tipoOpts}</select></label>
       </div>
@@ -4271,9 +4284,10 @@ function buildHitoEditPanelHtml(tema, hito) {
             <button type="button" class="hito-modo-btn active" data-hito-submodo="rango" ${dAll}>Por fechas de inicio y fin</button>
             <button type="button" class="hito-modo-btn" data-hito-submodo="duracion" ${dAll}>Por duración en días</button>
           </div>
-          <div class="hito-panel-grid-2col">
+          <div class="hito-panel-grid-3col">
             <label>Inicio<input type="date" id="hitoPanelInicioAux-${hito.id}" value="${inicioActual}" ${dAll} /></label>
             <label>Vencimiento<input type="date" data-field="fechaManual" value="${finActual}" ${dAll} /></label>
+            <div id="hitoPanelDuracionSlotFecha-${hito.id}">${modoFecha === "fecha" ? duracionFieldHtml : ""}</div>
           </div>
         ` : `
           <p class="hito-panel-help">Este hito tiene predecesor y fecha fija — una combinación que ya no se carga desde acá. Pasalo a Desfasaje (días) o quitá el predecesor para poder editarlo.</p>
@@ -4281,7 +4295,10 @@ function buildHitoEditPanelHtml(tema, hito) {
         `}
       </div>
       <div id="hitoPanelCampoDesfasaje-${hito.id}" class="${modoFecha === "dias" ? "" : "hidden"}">
-        <label>Desfasaje (días, admite negativos)<input type="number" data-field="desfasajeDias" value="${hito.desfasajeDias ?? 0}" step="1" ${dAll} /></label>
+        <div class="hito-panel-grid-2col">
+          <label>Desfasaje (días, admite negativos)<input type="number" data-field="desfasajeDias" value="${hito.desfasajeDias ?? 0}" step="1" ${dAll} /></label>
+          <div id="hitoPanelDuracionSlotDesfasaje-${hito.id}">${modoFecha === "dias" ? duracionFieldHtml : ""}</div>
+        </div>
         <div id="hitoPanelRestriccionBlock-${hito.id}">
           <button type="button" class="hito-panel-link-btn ${tieneRestriccion ? "hidden" : ""}" id="hitoPanelRestriccionToggle-${hito.id}" ${dAll}>+ Agregar restricción de fecha mínima</button>
           <div id="hitoPanelRestriccionField-${hito.id}" class="${tieneRestriccion ? "" : "hidden"}">
@@ -4290,18 +4307,14 @@ function buildHitoEditPanelHtml(tema, hito) {
           </div>
         </div>
       </div>
-      <div class="hito-panel-grid-2col">
-        <label>Duración propia (días)<input type="number" data-field="duracionPropia" value="${hito.duracionPropia ?? 4}" min="1" step="1" ${dAll} /></label>
-        <div class="hito-panel-readout">Inicio ${fmtDateNice(hito.fechaInicio)} — Vencimiento ${fmtDateNice(hito.fechaLimite)} · ${duracionActual} día${duracionActual === 1 ? "" : "s"}</div>
-      </div>
+      <div class="hito-panel-readout">Inicio ${fmtDateNice(hito.fechaInicio)} — Vencimiento ${fmtDateNice(hito.fechaLimite)} · ${duracionActual} día${duracionActual === 1 ? "" : "s"}</div>
 
-      <div class="task-section-title">Responsable</div>
       <div class="hito-panel-resp-row" id="hitoPanelRespWrap-${hito.id}">
         <div class="resp-chips" id="hitoPanelRespChips-${hito.id}"></div>
-        ${buildRespDropdown(hito.responsable || tema.responsable || "")}
+        ${buildRespDropdown(hito.responsable || tema.responsable || "", { compact: true })}
       </div>
 
-      <label>Expediente<input type="text" data-field="expediente" value="${escHtml(expedienteActual)}" placeholder="Número de expediente" ${dAll} /></label>
+      <input type="text" class="hito-panel-expediente-input" data-field="expediente" value="${escHtml(expedienteActual)}" placeholder="Número de expediente" ${dAll} />
     </div>`;
 }
 
@@ -4379,6 +4392,17 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
   const restriccionBlock = document.getElementById(`hitoPanelRestriccionBlock-${hito.id}`);
   const modoBtns = panelWrap.querySelectorAll("[data-hito-modo]");
   const errorBox = document.getElementById(`hitoPanelError-${hito.id}`);
+  const duracionSlotFecha = document.getElementById(`hitoPanelDuracionSlotFecha-${hito.id}`);
+  const duracionSlotDesfasaje = document.getElementById(`hitoPanelDuracionSlotDesfasaje-${hito.id}`);
+
+  // "Duracion propia" es un unico input compartido por los dos modos (ver
+  // buildHitoEditPanelHtml) -- al cambiar de modo se reubica fisicamente en
+  // el slot del modo activo en vez de duplicarlo.
+  function moverDuracionASlot(modo) {
+    const label = panelWrap.querySelector('[data-field="duracionPropia"]')?.closest("label");
+    const target = modo === "fecha" ? duracionSlotFecha : duracionSlotDesfasaje;
+    if (label && target && label.parentElement !== target) target.appendChild(label);
+  }
 
   function limpiarError() { errorBox.classList.add("hidden"); errorBox.textContent = ""; }
 
@@ -4397,6 +4421,7 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
       campoFecha.classList.remove("hidden");
       campoDesfasaje.classList.add("hidden");
       restriccionBlock.classList.add("hidden");
+      moverDuracionASlot("fecha");
     } else if (modoHidden.value === "fecha") {
       // Predecesor recien agregado sobre un hito que estaba en "fecha" (sin
       // predecesor siempre es fecha) -- pasa a Desfasaje automatico.
@@ -4404,6 +4429,7 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
       modoBtns.forEach((b) => b.classList.toggle("active", b.dataset.hitoModo === "dias"));
       campoFecha.classList.add("hidden");
       campoDesfasaje.classList.remove("hidden");
+      moverDuracionASlot("dias");
     }
     tipoAyuda.textContent = tienePred
       ? TIPO_VINCULO_INFO[tipoSelect.value || "FC"].ayuda
@@ -4422,6 +4448,7 @@ function wireHitoEditPanel(tema, hito, panelWrap, refreshCallback) {
     campoFecha.classList.toggle("hidden", b.dataset.hitoModo !== "fecha");
     campoDesfasaje.classList.toggle("hidden", b.dataset.hitoModo !== "dias");
     restriccionBlock.classList.toggle("hidden", b.dataset.hitoModo !== "dias");
+    moverDuracionASlot(b.dataset.hitoModo);
   }));
 
   // Estado + punto de color: reusa el mismo mapeo que badgeClass(), sin
