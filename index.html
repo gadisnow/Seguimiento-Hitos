@@ -503,9 +503,24 @@
         </article>
         <article class="card form-card" style="margin-top:16px">
           <h3 style="margin-bottom:4px">Cambiar contraseña</h3>
-          <label>Contraseña actual<input id="cfgPassActual" type="password" autocomplete="current-password" /></label>
-          <label>Nueva contraseña<input id="cfgPassNueva" type="password" autocomplete="new-password" /></label>
-          <label>Confirmar nueva contraseña<input id="cfgPassConfirmar" type="password" autocomplete="new-password" /></label>
+          <label>Contraseña actual
+            <span class="pass-field-wrap">
+              <input id="cfgPassActual" type="password" autocomplete="current-password" />
+              <button type="button" class="pass-toggle-btn" data-pass-toggle="cfgPassActual" aria-label="Mostrar contraseña"><svg class="icon-inline" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/></svg></button>
+            </span>
+          </label>
+          <label>Nueva contraseña
+            <span class="pass-field-wrap">
+              <input id="cfgPassNueva" type="password" autocomplete="new-password" />
+              <button type="button" class="pass-toggle-btn" data-pass-toggle="cfgPassNueva" aria-label="Mostrar contraseña"><svg class="icon-inline" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/></svg></button>
+            </span>
+          </label>
+          <label>Confirmar nueva contraseña
+            <span class="pass-field-wrap">
+              <input id="cfgPassConfirmar" type="password" autocomplete="new-password" />
+              <button type="button" class="pass-toggle-btn" data-pass-toggle="cfgPassConfirmar" aria-label="Mostrar contraseña"><svg class="icon-inline" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/></svg></button>
+            </span>
+          </label>
           <button class="primary" id="savePassword">Actualizar contraseña</button>
         </article>
         <article class="card form-card" style="margin-top:16px">
