@@ -3556,6 +3556,12 @@ html[data-theme="dark"] .hito-dep-chip { background: var(--card); border-color: 
 #taskForm .hito-edit-panel input,
 #taskForm .hito-edit-panel select,
 #taskForm .hito-edit-panel textarea { padding: 5px 7px; font-size: 12px; transition: border-color .1s, box-shadow .1s; }
+/* <select> no se estira solo al ancho de su columna como un input de texto
+   -- Estado (envuelto en .hito-panel-status-select, un flex) y Tipo de
+   vinculo (select directo) quedaban con anchos distintos por eso, no por
+   la columna del grid (que ya es la misma para ambos, ver
+   .hito-panel-row-tight). */
+#taskForm .hito-edit-panel select { width: 100%; }
 /* Foco: la app no tiene un anillo de foco propio en ningun lado todavia --
    este panel si lo suma (acotado aca, no global) con los mismos tokens
    de marca que ya existen, en vez del outline nativo del navegador. */
