@@ -3367,7 +3367,7 @@ function openExpedienteDrawer(numero) {
     </div>
     <article class="card" style="margin-top:12px"><h4 style="margin-bottom:8px">Temas asociados</h4>${temasRel.length ? temasRel.map((t) => `<p>· ${t.id} - ${escHtml(t.nombre)} ${badge(t.estado)}</p>`).join("") : "<p style='color:var(--muted)'>Sin temas.</p>"}</article>
     <article class="card" style="margin-top:8px"><h4 style="margin-bottom:8px">Hitos</h4>${hitos.length ? hitos.map((h) => `<p>· ${h.temaId}: ${escHtml(h.nombre)} ${badge(h.estado)}</p>`).join("") : "<p style='color:var(--muted)'>Sin hitos.</p>"}</article>
-    <article class="card" style="margin-top:8px"><h4 style="margin-bottom:8px">Documentos</h4><div id="expDocList">${ex.documentos.length ? ex.documentos.map(renderDocItem).join("") : "<p style='color:var(--muted)'>Sin documentos.</p>"}</div></article>
+    <article class="card" style="margin-top:8px"><h4 style="margin-bottom:8px">Documentos</h4><div id="expDocList">${ex.documentos.length ? ex.documentos.map((d) => renderDocItem(d)).join("") : "<p style='color:var(--muted)'>Sin documentos.</p>"}</div></article>
     <article class="card" style="margin-top:8px"><h4 style="margin-bottom:8px">Historial</h4>${ex.historial.length ? ex.historial.map((h) => `<p>${fmtDateNice(h.at)} · ${escHtml(h.event)}</p>`).join("") : "<p style='color:var(--muted)'>Sin historial.</p>"}</article>
     <article class="card" style="margin-top:8px"><h4 style="margin-bottom:8px">Responsables</h4>${responsables.map((r) => `<p>${icon("usuario", 14)} ${escHtml(r)}</p>`).join("")}</article>
   `;
@@ -5407,16 +5407,22 @@ function buildPlanillasTabHtml() {
 // =========================================================
 // Documentos son objetos {id, nombre, storagePath, ...}. Enlace de descarga
 // via signed URL generada al hacer clic.
-function renderDocItem(d) {
+function renderDocItem(d, opts = {}) {
+  const { showDelete = false } = opts;
   const nombre = d && d.nombre ? d.nombre : String(d || "");
   const id = d && d.id ? d.id : "";
+  const puedeBorrar = showDelete && id && (esAdmin() || (d.uploadedBy && d.uploadedBy === activeUserId()));
   return `<div class="doc-item">
     <span>${icon("documento", 14)} ${escHtml(nombre)}</span>
     ${id ? `<a href="#" class="link" data-doc-download="${id}" style="margin-left:8px">Ver / descargar</a>` : ""}
+    ${puedeBorrar ? `<a href="#" class="link" data-doc-delete="${id}" style="margin-left:8px;color:#dc2626">Eliminar</a>` : ""}
   </div>`;
 }
 
-function wireDocDownloads(container) {
+// onDeleted (opcional): callback tras un borrado exitoso, para que el
+// caller actualice su propia lista local (draft.documentos, ex.documentos,
+// etc) -- wireDocDownloads solo toca el state global compartido.
+function wireDocDownloads(container, onDeleted) {
   if (!container) return;
   container.querySelectorAll("[data-doc-download]").forEach((a) => {
     a.addEventListener("click", async (e) => {
@@ -5429,11 +5435,24 @@ function wireDocDownloads(container) {
       });
     });
   });
+  container.querySelectorAll("[data-doc-delete]").forEach((a) => {
+    a.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const doc = state.documentos.find((x) => x.id === a.dataset.docDelete);
+      if (!doc) return;
+      if (!confirm(`¿Eliminar "${doc.nombre}"? Esta acción no se puede deshacer.`)) return;
+      await withBusy(async () => {
+        await dataApi.deleteDocumento(doc);
+        state.documentos = state.documentos.filter((x) => x.id !== doc.id);
+        onDeleted?.(doc);
+      });
+    });
+  });
 }
 
 function buildDocumentosTabHtml(tema) {
   const docHtml = tema.documentos.length
-    ? tema.documentos.map(renderDocItem).join("")
+    ? tema.documentos.map((d) => renderDocItem(d, { showDelete: true })).join("")
     : `<p style="color:var(--muted)">Sin documentos adjuntos.</p>`;
   return `
     <div id="taskDocList">${docHtml}</div>
@@ -5442,7 +5461,12 @@ function buildDocumentosTabHtml(tema) {
 }
 
 function wireDocumentosTabEvents(draft) {
-  wireDocDownloads(document.getElementById("taskDocList"));
+  wireDocDownloads(document.getElementById("taskDocList"), (doc) => {
+    draft.documentos = draft.documentos.filter((x) => x.id !== doc.id);
+    dataApi.logActivity(draft.id, `Documento eliminado: ${doc.nombre}`).catch(() => {});
+    renderAll();
+    refreshTaskDocumentosPane(draft);
+  });
   const btn = document.getElementById("taskUploadDocBtn");
   if (!btn) return;
   btn.addEventListener("click", () => {
