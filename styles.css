@@ -3435,11 +3435,9 @@ html[data-theme="dark"] .gantt-link-dot { fill: #9AA4B8; }
 .hito-item.editing {
   background: rgba(249,115,22,0.06);
   border-radius: 8px;
-  box-shadow: inset 3px 0 0 var(--primary);
 }
 html[data-theme="dark"] .hito-item.editing { background: rgba(251,146,60,0.14); }
 .hito-compact-row { padding: 5px 0; }
-.hito-item.editing .hito-compact-row { padding-left: 7px; }
 .hito-drag-handle {
   flex-shrink: 0; color: var(--muted); font-size: 13px; line-height: 1;
   cursor: grab; padding: 0 1px; user-select: none;
@@ -3528,15 +3526,14 @@ html[data-theme="dark"] .hito-dep-chip { background: var(--card); border-color: 
    mas compacto que el resto del modal: labels/inputs/gaps reducidos solo aca. */
 .hito-edit-panel-wrap.hidden { display: none; }
 .hito-edit-panel {
-  margin: 4px 0 2px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
-  background: var(--bg); display: grid; gap: 4px;
+  margin: 4px; padding: 8px 10px; border: 1px solid var(--primary-soft-border); border-radius: 8px;
+  background: var(--primary-soft); display: grid; gap: 4px;
 }
 .hito-panel-topbar {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  margin: -8px -10px 2px; padding: 6px 10px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  margin: -8px -10px 2px; padding: 6px 10px; border-bottom: 1px solid var(--primary-soft-border);
 }
-.hito-panel-topbar-title { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
-.hito-panel-topbar-actions { display: flex; gap: 6px; }
+.hito-panel-topbar-actions { display: flex; gap: 6px; margin-left: auto; }
 .hito-panel-topbar-actions button { padding: 4px 10px; font-size: 11.5px; border-radius: 7px; }
 /* #taskForm label/input ya traen su propio tamaño con selector con ID —
    hay que igualar esa especificidad (prefijo #taskForm) para poder pisarlo. */
@@ -3559,6 +3556,12 @@ html[data-theme="dark"] .hito-panel-critico-banner { color: #fca5a5; }
 .hito-panel-error.hidden { display: none; }
 html[data-theme="dark"] .hito-panel-error { color: #fca5a5; }
 .hito-panel-grid-2col { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.hito-panel-grid-3col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+/* Nombre/Predecesor ocupan lo que sobra; Estado/Tipo de vinculo quedan
+   angostos y parejos entre si (mismo ancho fijo), pegados a la derecha de
+   la fila -- antes ambas columnas eran 1fr y quedaban mas anchas de lo
+   que su contenido necesita. */
+.hito-panel-row-tight { display: grid; grid-template-columns: 1fr 150px; gap: 6px; }
 .hito-panel-help { font-size: 10.5px; color: var(--muted); margin: -2px 0 0; }
 .hito-panel-modo-toggle { display: flex; gap: 4px; }
 .hito-modo-btn {
@@ -3594,13 +3597,20 @@ html[data-theme="dark"] .hito-panel-frozen-banner.red { color: #fca5a5; }
 .hito-panel-link-btn:hover { text-decoration: underline; }
 .hito-panel-link-btn:disabled { color: var(--muted); cursor: not-allowed; text-decoration: none; }
 
-.hito-panel-readout { font-size: 10.5px; color: var(--muted); align-self: end; padding-bottom: 7px; }
+.hito-panel-readout { font-size: 10.5px; color: var(--muted); margin: -2px 0 0; }
 
-/* Chips + dropdown en una misma linea (quitar el checkbox "usar el de la
-   tarea" dejo ambos como el unico control de responsable, ver plan). */
+/* Chips + trigger "+" en una misma linea (quitar el checkbox "usar el de la
+   tarea" dejo los chips como el unico control de responsable visible; el "+"
+   abre el mismo dropdown de siempre para sumar mas gente, ver
+   buildRespDropdown compact:true). */
 .hito-panel-resp-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .hito-panel-resp-row .resp-chips { margin-bottom: 0; flex: 1 1 auto; }
-.hito-panel-resp-row .resp-dropdown { flex: 1 1 180px; max-width: 240px; }
+.hito-panel-resp-row .resp-dropdown { flex: 0 0 auto; }
+.resp-dropdown-trigger-compact {
+  width: 26px; height: 26px; min-height: 0; padding: 0; justify-content: center;
+  font-size: 16px; font-weight: 600; line-height: 1; color: var(--primary);
+  border-radius: 999px; background: var(--card);
+}
 
 .resp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 .resp-chips:empty { display: none; }
