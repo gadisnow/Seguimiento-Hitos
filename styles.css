@@ -1784,7 +1784,7 @@ dialog#modalNewResp::backdrop {
    listado de responsables queda aplastado en esos mismos 26px. Ancla el
    panel al borde derecho del boton con un ancho propio en vez de heredar
    el del trigger. */
-.resp-dropdown-compact .resp-dropdown-panel { left: auto; right: 0; width: 220px; }
+.resp-dropdown-compact .resp-dropdown-panel { left: 0; right: auto; width: 220px; }
 
 .resp-dropdown-options {
   max-height: 260px;
@@ -3546,6 +3546,12 @@ html[data-theme="dark"] .hito-dep-chip { background: var(--card); border-color: 
 #taskForm .hito-edit-panel input,
 #taskForm .hito-edit-panel select,
 #taskForm .hito-edit-panel textarea { padding: 5px 7px; font-size: 12px; }
+/* Ningun campo necesita estirarse al ancho completo del panel -- un
+   ancho estandar alcanza y sobra para nombre/predecesor/expediente,
+   sin importar que tan ancho sea el panel en si. */
+#taskForm .hito-edit-panel input[type="text"],
+#taskForm .hito-edit-panel input:not([type]),
+#taskForm .hito-edit-panel select { max-width: 480px; }
 /* Fecha/numero no necesitan estirarse a lo ancho de su columna -- sobre
    todo el campo "Fecha" del combo legacy predecesor+fecha fija, que hoy
    no vive en ningun grid y ocupa el ancho completo del panel. */
@@ -3607,7 +3613,13 @@ html[data-theme="dark"] .hito-panel-frozen-banner.red { color: #fca5a5; }
 .hito-panel-link-btn:hover { text-decoration: underline; }
 .hito-panel-link-btn:disabled { color: var(--muted); cursor: not-allowed; text-decoration: none; }
 
-.hito-panel-readout { font-size: 10.5px; color: var(--muted); margin: -2px 0 0; }
+.hito-panel-readout {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; color: var(--primary-2);
+  background: var(--card); border: 1px solid var(--primary-soft-border); border-radius: 7px;
+  padding: 6px 9px; margin: 0;
+}
+.hito-panel-readout svg { flex-shrink: 0; color: var(--primary); }
 
 /* Chips + trigger "+" en una misma linea (quitar el checkbox "usar el de la
    tarea" dejo los chips como el unico control de responsable visible; el "+"
