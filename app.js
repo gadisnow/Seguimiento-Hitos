@@ -4190,7 +4190,6 @@ function renderHitosCompactList(tema, opts = {}) {
       <div class="hito-compact-row ${h.estado === "Cerrado" ? "done" : ""}">
         <div class="hito-compact-top">
           ${readonly ? "" : `<span class="hito-drag-handle" title="Arrastrar para reordenar" aria-hidden="true">${icon("reordenar", 14)}</span>`}
-          <span class="hito-status-icon ${h.estado === "Cerrado" ? "done" : ""}" aria-hidden="true" title="${h.estado === "Cerrado" ? "Cerrado" : h.estado}">${h.estado === "Cerrado" ? icon("check", 12) : icon("circulo", 12)}</span>
           <div class="hito-compact-main">
             <span class="hito-compact-nombre" title="${escHtml(h.nombre)}">${escHtml(h.nombre)}</span>
             ${h.expediente ? `

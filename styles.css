@@ -3470,7 +3470,7 @@ html[data-theme="dark"] .gantt-link-dot { fill: #9AA4B8; }
 .hito-compact-nombre {
   font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.hito-compact-row.done .hito-compact-nombre { text-decoration: line-through; color: var(--muted); }
+.hito-compact-row.done .hito-compact-nombre { color: var(--muted); }
 .hito-compact-side { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
 .hito-compact-row .resp-avatar-sm { width: 20px; height: 20px; font-size: 8.5px; }
 .hito-compact-side > .badge {
@@ -3518,12 +3518,6 @@ html[data-theme="dark"] .hito-comment-btn { color: var(--muted); }
 .hito-dep-chip.muted { color: var(--muted); }
 /* "Espera a X" (predecesor todavia abierto): tono de atencion (naranja de marca). */
 .hito-dep-chip.waiting { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-2); font-weight: 600; }
-.hito-status-icon {
-  flex-shrink: 0; width: 16px; height: 16px; border-radius: 50%;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 10px; line-height: 1; border: 1px solid var(--border); color: var(--muted);
-}
-.hito-status-icon.done { background: #10b981; border-color: #10b981; color: #fff; }
 .hito-fecha-rango { font-size: 9.5px; color: var(--muted); white-space: nowrap; }
 html[data-theme="dark"] .hito-dep-chip { background: var(--card); border-color: var(--border); }
 
