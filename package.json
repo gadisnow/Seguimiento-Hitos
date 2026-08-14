@@ -1,7 +1,7 @@
 {
   "name": "seguimiento-hitos",
   "private": true,
-  "version": "2.15.0",
+  "version": "2.16.0",
   "type": "module",
   "description": "Seguimiento de temas, hitos y expedientes (SSOyS) sobre Supabase + Vercel",
   "scripts": {
