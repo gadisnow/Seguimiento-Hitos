@@ -3606,7 +3606,7 @@ function buildRespDropdown(currentValue, { compact = false } = {}) {
         <span class="resp-dropdown-arrow">${icon("chevronAbajo", 12)}</span>
       </button>`;
   return `
-    <div class="resp-dropdown">
+    <div class="resp-dropdown ${compact ? "resp-dropdown-compact" : ""}">
       ${triggerHtml}
       <div class="resp-dropdown-panel">
         <div class="resp-dropdown-options">${opts}</div>
