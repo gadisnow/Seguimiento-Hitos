@@ -986,6 +986,14 @@ function bindEvents() {
     });
   });
 
+  // Botones "Cancelar/Cerrar" de formularios dentro de modalForm (varios
+  // renders distintos: renamePizarra, invitar colaborador, expediente,
+  // responsable, aviso de registro) -- delegado en vez de un onclick=""
+  // inline por boton, para no necesitar 'unsafe-inline' en script-src (CSP).
+  els.modalForm?.addEventListener("click", (e) => {
+    if (e.target.closest(".js-close-modal-form")) els.modalForm.close();
+  });
+
   // Red de seguridad independiente del estado del canal Realtime: al volver
   // a esta pestana (otro monitor, otra app, la laptop durmiendo) se fuerza
   // un refetch y se recrea la suscripcion, sin depender de haber detectado
@@ -1471,7 +1479,7 @@ function openRenamePizarraModal(pizarra) {
     <label>Nombre<input type="text" id="renamePizarraNombre" value="${escHtml(pizarra.nombre)}" required autofocus /></label>
     <div class="btn-group">
       <button class="primary" value="submit">Guardar</button>
-      <button class="ghost" type="button" onclick="document.getElementById('modalForm').close()">Cancelar</button>
+      <button class="ghost js-close-modal-form" type="button">Cancelar</button>
     </div>
   `;
   els.dynamicForm.onsubmit = async (e) => {
@@ -5522,7 +5530,7 @@ function openColaboradoresModal(pizarraId = state.currentPizarraId, nombre = sta
     <div class="colab-list-title">Con acceso</div>
     <div id="colabList" class="colab-list"><p style="color:var(--muted);font-size:13px">Cargando...</p></div>
     <div class="btn-group" style="justify-content:flex-end;margin-top:6px">
-      <button class="ghost" type="button" onclick="document.getElementById('modalForm').close()">Cerrar</button>
+      <button class="ghost js-close-modal-form" type="button">Cerrar</button>
     </div>
   `;
 
@@ -6379,7 +6387,7 @@ function openExpedienteForm(existing = null, onCreated = null) {
     <label>Estado<select name="estado">${["Activo","En revision","Cerrado"].map((s) => `<option ${existing?.estado === s ? "selected" : ""}>${s}</option>`).join("")}</select></label>
     <div class="btn-group">
       <button class="primary" value="submit">Guardar</button>
-      <button class="ghost" type="button" onclick="document.getElementById('modalForm').close()">Cancelar</button>
+      <button class="ghost js-close-modal-form" type="button">Cancelar</button>
     </div>
   `;
   wireGdeWidget();
@@ -6518,7 +6526,7 @@ function openResponsableForm(existing = null) {
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       ${isEdit && esAdmin() ? `<button class="ghost" type="button" id="deleteRespBtn" style="color:#dc2626">Eliminar</button><span style="flex:1"></span>` : ""}
       <button class="primary" value="submit">Guardar</button>
-      <button class="ghost" value="cancel" type="button" onclick="document.getElementById('modalForm').close()">Cancelar</button>
+      <button class="ghost js-close-modal-form" value="cancel" type="button">Cancelar</button>
     </div>
   `;
   if (isEdit && esAdmin()) {
@@ -6563,7 +6571,7 @@ function openUsuarioForm() {
       (Admin / Editor / Viewer) o desactivarlos desde la tabla de arriba.
     </p>
     <div class="btn-group" style="justify-content:flex-end">
-      <button class="primary" type="button" onclick="document.getElementById('modalForm').close()">Entendido</button>
+      <button class="primary js-close-modal-form" type="button">Entendido</button>
     </div>
   `;
   els.dynamicForm.onsubmit = (e) => { e.preventDefault(); els.modalForm.close(); };
