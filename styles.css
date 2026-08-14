@@ -3438,8 +3438,12 @@ html[data-theme="dark"] .gantt-link-dot { fill: #9AA4B8; }
 .hito-item:last-child { border-bottom: 0; }
 .hito-item[draggable="true"] { cursor: grab; }
 .hito-item.dragging { opacity: .4; }
+/* Fila activa: un tinte neutro (no de marca) alcanza para distinguirla en
+   la lista -- el panel de abajo (tarjeta blanca con borde) ya es la señal
+   fuerte de "esto se está editando". Reservamos el azul de marca para
+   acentos puntuales adentro del panel (toggle activo, foco, iconos). */
 .hito-item.editing {
-  background: var(--primary-soft);
+  background: var(--bg);
   border-radius: 8px;
 }
 .hito-compact-row { padding: 5px 0; }
@@ -3528,24 +3532,37 @@ html[data-theme="dark"] .hito-dep-chip { background: var(--card); border-color: 
 .hito-gde-badge:hover { opacity: .85; }
 
 /* Panel de edicion expandible por fila (predecesor, vinculo, fechas, etc.) —
-   mas compacto que el resto del modal: labels/inputs/gaps reducidos solo aca. */
+   mas compacto que el resto del modal: labels/inputs/gaps reducidos solo
+   aca. Estetica neutral/shadcn: tarjeta --card con borde --border y sombra
+   --shadow (no un fondo con lavado de color) -- el azul de marca queda
+   reservado para acentos puntuales (toggle activo, foco, iconos), igual
+   criterio que ya usa el resto de la app (ver comentario de --primary en
+   :root). Las alertas reales (congelado, critico, error) SI mantienen su
+   fondo de color: son avisos, no decoracion de "estoy editando". */
 .hito-edit-panel-wrap.hidden { display: none; }
 .hito-edit-panel {
-  margin: 5px; padding: 8px 10px; border: 1px solid var(--primary-soft-border); border-radius: 8px;
-  background: var(--primary-soft); display: grid; gap: 4px;
+  margin: 5px; padding: 10px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--card); box-shadow: var(--shadow); display: grid; gap: 6px;
 }
 .hito-panel-topbar {
   display: flex; align-items: center; justify-content: flex-end; gap: 8px;
-  margin: -8px -10px 2px; padding: 6px 10px; border-bottom: 1px solid var(--primary-soft-border);
+  margin: -10px -10px 2px; padding: 8px 10px; border-bottom: 1px solid var(--border);
 }
 .hito-panel-topbar-actions { display: flex; gap: 6px; margin-left: auto; }
 .hito-panel-topbar-actions button { padding: 4px 10px; font-size: 11.5px; border-radius: 7px; }
 /* #taskForm label/input ya traen su propio tamaño con selector con ID —
    hay que igualar esa especificidad (prefijo #taskForm) para poder pisarlo. */
-#taskForm .hito-edit-panel label { gap: 2px; font-size: 10px; }
+#taskForm .hito-edit-panel label { gap: 3px; font-size: 10.5px; font-weight: 500; }
 #taskForm .hito-edit-panel input,
 #taskForm .hito-edit-panel select,
-#taskForm .hito-edit-panel textarea { padding: 5px 7px; font-size: 12px; }
+#taskForm .hito-edit-panel textarea { padding: 5px 7px; font-size: 12px; transition: border-color .1s, box-shadow .1s; }
+/* Foco: la app no tiene un anillo de foco propio en ningun lado todavia --
+   este panel si lo suma (acotado aca, no global) con los mismos tokens
+   de marca que ya existen, en vez del outline nativo del navegador. */
+#taskForm .hito-edit-panel input:focus-visible,
+#taskForm .hito-edit-panel select:focus-visible {
+  outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft);
+}
 /* Ningun campo necesita estirarse al ancho completo del panel -- un
    ancho estandar alcanza y sobra para nombre/predecesor/expediente,
    sin importar que tan ancho sea el panel en si. */
@@ -3561,13 +3578,13 @@ html[data-theme="dark"] .hito-dep-chip { background: var(--card); border-color: 
 #taskForm .hito-edit-panel .task-check-row { margin-top: 2px; gap: 6px; font-size: 12px; }
 .hito-edit-panel details.task-section { margin-bottom: 0; }
 .hito-panel-critico-banner {
-  background: rgba(220,38,38,0.1); border: 1px solid rgba(220,38,38,0.35); color: #b91c1c;
-  border-radius: 6px; padding: 5px 8px; font-size: 11.5px;
+  background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.3); color: #b91c1c;
+  border-radius: 8px; padding: 6px 9px; font-size: 11.5px;
 }
 html[data-theme="dark"] .hito-panel-critico-banner { color: #fca5a5; }
 .hito-panel-error {
-  background: rgba(220,38,38,0.1); border: 1px solid rgba(220,38,38,0.35); color: #b91c1c;
-  border-radius: 6px; padding: 5px 8px; font-size: 11.5px;
+  background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.3); color: #b91c1c;
+  border-radius: 8px; padding: 6px 9px; font-size: 11.5px;
 }
 .hito-panel-error.hidden { display: none; }
 html[data-theme="dark"] .hito-panel-error { color: #fca5a5; }
@@ -3579,12 +3596,17 @@ html[data-theme="dark"] .hito-panel-error { color: #fca5a5; }
    que su contenido necesita. */
 .hito-panel-row-tight { display: grid; grid-template-columns: 1fr 150px; gap: 6px; }
 .hito-panel-help { font-size: 10.5px; color: var(--muted); margin: -2px 0 0; }
-.hito-panel-modo-toggle { display: flex; gap: 4px; }
+/* Segmentado tipo "tabs" (track neutro + segmento activo solido) en vez de
+   pildoras sueltas cada una con su propio borde. */
+.hito-panel-modo-toggle {
+  display: inline-flex; gap: 2px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 2px; width: fit-content;
+}
 .hito-modo-btn {
-  border: 1px solid var(--border); background: transparent; border-radius: 999px;
+  border: none; background: transparent; border-radius: 6px;
   padding: 3px 10px; font-size: 11px; color: var(--muted); cursor: pointer;
 }
-.hito-modo-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.hito-modo-btn.active { background: var(--primary); color: #fff; font-weight: 500; }
 .hito-modo-btn:disabled { opacity: .45; cursor: not-allowed; }
 
 /* Rediseno v3 del panel de edicion de hito: status dot, banners de
@@ -3598,11 +3620,11 @@ html[data-theme="dark"] .hito-panel-error { color: #fca5a5; }
 
 .hito-panel-frozen-banner {
   display: flex; align-items: flex-start; gap: 7px;
-  border-radius: 6px; padding: 6px 8px; font-size: 11.5px;
+  border-radius: 8px; padding: 7px 9px; font-size: 11.5px;
 }
 .hito-panel-frozen-banner svg { flex-shrink: 0; margin-top: 1px; }
 .hito-panel-frozen-banner.amber { background: var(--bloqueado-soft); border: 1px solid var(--bloqueado); color: #92400e; }
-.hito-panel-frozen-banner.red { background: rgba(220,38,38,0.1); border: 1px solid rgba(220,38,38,0.35); color: #b91c1c; }
+.hito-panel-frozen-banner.red { background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.3); color: #b91c1c; }
 html[data-theme="dark"] .hito-panel-frozen-banner.amber { color: #fcd34d; }
 html[data-theme="dark"] .hito-panel-frozen-banner.red { color: #fca5a5; }
 
@@ -3613,10 +3635,13 @@ html[data-theme="dark"] .hito-panel-frozen-banner.red { color: #fca5a5; }
 .hito-panel-link-btn:hover { text-decoration: underline; }
 .hito-panel-link-btn:disabled { color: var(--muted); cursor: not-allowed; text-decoration: none; }
 
+/* Caja "muted" (fondo --bg sobre la tarjeta --card) en vez de blanco sobre
+   blanco -- el icono es el unico toque de azul de marca aca, el texto va
+   en el color normal de la app (--text/--muted), no en un azul permanente. */
 .hito-panel-readout {
   display: flex; align-items: center; gap: 6px;
-  font-size: 11px; font-weight: 600; color: var(--primary-2);
-  background: var(--card); border: 1px solid var(--primary-soft-border); border-radius: 7px;
+  font-size: 11px; font-weight: 500; color: var(--text);
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
   padding: 6px 9px; margin: 0;
 }
 .hito-panel-readout svg { flex-shrink: 0; color: var(--primary); }
@@ -3629,9 +3654,11 @@ html[data-theme="dark"] .hito-panel-frozen-banner.red { color: #fca5a5; }
 .hito-panel-resp-row .resp-chips { margin-bottom: 0; }
 .resp-dropdown-trigger-compact {
   width: 26px; height: 26px; min-height: 0; padding: 0; justify-content: center;
-  font-size: 16px; font-weight: 600; line-height: 1; color: var(--primary);
-  border-radius: 999px; background: var(--card);
+  font-size: 15px; font-weight: 500; line-height: 1; color: var(--muted);
+  border-radius: 999px; background: var(--card); border: 1px solid var(--border);
+  transition: border-color .1s, color .1s;
 }
+.resp-dropdown-trigger-compact:hover { color: var(--primary); border-color: var(--primary); }
 
 .resp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 .resp-chips:empty { display: none; }
@@ -3651,12 +3678,14 @@ html[data-theme="dark"] .hito-panel-frozen-banner.red { color: #fca5a5; }
   display: flex; align-items: center; justify-content: center; border: 1.5px solid var(--card);
 }
 
-/* Congelado: campos visibles pero grises, nunca ocultos. */
+/* Congelado: campos visibles pero grises, nunca ocultos. background --bg
+   (no --card, que ahora es el mismo fondo del panel -- un input deshabilitado
+   blanco sobre blanco no se distinguiria como campo). */
 .hito-edit-panel.frozen-tema input:disabled,
 .hito-edit-panel.frozen-tema select:disabled,
 .hito-edit-panel.frozen-hito input:disabled,
 .hito-edit-panel.frozen-hito select:disabled {
-  opacity: .55; background: var(--card);
+  opacity: .6; background: var(--bg);
 }
 
 /* Inline "add hito" form */
@@ -3676,7 +3705,6 @@ html[data-theme="dark"] .task-modal-footer { border-color: var(--border); }
 html[data-theme="dark"] .hito-item,
 html[data-theme="dark"] .doc-compact-row { border-bottom-color: var(--border); }
 html[data-theme="dark"] .gde-mode-btn,
-html[data-theme="dark"] .hito-modo-btn,
 html[data-theme="dark"] .gantt-zoom-btn { border-color: var(--border); }
 
 /* ============== Login screen ============== */
