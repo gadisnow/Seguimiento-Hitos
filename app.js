@@ -976,13 +976,18 @@ function bindEvents() {
   wireReportFiltersPanel();
 
   document.addEventListener("click", (e) => {
-    if (!e.target.closest(".resp-dropdown")) {
-      document.querySelectorAll(".resp-dropdown.open").forEach((x) => x.classList.remove("open"));
-    }
+    if (!e.target.closest(".resp-dropdown")) closeAllRespDropdowns();
     if (!e.target.closest("#userMenu")) {
       els.userMenu.classList.remove("open");
     }
   });
+  // El panel de responsables es position:fixed (ver positionRespDropdown) --
+  // ya no se mueve solo con el scroll de su contenedor (ej. el body del
+  // modal de tema), asi que si el usuario scrollea con el panel abierto se
+  // desprende visualmente del trigger. Mas simple cerrarlo que reposicionar
+  // en cada scroll. Capture:true porque "scroll" no burbujea en elementos
+  // que no sean window/document -- en fase de captura si llega igual.
+  window.addEventListener("scroll", closeAllRespDropdowns, true);
 
   const darkBtn = $("darkToggle");
   if (darkBtn) {
@@ -3637,6 +3642,35 @@ function updateRespLabel(dd) {
   else { label.textContent = "-- Seleccionar --"; label.classList.add("placeholder"); }
 }
 
+// El panel es position:fixed (ver styles.css) para escapar del recorte de
+// cualquier ancestro con overflow-y:auto (el body scrolleable del modal de
+// tema, por ejemplo) -- eso significa que ya no tiene ninguna referencia
+// automatica a donde esta el trigger que lo abrio, hay que calcularsela a
+// mano. Mismo criterio de choque contra bordes que openCalDayPopover.
+function positionRespDropdown(dd) {
+  const trigger = dd.querySelector(".resp-dropdown-trigger");
+  const panel = dd.querySelector(".resp-dropdown-panel");
+  if (!trigger || !panel) return;
+  const rect = trigger.getBoundingClientRect();
+  const width = dd.classList.contains("resp-dropdown-compact") ? 220 : Math.max(rect.width, 200);
+  panel.style.width = `${width}px`;
+  let left = dd.classList.contains("resp-dropdown-compact") ? rect.right - width : rect.left;
+  left = Math.min(left, window.innerWidth - width - 8);
+  left = Math.max(8, left);
+  panel.style.left = `${left}px`;
+  // Se necesita el alto real para decidir si entra abajo -- ya esta
+  // "display:block" en este punto (dd ya tiene la clase "open"), asi que
+  // offsetHeight refleja el tamaño real, no 0.
+  const panelHeight = panel.offsetHeight;
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const openUpward = spaceBelow < panelHeight + 8 && rect.top - panelHeight - 8 > 0;
+  panel.style.top = openUpward ? `${Math.max(8, rect.top - panelHeight - 4)}px` : `${rect.bottom + 4}px`;
+}
+
+function closeAllRespDropdowns() {
+  document.querySelectorAll(".resp-dropdown.open").forEach((x) => x.classList.remove("open"));
+}
+
 function initRespDropdowns(container) {
   container.querySelectorAll(".resp-dropdown").forEach((dd) => {
     const trigger = dd.querySelector(".resp-dropdown-trigger");
@@ -3644,8 +3678,11 @@ function initRespDropdowns(container) {
     trigger.addEventListener("click", (e) => {
       e.stopPropagation();
       const wasOpen = dd.classList.contains("open");
-      document.querySelectorAll(".resp-dropdown.open").forEach((x) => x.classList.remove("open"));
-      if (!wasOpen) dd.classList.add("open");
+      closeAllRespDropdowns();
+      if (!wasOpen) {
+        dd.classList.add("open");
+        positionRespDropdown(dd);
+      }
     });
     dd.querySelectorAll('[name="resp_cb"]').forEach((cb) => cb.addEventListener("change", () => updateRespLabel(dd)));
     if (addBtn) {
