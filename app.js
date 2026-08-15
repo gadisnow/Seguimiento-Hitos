@@ -4036,8 +4036,37 @@ const GANTT_ZOOM_LEVELS = {
 };
 let ganttZoom = "mes";
 
-const GANTT_ROW_H = 22;
-const GANTT_BAR_H = 11;
+const GANTT_ROW_H = 26; // +20% (era 22) -- menos apretado entre filas
+const GANTT_BAR_H = 13; // +20% (era 11) -- barras a tono con la fila mas alta
+
+// Convierte una polilinea (lista de puntos {x,y}) en un path SVG con las
+// esquinas redondeadas -- cada vertice interior se acorta "r" px hacia
+// atras y hacia adelante, y se une con una curva cuadratica usando el
+// vertice original como punto de control (asi la curva pasa cerca de la
+// esquina real sin el angulo recto). El radio se recorta a la mitad del
+// segmento mas corto para que dos esquinas seguidas no se superpongan en
+// tramos cortos.
+function roundedPolylinePath(points, r) {
+  if (points.length < 2) return "";
+  const dist = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
+  const towards = (from, to, d) => {
+    const total = dist(from, to);
+    if (total === 0) return { x: from.x, y: from.y };
+    const t = Math.min(d, total) / total;
+    return { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
+  };
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1], cur = points[i], next = points[i + 1];
+    const rr = Math.min(r, dist(prev, cur) / 2, dist(cur, next) / 2);
+    const p1 = towards(cur, prev, rr);
+    const p2 = towards(cur, next, rr);
+    d += ` L ${p1.x} ${p1.y} Q ${cur.x} ${cur.y} ${p2.x} ${p2.y}`;
+  }
+  const last = points[points.length - 1];
+  d += ` L ${last.x} ${last.y}`;
+  return d;
+}
 const GANTT_AXIS_H = 18;
 const GANTT_LABEL_MIN_W = 90;
 const GANTT_LABEL_MAX_W = 340;
@@ -4114,7 +4143,7 @@ function renderMiniGantt(tema) {
     return `<rect class="${cls}" x="${x}" y="${y}" width="${w}" height="${GANTT_BAR_H}" rx="3.5"><title>${escHtml(title)}</title></rect>`;
   }).join("");
 
-  // -------- conectores de dependencia (angulo recto + punto de llegada) --------
+  // -------- conectores de dependencia (esquinas redondeadas + punto de llegada) --------
   // La linea toca siempre la barra del sucesor; el punto relleno (mismo color
   // que la linea) marca el contacto en lugar de una flecha.
   const connectorsSvg = hitos.map((h, i) => {
@@ -4140,14 +4169,20 @@ function renderMiniGantt(tema) {
       const startX = tipo === "CF" ? Math.min(predX0, predX1) : Math.max(predX0, predX1);
       const endX = Math.max(sucX0, sucX1);
       const loopX = Math.max(startX, endX) + 14;
-      return `<path class="${linkCls}" d="M ${startX} ${predY} L ${loopX} ${predY} L ${loopX} ${sucY} L ${endX} ${sucY}"></path>
+      const d = roundedPolylinePath([
+        { x: startX, y: predY }, { x: loopX, y: predY }, { x: loopX, y: sucY }, { x: endX, y: sucY }
+      ], 5);
+      return `<path class="${linkCls}" d="${d}"></path>
         <circle class="${dotCls}" cx="${endX}" cy="${sucY}" r="2.5"></circle>`;
     }
     // FC: sale del fin del predecesor. CC: sale del inicio del predecesor.
     const startX = tipo === "CC" ? Math.min(predX0, predX1) : Math.max(predX0, predX1);
     const endX = Math.min(sucX0, sucX1);
     const midX = Math.round((startX + endX) / 2);
-    return `<path class="${linkCls}" d="M ${startX} ${predY} L ${midX} ${predY} L ${midX} ${sucY} L ${endX} ${sucY}"></path>
+    const d = roundedPolylinePath([
+      { x: startX, y: predY }, { x: midX, y: predY }, { x: midX, y: sucY }, { x: endX, y: sucY }
+    ], 5);
+    return `<path class="${linkCls}" d="${d}"></path>
       <circle class="${dotCls}" cx="${endX}" cy="${sucY}" r="2.5"></circle>`;
   }).join("");
 
