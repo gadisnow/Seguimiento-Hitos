@@ -4264,7 +4264,7 @@ function buildHitoEditPanelHtml(tema, hito) {
   // una copia segun el orden del DOM, bug ya resuelto antes). Se ubica en el
   // slot del modo actual al construir el HTML; wireHitoEditPanel la reubica
   // fisicamente (moveDuracionASlot) cuando el usuario cambia de modo.
-  const duracionFieldHtml = `<label>Duración propia (días)<input type="number" data-field="duracionPropia" value="${hito.duracionPropia ?? 4}" min="1" step="1" ${dAll} /></label>`;
+  const duracionFieldHtml = `<label>Duración (d)<input type="number" data-field="duracionPropia" value="${hito.duracionPropia ?? 4}" min="1" step="1" ${dAll} /></label>`;
 
   return `
     <div class="hito-edit-panel ${frozenClass}">
@@ -4320,7 +4320,7 @@ function buildHitoEditPanelHtml(tema, hito) {
       </div>
       <div id="hitoPanelCampoDesfasaje-${hito.id}" class="${modoFecha === "dias" ? "" : "hidden"}">
         <div class="hito-panel-grid-2col">
-          <label>Desfasaje (días, admite negativos)<input type="number" data-field="desfasajeDias" value="${hito.desfasajeDias ?? 0}" step="1" ${dAll} /></label>
+          <label>Desfasaje (d)<input type="number" data-field="desfasajeDias" value="${hito.desfasajeDias ?? 0}" step="1" ${dAll} /></label>
           <div id="hitoPanelDuracionSlotDesfasaje-${hito.id}">${modoFecha === "dias" ? duracionFieldHtml : ""}</div>
         </div>
         <div id="hitoPanelRestriccionBlock-${hito.id}">
