@@ -1777,26 +1777,27 @@ dialog#modalNewResp::backdrop {
 
 .resp-dropdown.open .resp-dropdown-arrow { transform: rotate(180deg); }
 
+/* position:fixed (no absolute) a proposito: .resp-dropdown vive dentro de
+   contenedores con overflow-y:auto (ej. .task-modal-content, el body
+   scrolleable del modal de tema) -- con absolute, el navegador recorta
+   cualquier parte del panel que caiga fuera de esa caja al abrirlo cerca
+   del borde, sin importar el z-index (el z-index no hace nada contra el
+   overflow de un ancestro). Con fixed escapa de ese recorte; a cambio
+   top/left/width se calculan en JS (positionRespDropdown, ver
+   initRespDropdowns) en vez de con top/left/right en CSS, porque fixed no
+   tiene ninguna referencia automatica a donde esta el trigger que lo abrio. */
 .resp-dropdown-panel {
   display: none;
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0; right: 0;
+  position: fixed;
   background: white;
   border: 1px solid var(--border);
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(15,23,42,0.14);
-  z-index: 100;
+  z-index: 1000;
   overflow: hidden;
 }
 
 .resp-dropdown.open .resp-dropdown-panel { display: block; animation: contextMenuIn .12s var(--ease-out); }
-/* El trigger compacto ("+", ver buildRespDropdown compact:true) mide ~26px
-   -- sin esto, left:0;right:0 de .resp-dropdown-panel lo hereda y el
-   listado de responsables queda aplastado en esos mismos 26px. Ancla el
-   panel al borde derecho del boton con un ancho propio en vez de heredar
-   el del trigger. */
-.resp-dropdown-compact .resp-dropdown-panel { left: 0; right: auto; width: 220px; }
 
 .resp-dropdown-options {
   max-height: 260px;
