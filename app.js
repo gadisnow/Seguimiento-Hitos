@@ -987,8 +987,14 @@ function bindEvents() {
   // modal de tema), asi que si el usuario scrollea con el panel abierto se
   // desprende visualmente del trigger. Mas simple cerrarlo que reposicionar
   // en cada scroll. Capture:true porque "scroll" no burbujea en elementos
-  // que no sean window/document -- en fase de captura si llega igual.
-  window.addEventListener("scroll", closeAllRespDropdowns, true);
+  // que no sean window/document -- en fase de captura si llega igual. OJO:
+  // el scroll interno de la propia lista (.resp-dropdown-options, cuando
+  // hay muchos responsables) tambien dispara este evento -- sin el chequeo
+  // de e.target, el desplegable se cerraba solo con intentar scrollearlo.
+  window.addEventListener("scroll", (e) => {
+    if (e.target?.closest?.(".resp-dropdown-panel")) return;
+    closeAllRespDropdowns();
+  }, true);
 
   const darkBtn = $("darkToggle");
   if (darkBtn) {
