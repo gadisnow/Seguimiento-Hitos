@@ -12,12 +12,17 @@ function must({ error }) {
 
 // Columnas por defecto de toda pizarra nueva (ver supabase/migrations/011
 // y 016 para el remapeo de colores a la paleta original restaurada).
+// "Archivados" tambien va esFinal:true -- mismo criterio de bloqueo
+// (solo lectura, columna fija sin reordenar) que "Cerrado", ver
+// supabase/migrations/032_columna_archivados.sql para el detalle de por
+// que reusar esFinal en vez de un flag nuevo.
 const COLUMNAS_DEFAULT = [
   { nombre: "Pendiente", esInicial: true, esFinal: false, color: "red" },
   { nombre: "En curso", esInicial: false, esFinal: false, color: "blue" },
   { nombre: "En revision", esInicial: false, esFinal: false, color: "violet" },
   { nombre: "Bloqueado", esInicial: false, esFinal: false, color: "amber" },
-  { nombre: "Cerrado", esInicial: false, esFinal: true, color: "green" }
+  { nombre: "Cerrado", esInicial: false, esFinal: true, color: "green" },
+  { nombre: "Archivados", esInicial: false, esFinal: true, color: "warm-gray" }
 ];
 
 // =====================================================================

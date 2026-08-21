@@ -239,6 +239,27 @@ function esCreadorPizarra() { return Boolean(state.pizarraActual && state.pizarr
 function puedeEliminarTema(tema) {
   return esCreadorPizarra() || Boolean(tema?.creadoPor && tema.creadoPor === activeUserId());
 }
+// "Tema en estado final" = Cerrado O Archivados (mismo bloqueo de solo
+// lectura para ambos, ver columnas.es_archivado en 032_columna_archivados.sql
+// -- no reusa es_final porque hay como maximo una columna es_final por
+// pizarra). Usar este helper en vez de comparar tema.estado === "Cerrado"
+// a mano: sobrevive a que alguien renombre la columna "Cerrado".
+function esTemaFinalizado(tema) {
+  return Boolean(tema && (tema.esFinal || tema.esArchivado));
+}
+// Variante para los pocos lugares que solo tienen el nombre del estado como
+// string (reportes, tono de fecha en tablas) y no el tema/columna completo
+// para poder chequear esFinal/esArchivado -- "Archivados" queda como unico
+// nombre asumido a proposito (no hay otro dato disponible ahi).
+function esNombreEstadoFinalizado(estado) {
+  return estado === "Cerrado" || estado === "Archivados";
+}
+// Columna que no se puede reordenar/eliminar desde el menu de columnas:
+// inicial, final (Cerrado) o archivado (Archivados) -- puede haber mas de
+// una columna fija en la punta final del tablero.
+function esColumnaFija(c) {
+  return Boolean(c && (c.esInicial || c.esFinal || c.esArchivado));
+}
 function activeUserName() { return state.profile ? state.profile.nombre : state.config.currentUser; }
 function activeUserId() { return state.profile ? state.profile.id : null; }
 
@@ -1595,7 +1616,7 @@ function fillFilterOptions() {
   fillSelect(els.fPrioridad, ["Alta", "Media", "Baja"], "Prioridad");
   // Solo etiquetas usadas en temas activos (no Cerrado), para no listar etiquetas muertas.
   const etiquetasActivas = unique(
-    visibles.filter((t) => t.estado !== "Cerrado").flatMap((t) => (t.etiquetas || []).map((e) => e.nombre))
+    visibles.filter((t) => !esTemaFinalizado(t)).flatMap((t) => (t.etiquetas || []).map((e) => e.nombre))
   );
   fillSelect(els.fEtiqueta, etiquetasActivas, "Etiquetas");
 
@@ -1657,7 +1678,7 @@ function getReportTemas(filters) {
     if (dependenciasSet && !nombresTema.some((n) => dependenciasSet.has(n))) return false;
     if (f.etiquetas.length && !(t.etiquetas || []).some((e) => f.etiquetas.includes(e.nombre))) return false;
     if (f.expediente && !(t.expediente || "").toLowerCase().includes(f.expediente.toLowerCase())) return false;
-    if (f.soloVencidos && !(t.estado !== "Cerrado" && daysUntil(t.fechaLimite) < 0)) return false;
+    if (f.soloVencidos && !(!esTemaFinalizado(t) && daysUntil(t.fechaLimite) < 0)) return false;
     if (f.soloConExpediente && !t.expediente) return false;
     return true;
   });
@@ -1804,13 +1825,13 @@ function renderDashboard() {
   const today = fmtDate(new Date());
   const allHitos = temas.flatMap((t) => t.hitos.map((h) => ({ ...h, temaId: t.id, temaNombre: t.nombre })));
 
-  const activos = temas.filter((t) => t.estado !== "Cerrado").length;
-  const vencidosTemas = temas.filter((t) => t.estado !== "Cerrado" && daysUntil(t.fechaLimite) < 0).length;
+  const activos = temas.filter((t) => !esTemaFinalizado(t)).length;
+  const vencidosTemas = temas.filter((t) => !esTemaFinalizado(t) && daysUntil(t.fechaLimite) < 0).length;
   const hitosVencidos = allHitos.filter((h) => h.estado !== "Cerrado" && daysUntil(h.fechaLimite) < 0).length;
-  const sinActividad = temas.filter((t) => t.estado !== "Cerrado" && daysBetween(t.ultimaActualizacion, today) > 14).length;
+  const sinActividad = temas.filter((t) => !esTemaFinalizado(t) && daysBetween(t.ultimaActualizacion, today) > 14).length;
   const bloqueados = temas.filter((t) => t.estado === "Bloqueado").length;
 
-  const temasCerrados = temas.filter((t) => t.estado === "Cerrado");
+  const temasCerrados = temas.filter((t) => esTemaFinalizado(t));
   const cerradosHoy = temasCerrados.filter((t) => t.fechaCierre === today).length;
   const cerradosHistoricos = temasCerrados.length;
 
@@ -1833,7 +1854,7 @@ function renderDashboard() {
   `).join("");
 
   // Donuts — solo temas activos (no cerrados)
-  const temasActivos = temas.filter((t) => t.estado !== "Cerrado");
+  const temasActivos = temas.filter((t) => !esTemaFinalizado(t));
   const byResp = countBy(temasActivos, "responsable");
   const byEstado = countBy(temasActivos, "estado");
   const columnasOrdenNombres = state.columnas.slice().sort((a, b) => a.orden - b.orden).map((c) => c.nombre);
@@ -1843,7 +1864,7 @@ function renderDashboard() {
   els.donutEstadoTotal.textContent = sum(Object.values(byEstado));
 
   // Semaforo (temas + hitos)
-  const activosTemas = temas.filter((t) => t.estado !== "Cerrado").map((t) => ({ id: t.id, nombre: t.nombre, responsable: t.responsable, fechaLimite: t.fechaLimite, dias: daysUntil(t.fechaLimite), tipo: "Tema" }));
+  const activosTemas = temas.filter((t) => !esTemaFinalizado(t)).map((t) => ({ id: t.id, nombre: t.nombre, responsable: t.responsable, fechaLimite: t.fechaLimite, dias: daysUntil(t.fechaLimite), tipo: "Tema" }));
   const activosHitos = allHitos.filter((h) => h.estado !== "Cerrado").map((h) => ({ id: h.temaId, nombre: `${h.temaId}: ${h.nombre}`, responsable: h.responsable, fechaLimite: h.fechaLimite, dias: daysUntil(h.fechaLimite), tipo: "Hito" }));
   const semItems = [...activosTemas, ...activosHitos].filter((x) => x.dias <= 7).map((x) => ({
     ...x,
@@ -1904,9 +1925,9 @@ function renderDashboard() {
 
   // Requieren atencion
   const atencion = [
-    ...temas.filter((t) => t.estado !== "Cerrado" && daysUntil(t.fechaLimite) < 0).map((t) => ({ id: t.id, nombre: t.nombre, motivo: "Vencido", tone: "red", esHito: false })),
+    ...temas.filter((t) => !esTemaFinalizado(t) && daysUntil(t.fechaLimite) < 0).map((t) => ({ id: t.id, nombre: t.nombre, motivo: "Vencido", tone: "red", esHito: false })),
     ...temas.filter((t) => t.estado === "Bloqueado").map((t) => ({ id: t.id, nombre: t.nombre, motivo: "Bloqueado", tone: "orange", esHito: false })),
-    ...temas.filter((t) => t.estado !== "Cerrado" && daysBetween(t.ultimaActualizacion, today) > 14).map((t) => ({ id: t.id, nombre: t.nombre, motivo: "Sin actividad 14d", tone: "yellow", esHito: false })),
+    ...temas.filter((t) => !esTemaFinalizado(t) && daysBetween(t.ultimaActualizacion, today) > 14).map((t) => ({ id: t.id, nombre: t.nombre, motivo: "Sin actividad 14d", tone: "yellow", esHito: false })),
     ...allHitos.filter((h) => h.estado !== "Cerrado" && daysUntil(h.fechaLimite) < 0).map((h) => ({ id: h.temaId, nombre: h.nombre, motivo: "Hito vencido", tone: "red", esHito: true })),
     ...allHitos.filter((h) => h.estado === "Bloqueado").map((h) => ({ id: h.temaId, nombre: h.nombre, motivo: "Hito bloqueado", tone: "orange", esHito: true }))
   ].slice(0, 8);
@@ -2112,13 +2133,18 @@ function bindKanban() {
       await withBusy(async () => {
         if (tema && tema.estado !== nuevoEstado && nuevaColumna) {
           let extra = {};
-          if (nuevoEstado === "Cerrado") {
+          const eraFinal = esTemaFinalizado(tema);
+          const seraFinal = Boolean(nuevaColumna.esFinal || nuevaColumna.esArchivado);
+          if (seraFinal && !eraFinal) {
             extra = { fecha_cierre: fmtDate(new Date()), cerrado_por: activeUserName() };
-          } else if (tema.estado === "Cerrado") {
+          } else if (!seraFinal && eraFinal) {
             // Se revierte el cierre: la fecha de cierre se limpia para que
             // los dias restantes vuelvan a contar contra hoy.
             extra = { fecha_cierre: null, cerrado_por: null };
           }
+          // Si eraFinal && seraFinal (ej. Cerrado -> Archivados o viceversa),
+          // fecha_cierre/cerrado_por no se tocan: se preserva el cierre
+          // original, archivar no es "volver a cerrar".
           await dataApi.updateTemaColumna(id, nuevaColumna.id, extra);
           await dataApi.logActivity(id, `Cambio a ${nuevoEstado}`);
         }
@@ -2438,11 +2464,12 @@ async function duplicarTema(tema) {
     estado: tema.estado,
     esInicial: tema.esInicial,
     esFinal: tema.esFinal,
+    esArchivado: tema.esArchivado,
     expediente: tema.expediente || "",
     gde: tema.gde || "",
     fechaInicio: fmtDate(new Date()),
     fechaLimite: tema.fechaLimite,
-    fechaCierre: tema.estado === "Cerrado" ? fmtDate(new Date()) : "",
+    fechaCierre: esTemaFinalizado(tema) ? fmtDate(new Date()) : "",
     descripcion: tema.descripcion || "",
     privado: tema.privado || false,
     hitos: [], comentarios: [], documentos: [],
@@ -2553,13 +2580,17 @@ function renderBoardMenuColumnas() {
     <div class="board-label-list">
       ${cols.map((c, idx) => {
         const count = state.temas.filter((t) => t.columnaId === c.id).length;
-        const isFixed = c.esInicial || c.esFinal;
-        const canUp = idx > 1;
-        const canDown = idx < cols.length - 2;
+        const isFixed = c.esInicial || c.esFinal || c.esArchivado;
+        // No asume una sola columna fija a cada punta (ahora Cerrado Y
+        // Archivados son fijas al final) -- una fila movible solo puede
+        // subir/bajar si el vecino en esa direccion tambien es movible.
+        const canUp = !isFixed && idx > 0 && !esColumnaFija(cols[idx - 1]);
+        const canDown = !isFixed && idx < cols.length - 1 && !esColumnaFija(cols[idx + 1]);
+        const etiquetaFija = c.esInicial ? "Inicial" : (c.esArchivado ? "Archivada" : "Final");
         return `
         <div class="board-label-row" data-columna-row="${c.id}">
           <span class="board-label-badge" style="background:${columnaColorHex(c.color)};color:#fff">
-            ${escHtml(c.nombre)}${isFixed ? ` · ${c.esInicial ? "Inicial" : "Final"}` : ""}
+            ${escHtml(c.nombre)}${isFixed ? ` · ${etiquetaFija}` : ""}
           </span>
           <span style="display:flex;gap:2px;align-items:center">
             ${editable && !isFixed ? `
@@ -2606,7 +2637,7 @@ function renderBoardMenuColumnas() {
 
 function openEditColumna(col) {
   boardMenuEditingColumna = col
-    ? { id: col.id, nombre: col.nombre, color: col.color || "warm-gray", isFixed: col.esInicial || col.esFinal, isNew: false }
+    ? { id: col.id, nombre: col.nombre, color: col.color || "warm-gray", isFixed: esColumnaFija(col), isNew: false }
     : { id: null, nombre: "", color: "warm-gray", isFixed: false, isNew: true };
   boardMenuView = "editColumna";
   renderBoardMenu();
@@ -2665,7 +2696,7 @@ async function moverColumna(id, delta, cols) {
   const idx = cols.findIndex((c) => c.id === id);
   const targetIdx = idx + delta;
   if (targetIdx < 0 || targetIdx >= cols.length) return;
-  if (cols[targetIdx].esInicial || cols[targetIdx].esFinal) return;
+  if (esColumnaFija(cols[targetIdx])) return;
   const reordered = cols.slice();
   [reordered[idx], reordered[targetIdx]] = [reordered[targetIdx], reordered[idx]];
   const ok = await withBusy(async () => {
@@ -3273,7 +3304,7 @@ function buildAlerts(temas) {
   const out = [];
   const today = fmtDate(new Date());
   temas.forEach((t) => {
-    if (t.estado === "Cerrado") return;
+    if (esTemaFinalizado(t)) return;
     const lvl = computeAlertLevel(t.fechaLimite);
     const base = { temaId: t.id, temaPadre: "", responsable: t.responsable, expediente: t.expediente, fechaLimite: t.fechaLimite, nivel: lvl.n, nivelLabel: lvl.label };
     // Nivel 1 (Normal) no requiere seguimiento: no genera fila de alerta.
@@ -3327,7 +3358,7 @@ function renderReportes() {
     ["Temas por estado",       objToText(countBy(temas, "estado"))],
     ["Temas por responsable",  objToText(countBy(temas, "responsable"))],
     ["Tiempo prom. resolucion", `${avgResolutionDays(temas)} dias`],
-    ["Temas vencidos",         temas.filter((t) => t.estado !== "Cerrado" && daysUntil(t.fechaLimite) < 0).length],
+    ["Temas vencidos",         temas.filter((t) => !esTemaFinalizado(t) && daysUntil(t.fechaLimite) < 0).length],
     ["Hitos vencidos",         hitosVencidos.length],
     ["Expedientes activos",    state.expedientes.filter((x) => x.estado === "Activo").length]
   ];
@@ -3405,7 +3436,7 @@ function renderReportChipSet(container, key) {
     options = unique(state.responsables.map((r) => r.dependencia)).sort((a, b) => a.localeCompare(b)).map((d) => ({ value: d, label: d }));
   } else if (key === "etiquetas") {
     const activas = unique(
-      state.temas.filter(isTemaVisible).filter((t) => t.estado !== "Cerrado").flatMap((t) => (t.etiquetas || []).map((e) => e.nombre))
+      state.temas.filter(isTemaVisible).filter((t) => !esTemaFinalizado(t)).flatMap((t) => (t.etiquetas || []).map((e) => e.nombre))
     );
     options = activas.sort((a, b) => a.localeCompare(b)).map((e) => ({ value: e, label: e }));
   } else {
@@ -4326,10 +4357,11 @@ function buildHitoEditPanelHtml(tema, hito) {
 
   const modoFecha = tienePredecesor ? (hito.modoFecha || "fecha") : "fecha";
 
-  // Congelado: cerrar el TEMA bloquea todo (la reapertura vive un nivel mas
-  // arriba, no en este panel); cerrar el HITO bloquea todo menos su propio
-  // Estado (la unica salida es volver a un estado anterior desde aca mismo).
-  const temaCerrado = tema.estado === "Cerrado";
+  // Congelado: cerrar (o archivar) el TEMA bloquea todo (la reapertura vive
+  // un nivel mas arriba, no en este panel); cerrar el HITO bloquea todo menos
+  // su propio Estado (la unica salida es volver a un estado anterior desde
+  // aca mismo).
+  const temaCerrado = esTemaFinalizado(tema);
   const hitoCerrado = hito.estado === "Cerrado";
   const dAll = (temaCerrado || hitoCerrado) ? "disabled" : "";
   const dEstado = temaCerrado ? "disabled" : "";
@@ -4359,7 +4391,7 @@ function buildHitoEditPanelHtml(tema, hito) {
         </div>
       </div>
 
-      ${temaCerrado ? `<div class="hito-panel-frozen-banner red">${icon("candado", 14)} Este tema está cerrado. Ningún hito dentro se puede editar hasta reabrirlo — cambiá el estado del tema, no el del hito.</div>` : ""}
+      ${temaCerrado ? `<div class="hito-panel-frozen-banner red">${icon("candado", 14)} Este tema está ${tema.esArchivado ? "archivado" : "cerrado"}. Ningún hito dentro se puede editar hasta reabrirlo — cambiá el estado del tema, no el del hito.</div>` : ""}
       ${!temaCerrado && hitoCerrado ? `<div class="hito-panel-frozen-banner amber">${icon("candado", 14)} Este hito está cerrado: ningún campo se puede editar. Cambiá el Estado a uno anterior para volver a editarlo.</div>` : ""}
       ${hito.__critico ? `<div class="hito-panel-critico-banner">${icon("alerta", 14)} <strong>Crítico:</strong> aun en el mejor escenario no se llega a "${escHtml(hito.__critico.hitoObjetivoNombre)}" (${fmtDateNice(hito.__critico.fechaComprometida)}) — se excede por ${hito.__critico.excesoDias}d.</div>` : ""}
       <div id="hitoPanelError-${hito.id}" class="hito-panel-error hidden"></div>
@@ -4856,7 +4888,7 @@ function buildDatosFieldsHtml(draft, mode) {
     ? `<label>Vencimiento<input type="date" name="fechaLimite" id="taskFechaLimiteInput" value="${draft.fechaLimite || fmtDate(new Date())}" /></label>`
     : `<label>Vencimiento<div class="task-view-value">${fmtDateNice(draft.fechaLimite)}</div></label>`;
 
-  const diasField = `<label>Días restantes<div class="task-view-value">${diasRestantesBadge(draft.fechaLimite || "", draft.estado === "Cerrado" ? draft.fechaCierre : null, editable ? "taskDiasBadge" : undefined)}</div></label>`;
+  const diasField = `<label>Días restantes<div class="task-view-value">${diasRestantesBadge(draft.fechaLimite || "", esTemaFinalizado(draft) ? draft.fechaCierre : null, editable ? "taskDiasBadge" : undefined)}</div></label>`;
 
   const descripcionField = editable
     ? `<label>Descripcion<textarea name="descripcion">${escHtml(draft.descripcion || "")}</textarea></label>`
@@ -6183,9 +6215,9 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
     // El <select name="estado"> sigue ofreciendo nombres (STATES); se resuelve
     // a la columna real de la pizarra actual para persistir columna_id.
     const selCol = state.columnas.find((c) => c.nombre === draft.estado);
-    if (selCol) { draft.columnaId = selCol.id; draft.esInicial = selCol.esInicial; draft.esFinal = selCol.esFinal; }
+    if (selCol) { draft.columnaId = selCol.id; draft.esInicial = selCol.esInicial; draft.esFinal = selCol.esFinal; draft.esArchivado = selCol.esArchivado; }
     draft.ultimaActualizacion = fmtDate(new Date());
-    if (draft.estado === "Cerrado") {
+    if (esTemaFinalizado(draft)) {
       if (!draft.fechaCierre) {
         draft.fechaCierre = fmtDate(new Date());
         draft.cerradoPor = activeUserName();
@@ -6245,6 +6277,7 @@ async function openTemaForm(existing = null, defaultEstado = "Pendiente", opts =
     estado: defaultCol ? defaultCol.nombre : defaultEstado,
     esInicial: defaultCol ? defaultCol.esInicial : true,
     esFinal: defaultCol ? defaultCol.esFinal : false,
+    esArchivado: defaultCol ? defaultCol.esArchivado : false,
     expediente: "", gde: "",
     fechaInicio: fmtDate(new Date()), fechaLimite: fmtDate(new Date()),
     descripcion: "", privado: false,
@@ -6839,11 +6872,11 @@ const REPORTE_HEADER_FILL = "FF0B5394";
 
 function reporteVencido(estado, fechaLimite) {
   if (!fechaLimite) return "-";
-  return (estado !== "Cerrado" && daysUntil(fechaLimite) < 0) ? "Sí" : "No";
+  return (!esNombreEstadoFinalizado(estado) && daysUntil(fechaLimite) < 0) ? "Sí" : "No";
 }
 
 function reporteDiasRestantes(estado, fechaLimite) {
-  if (estado === "Cerrado" || !fechaLimite) return "-";
+  if (esNombreEstadoFinalizado(estado) || !fechaLimite) return "-";
   return daysUntil(fechaLimite);
 }
 
@@ -7150,7 +7183,7 @@ function fmtDateFeed(s) {
 }
 
 function dateTone(s, estado) {
-  if (estado === "Cerrado") return "tone-done";
+  if (esNombreEstadoFinalizado(estado)) return "tone-done";
   const d = daysUntil(s);
   if (d < 0) return "tone-red";
   if (d <= 3) return "tone-orange";
