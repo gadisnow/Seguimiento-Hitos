@@ -233,6 +233,12 @@ function esAdmin() { return getCurrentRol() === "Admin"; }
 // que puede marcar temas privados, invitar colaboradores o habilitar
 // accesorios (ver spec fase 3/4).
 function esCreadorPizarra() { return Boolean(state.pizarraActual && state.pizarraActual.creadorId === activeUserId()); }
+// Eliminar un TEMA especifico: el dueno de la pizarra, o el colaborador que
+// creo ese tema puntual (no cualquier colaborador con permiso de editar --
+// ver temas_delete en supabase/migrations, mismo criterio server-side).
+function puedeEliminarTema(tema) {
+  return esCreadorPizarra() || Boolean(tema?.creadoPor && tema.creadoPor === activeUserId());
+}
 function activeUserName() { return state.profile ? state.profile.nombre : state.config.currentUser; }
 function activeUserId() { return state.profile ? state.profile.id : null; }
 
@@ -6042,7 +6048,7 @@ function renderTaskFormShell(draft, isEdit, initialMode) {
   function footerHtml() {
     if (mode === "view") {
       return `
-        ${puedeEliminar() ? `<button type="button" class="btn-delete" id="taskDeleteBtn">Eliminar</button>` : "<span></span>"}
+        ${puedeEliminarTema(draft) ? `<button type="button" class="btn-delete" id="taskDeleteBtn">Eliminar</button>` : "<span></span>"}
         ${puedeEditar() ? `<button type="button" class="primary" id="taskEditBtn">Editar</button>` : ""}
       `;
     }
