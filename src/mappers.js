@@ -32,6 +32,7 @@ export function temaFromRow(r, columnaById = {}) {
     estado: columna ? columna.nombre : "",
     esInicial: columna ? columna.esInicial : false,
     esFinal: columna ? columna.esFinal : false,
+    esArchivado: columna ? columna.esArchivado : false,
     expediente: r.expediente_numero || "",
     gde: r.gde_url || "",
     provincia: r.provincia || "",
@@ -245,6 +246,7 @@ export function columnaFromRow(r) {
     nombre: r.nombre || "",
     esInicial: !!r.es_inicial,
     esFinal: !!r.es_final,
+    esArchivado: !!r.es_archivado,
     color: r.color || "neutral",
     anchoPx: r.ancho_px,
     orden: r.orden
