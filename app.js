@@ -1821,7 +1821,11 @@ function openMfaEnrollModal() {
 // DASHBOARD
 // =========================================================
 function renderDashboard() {
-  const temas = getFilteredTemas();
+  // Un tema archivado no cuenta para ninguna estadistica del dashboard --
+  // ni como activo ni como cerrado, es como si no existiera hasta que se
+  // lo saque de Archivados (a diferencia de esTemaFinalizado(), que si lo
+  // trata como "cerrado" para el bloqueo de edicion del panel de hito).
+  const temas = getFilteredTemas().filter((t) => !t.esArchivado);
   const today = fmtDate(new Date());
   const allHitos = temas.flatMap((t) => t.hitos.map((h) => ({ ...h, temaId: t.id, temaNombre: t.nombre })));
 
@@ -3355,7 +3359,7 @@ function buildAlerts(temas) {
 }
 
 function renderAlertas() {
-  const alerts = sortTableData(buildAlerts(getFilteredTemas()), "tableAlertas");
+  const alerts = sortTableData(buildAlerts(getFilteredTemas().filter((t) => !t.esArchivado)), "tableAlertas");
   els.tableAlertas.innerHTML = alerts.map((a) => `
     <tr class="clickable-row" data-tema="${a.temaId}" title="Clic para abrir y editar el tema">
       <td><span class="nivel-text nivel-${a.nivel}">${a.nivelLabel}</span></td>
