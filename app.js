@@ -2357,6 +2357,7 @@ const KMENU_ICONS = {
   copiar: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
   reporte: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>`,
   columnas: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="10" rx="1"/><rect x="17" y="4" width="4" height="7" rx="1"/></svg>`,
+  archivar: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5" rx="1"/><line x1="10" y1="12" x2="14" y2="12"/></svg>`,
 };
 
 function closeKcardMenu() {
@@ -2382,6 +2383,11 @@ function openKcardMenu(btn, temaId) {
       { action: "etiquetas", ico: "etiqueta", label: "Etiquetas" },
       { action: "copiar", ico: "copiar", label: "Copiar tarjeta" }
     );
+    // Solo si la pizarra tiene la columna Archivados y el tema no esta ya ahi.
+    const archivadosCol = state.columnas.find((c) => c.esArchivado);
+    if (archivadosCol && tema.columnaId !== archivadosCol.id) {
+      items.push({ action: "archivar", ico: "archivar", label: "Archivar" });
+    }
   }
 
   const overlay = document.createElement("div");
@@ -2447,7 +2453,28 @@ function handleKcardMenuAction(action, tema) {
     case "copiar":
       duplicarTema(tema);
       break;
+    case "archivar":
+      archivarTema(tema);
+      break;
   }
+}
+
+// Mismo criterio de fecha_cierre/cerrado_por que el drop del kanban (ver
+// ese handler mas arriba): si el tema no estaba ya en un estado finalizado,
+// archivar cuenta como cerrarlo. Si ya estaba cerrado, se preserva la
+// fecha de cierre original -- archivar no es "volver a cerrar".
+async function archivarTema(tema) {
+  if (!puedeEditar()) return;
+  const archivadosCol = state.columnas.find((c) => c.esArchivado);
+  if (!archivadosCol) { showToast("Esta pizarra no tiene una columna Archivados"); return; }
+  if (tema.columnaId === archivadosCol.id) return;
+  const extra = esTemaFinalizado(tema) ? {} : { fecha_cierre: fmtDate(new Date()), cerrado_por: activeUserName() };
+  const ok = await withBusy(async () => {
+    await dataApi.updateTemaColumna(tema.id, archivadosCol.id, extra);
+    await dataApi.logActivity(tema.id, "Tema archivado");
+    await reloadState();
+  });
+  if (ok) showToast("Tema archivado");
 }
 
 async function duplicarTema(tema) {
@@ -2637,8 +2664,8 @@ function renderBoardMenuColumnas() {
 
 function openEditColumna(col) {
   boardMenuEditingColumna = col
-    ? { id: col.id, nombre: col.nombre, color: col.color || "warm-gray", isFixed: esColumnaFija(col), isNew: false }
-    : { id: null, nombre: "", color: "warm-gray", isFixed: false, isNew: true };
+    ? { id: col.id, nombre: col.nombre, color: col.color || "warm-gray", isFixed: esColumnaFija(col), esArchivado: Boolean(col.esArchivado), isNew: false }
+    : { id: null, nombre: "", color: "warm-gray", isFixed: false, esArchivado: false, isNew: true };
   boardMenuView = "editColumna";
   renderBoardMenu();
 }
@@ -2650,7 +2677,8 @@ function renderBoardMenuEditColumna() {
   els.boardMenuBody.innerHTML = `
     <div class="board-label-preview" id="boardColumnaPreview" style="background:${columnaColorHex(draft.color)}">${escHtml(draft.nombre) || "Columna"}</div>
     <label class="board-menu-field-label" for="boardColumnaNombre">Nombre</label>
-    <input type="text" class="board-menu-input" id="boardColumnaNombre" value="${escHtml(draft.nombre)}" placeholder="Nombre de la columna" />
+    <input type="text" class="board-menu-input" id="boardColumnaNombre" value="${escHtml(draft.nombre)}" placeholder="Nombre de la columna" ${draft.esArchivado ? "disabled" : ""} />
+    ${draft.esArchivado ? `<p style="font-size:11.5px;color:var(--muted);margin:-4px 0 0">El nombre de esta columna no se puede cambiar.</p>` : ""}
     <div class="board-menu-field-label">Color</div>
     <div id="boardColumnaColorGrid">${columnaColorGridHtml(draft.color)}</div>
     <button type="button" class="primary board-menu-save" id="boardColumnaGuardar">Guardar</button>
