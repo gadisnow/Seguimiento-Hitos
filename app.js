@@ -2199,8 +2199,8 @@ function renderTagsChart(baseTemas) {
           if (!ctx.raw) return "transparent";
           return dashFiltros.etiquetas.includes(ctx.raw.g) ? (dark ? "#e2e8f0" : "#18181B") : "transparent";
         },
-        borderWidth: 2,
-        spacing: 2,
+        borderWidth: (ctx) => (ctx.raw && dashFiltros.etiquetas.includes(ctx.raw.g) ? 2 : 1),
+        spacing: 1,
         labels: {
           display: true,
           align: "center",
