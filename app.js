@@ -565,6 +565,18 @@ const els = {
   donutEstadoTotal:   $("donutEstadoTotal"),
   legendResp:         $("legendResp"),
   legendEstado:       $("legendEstado"),
+  donutPrioridad:      $("donutPrioridad"),
+  donutPrioridadTotal: $("donutPrioridadTotal"),
+  legendPrioridad:     $("legendPrioridad"),
+  tagsChart:           $("tagsChart"),
+  trendChart:          $("trendChart"),
+  dashFResponsable:    $("dashFResponsable"),
+  dashFEstado:         $("dashFEstado"),
+  dashFPrioridad:      $("dashFPrioridad"),
+  dashClearFilters:    $("dashClearFilters"),
+  dashTagChips:        $("dashTagChips"),
+  dashCount:           $("dashCount"),
+  dashCountSub:        $("dashCountSub"),
   semaforoList:       $("semaforoList"),
   alertList:          $("alertList"),
   atencionList:       $("atencionList"),
@@ -669,6 +681,11 @@ let currentDrawerTemaId = null;
 let respViewMode = "tarjetas";
 let showMisTemasOnly = false;
 let showMisHitosOnly = false;
+// Filtros propios del Dashboard -- estado independiente de los de Agenda
+// (els.fResponsable/fEstado/fPrioridad/fEtiqueta), asi cambiar de pestana no
+// pisa lo que el usuario tenia elegido en cada vista.
+let dashFiltros = { responsable: "", estado: "", prioridad: "", etiquetas: [] };
+const PRIORIDAD_COLORS = { "Alta": "#dc2626", "Media": "#f59e0b", "Baja": "#3b82f6" };
 
 // =========================================================
 // Init / events
@@ -911,6 +928,17 @@ function bindEvents() {
   });
 
   [els.fResponsable, els.fEstado, els.fPrioridad, els.fEtiqueta].forEach((s) => s.addEventListener("change", renderAll));
+
+  // Filtros propios del Dashboard: estado independiente (dashFiltros), asi
+  // que alcanza con re-renderizar el dashboard, no toda la app.
+  els.dashFResponsable.addEventListener("change", () => { dashFiltros.responsable = els.dashFResponsable.value; renderDashboard(); });
+  els.dashFEstado.addEventListener("change", () => { dashFiltros.estado = els.dashFEstado.value; renderDashboard(); });
+  els.dashFPrioridad.addEventListener("change", () => { dashFiltros.prioridad = els.dashFPrioridad.value; renderDashboard(); });
+  els.dashClearFilters.addEventListener("click", () => {
+    dashFiltros = { responsable: "", estado: "", prioridad: "", etiquetas: [] };
+    els.dashFResponsable.value = ""; els.dashFEstado.value = ""; els.dashFPrioridad.value = "";
+    renderDashboard();
+  });
   els.globalSearch.addEventListener("input", renderAll);
 
   els.btnMisTemas.addEventListener("click", () => {
@@ -1624,12 +1652,49 @@ function fillFilterOptions() {
   fillSelect(els.fHEstado, STATES, "Estado");
   fillSelect(els.fHPrioridad, ["Alta", "Media", "Baja"], "Prioridad");
   fillSelect(els.fHEtiqueta, etiquetasActivas, "Etiquetas");
+
+  fillSelect(els.dashFResponsable, unique(visibles.map((t) => t.responsable)), "Responsable");
+  fillSelect(els.dashFEstado, state.columnas.slice().sort((a, b) => a.orden - b.orden).map((c) => c.nombre), "Estado");
+  fillSelect(els.dashFPrioridad, ["Alta", "Media", "Baja"], "Prioridad");
 }
 
 function fillSelect(el, options, placeholder) {
   const prev = el.value;
   el.innerHTML = `<option value="">${placeholder}</option>` + options.map((o) => `<option>${escHtml(o)}</option>`).join("");
   el.value = options.includes(prev) ? prev : "";
+}
+
+// Nombre de etiqueta -> color (nombre de TAG_COLORS o hex legado). Catalogo
+// (state.etiquetas) primero, y si una etiqueta no esta ahi (legado suelto en
+// un tema) se completa con el primer uso que se encuentre.
+function tagColorMap() {
+  const map = new Map();
+  (state.etiquetas || []).forEach((e) => { if (e.nombre) map.set(e.nombre, e.color); });
+  state.temas.forEach((t) => (t.etiquetas || []).forEach((e) => { if (e.nombre && !map.has(e.nombre)) map.set(e.nombre, e.color); }));
+  return map;
+}
+
+// dashboardBaseTemas respeta responsable/estado/prioridad pero NO etiquetas
+// -- lo usa el grafico "Temas por etiqueta" para mostrar siempre el universo
+// completo de barras (atenuadas/resaltadas), en vez de hacer desaparecer las
+// etiquetas no seleccionadas apenas se activa una.
+function dashboardBaseTemas() {
+  return state.temas.filter(isTemaVisible).filter((t) => !t.esArchivado).filter((t) => {
+    if (dashFiltros.responsable && t.responsable !== dashFiltros.responsable) return false;
+    if (dashFiltros.estado && t.estado !== dashFiltros.estado) return false;
+    if (dashFiltros.prioridad && t.prioridad !== dashFiltros.prioridad) return false;
+    return true;
+  });
+}
+function dashboardFilteredTemas() {
+  return dashboardBaseTemas().filter((t) =>
+    !dashFiltros.etiquetas.length || (t.etiquetas || []).some((e) => dashFiltros.etiquetas.includes(e.nombre))
+  );
+}
+function toggleDashTagFilter(nombre) {
+  const idx = dashFiltros.etiquetas.indexOf(nombre);
+  if (idx === -1) dashFiltros.etiquetas.push(nombre); else dashFiltros.etiquetas.splice(idx, 1);
+  renderDashboard();
 }
 
 function getFilteredTemas() {
@@ -1821,13 +1886,28 @@ function openMfaEnrollModal() {
 // DASHBOARD
 // =========================================================
 function renderDashboard() {
-  // Un tema archivado no cuenta para ninguna estadistica del dashboard --
-  // ni como activo ni como cerrado, es como si no existiera hasta que se
-  // lo saque de Archivados (a diferencia de esTemaFinalizado(), que si lo
-  // trata como "cerrado" para el bloqueo de edicion del panel de hito).
-  const temas = getFilteredTemas().filter((t) => !t.esArchivado);
+  // Filtros propios del dashboard (dashFiltros): independientes de los de
+  // Agenda. dashboardBaseTemas ya excluye archivados/no-visibles y respeta
+  // responsable/estado/prioridad; dashboardFilteredTemas suma etiquetas
+  // encima. "base" (sin etiquetas) alimenta el grafico de etiquetas, que
+  // siempre muestra el universo completo -- "temas" (con todo aplicado)
+  // alimenta el resto.
+  const base = dashboardBaseTemas();
+  const temas = dashboardFilteredTemas();
   const today = fmtDate(new Date());
   const allHitos = temas.flatMap((t) => t.hitos.map((h) => ({ ...h, temaId: t.id, temaNombre: t.nombre })));
+
+  els.dashTagChips.innerHTML = dashFiltros.etiquetas.map((nombre) => {
+    const { bg, text } = resolveTagColor(tagColorMap().get(nombre) || nombre);
+    return `<span class="etiqueta-chip" style="background:${bg};color:${text}">${escHtml(nombre)}<button type="button" class="etiqueta-chip-remove" data-dash-tag-remove="${escHtml(nombre)}" aria-label="Quitar filtro">${icon("cerrar", 12)}</button></span>`;
+  }).join("");
+  els.dashTagChips.querySelectorAll("[data-dash-tag-remove]").forEach((btn) =>
+    btn.addEventListener("click", () => toggleDashTagFilter(btn.dataset.dashTagRemove)));
+  const totalVisible = state.temas.filter(isTemaVisible).filter((t) => !t.esArchivado).length;
+  els.dashCount.textContent = temas.length;
+  els.dashCountSub.textContent = dashFiltros.etiquetas.length
+    ? `filtrando por: ${dashFiltros.etiquetas.join(", ")}`
+    : `de ${totalVisible} en total`;
 
   const activos = temas.filter((t) => !esTemaFinalizado(t)).length;
   const vencidosTemas = temas.filter((t) => !esTemaFinalizado(t) && daysUntil(t.fechaLimite) < 0).length;
@@ -1845,7 +1925,8 @@ function renderDashboard() {
     { label: "Hitos vencidos",      val: hitosVencidos, tone: hitosVencidos ? "down" : "" },
     { label: "Sin actividad 14d",   val: sinActividad,  tone: sinActividad ? "down" : "" },
     { label: "Bloqueados",          val: bloqueados,    tone: bloqueados ? "down" : "" },
-    { label: "Cerrados hoy",        val: cerradosHoy,   tone: cerradosHoy ? "up" : "", sub: `Historico: ${cerradosHistoricos}` }
+    { label: "Cerrados hoy",        val: cerradosHoy,   tone: cerradosHoy ? "up" : "", sub: `Historico: ${cerradosHistoricos}` },
+    { label: "Tiempo prom. resolución", val: `${avgResolutionDays(temas)}d`, tone: "" }
   ];
 
   els.kpiRow.innerHTML = kpis.map((k) => `
@@ -1866,6 +1947,13 @@ function renderDashboard() {
   renderDonut(els.donutEstado, byEstado, columnasOrdenNombres.map((s) => STATE_COLORS[s] || "#94a3b8"), "donutEstado", els.legendEstado, columnasOrdenNombres);
   els.donutRespTotal.textContent = sum(Object.values(byResp));
   els.donutEstadoTotal.textContent = sum(Object.values(byEstado));
+
+  const byPrioridad = countBy(temasActivos, "prioridad");
+  renderDonut(els.donutPrioridad, byPrioridad, ["Alta", "Media", "Baja"].map((p) => PRIORIDAD_COLORS[p]), "donutPrioridad", els.legendPrioridad, ["Alta", "Media", "Baja"]);
+  els.donutPrioridadTotal.textContent = sum(Object.values(byPrioridad));
+
+  renderTagsChart(base);
+  renderTrendChart(temas);
 
   // Semaforo (temas + hitos)
   const activosTemas = temas.filter((t) => !esTemaFinalizado(t)).map((t) => ({ id: t.id, nombre: t.nombre, responsable: t.responsable, fechaLimite: t.fechaLimite, dias: daysUntil(t.fechaLimite), tipo: "Tema" }));
@@ -1990,6 +2078,80 @@ function renderDonut(canvas, data, palette, key, legendEl, fixedOrder = null) {
       <span class="pct">${values[i]}</span>
       <span class="pct">${Math.round((values[i] / total) * 100)}%</span>
     </li>`).join("");
+}
+
+// Barra horizontal clickeable: recibe "base" (respeta responsable/estado/
+// prioridad del dashboard pero no las etiquetas activas, ver
+// dashboardBaseTemas) para mostrar siempre el universo completo de
+// etiquetas -- las activas quedan resaltadas con borde, el resto atenuadas
+// (fondo + alfa "35" en hex), nunca ocultas. Click en una barra togglea esa
+// etiqueta en dashFiltros.etiquetas (OR entre las activas).
+function renderTagsChart(baseTemas) {
+  const colorMap = tagColorMap();
+  const counts = new Map();
+  baseTemas.forEach((t) => (t.etiquetas || []).forEach((e) => counts.set(e.nombre, (counts.get(e.nombre) || 0) + 1)));
+  const ordered = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  const dark = getDark();
+  const hasActive = dashFiltros.etiquetas.length > 0;
+  const bg = ordered.map(([nombre]) => {
+    const { bg } = resolveTagColor(colorMap.get(nombre) || nombre);
+    return !hasActive || dashFiltros.etiquetas.includes(nombre) ? bg : bg + "35";
+  });
+  const borderColor = ordered.map(([nombre]) => dashFiltros.etiquetas.includes(nombre) ? (dark ? "#e2e8f0" : "#18181B") : "transparent");
+  if (charts.tags) charts.tags.destroy();
+  if (!ordered.length) { els.tagsChart.getContext("2d").clearRect(0, 0, els.tagsChart.width, els.tagsChart.height); return; }
+  charts.tags = new Chart(els.tagsChart, {
+    type: "bar",
+    data: { labels: ordered.map(([n]) => n), datasets: [{ data: ordered.map(([, c]) => c), backgroundColor: bg, borderColor, borderWidth: 2, borderRadius: 6, barThickness: 18 }] },
+    options: {
+      indexAxis: "y",
+      maintainAspectRatio: false,
+      onClick: (evt, elements) => { if (elements.length) toggleDashTagFilter(ordered[elements[0].index][0]); },
+      onHover: (evt, elements) => { evt.native.target.style.cursor = elements.length ? "pointer" : "default"; },
+      scales: {
+        x: { beginAtZero: true, ticks: { precision: 0, color: dark ? "#94a3b8" : undefined }, grid: { color: dark ? "#334155" : "#f1f4f8" } },
+        y: { grid: { display: false }, ticks: { color: dark ? "#94a3b8" : undefined } }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: dark ? "#334155" : "rgba(15,23,42,0.92)",
+          titleColor: dark ? "#e2e8f0" : "#ffffff",
+          bodyColor: dark ? "#94a3b8" : "rgba(255,255,255,0.78)",
+          callbacks: { label: (c) => `${c.raw} temas` }
+        }
+      }
+    }
+  });
+}
+
+// Cierres por semana, ultimas 8 semanas (incluida la actual). "temas" ya
+// viene con todos los filtros del dashboard aplicados.
+function renderTrendChart(temas) {
+  const today = fmtDate(new Date());
+  const weeks = [];
+  for (let i = 7; i >= 0; i--) {
+    const end = sumarDias(today, -7 * i);
+    weeks.push({ start: sumarDias(end, -6), end, label: end.slice(5) });
+  }
+  const counts = weeks.map((w) => temas.filter((t) => t.fechaCierre && t.fechaCierre >= w.start && t.fechaCierre <= w.end).length);
+  const dark = getDark();
+  if (charts.trend) charts.trend.destroy();
+  charts.trend = new Chart(els.trendChart, {
+    type: "bar",
+    data: { labels: weeks.map((w) => w.label), datasets: [{ data: counts, backgroundColor: "#8b5cf6", borderRadius: 5, barThickness: 22 }] },
+    options: {
+      maintainAspectRatio: false,
+      scales: {
+        y: { beginAtZero: true, ticks: { precision: 0, color: dark ? "#94a3b8" : undefined }, grid: { color: dark ? "#334155" : "#f1f4f8" } },
+        x: { grid: { display: false }, ticks: { color: dark ? "#94a3b8" : undefined } }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { backgroundColor: dark ? "#334155" : "rgba(15,23,42,0.92)", callbacks: { label: (c) => `${c.raw} temas cerrados` } }
+      }
+    }
+  });
 }
 
 // =========================================================
