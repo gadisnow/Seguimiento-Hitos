@@ -122,6 +122,16 @@
     <main class="main">
       <!-- =================== DASHBOARD =================== -->
       <section class="view active" id="view-dashboard">
+        <div class="filter-pills filter-bar">
+          <span class="fb-label">Filtros</span>
+          <select id="dashFResponsable" class="pill"><option value="">Responsable</option></select>
+          <select id="dashFEstado" class="pill"><option value="">Estado</option></select>
+          <select id="dashFPrioridad" class="pill"><option value="">Prioridad</option></select>
+          <div class="fb-tagchips" id="dashTagChips"></div>
+          <button type="button" class="pill ghost" id="dashClearFilters">Limpiar filtros</button>
+          <span class="fb-count"><strong id="dashCount">0</strong> temas · <span id="dashCountSub"></span></span>
+        </div>
+
         <div class="kpi-row" id="kpiRow"></div>
 
         <div class="grid-2-1">
@@ -151,10 +161,45 @@
 
           <article class="card">
             <div class="card-head">
+              <h3>Temas por prioridad</h3>
+            </div>
+            <div class="donut-wrap">
+              <canvas id="donutPrioridad"></canvas>
+              <div class="donut-center"><strong id="donutPrioridadTotal">0</strong><small>Total</small></div>
+            </div>
+            <ul class="legend" id="legendPrioridad"></ul>
+          </article>
+        </div>
+
+        <div class="grid-2-1">
+          <article class="card span-2">
+            <div class="card-head">
+              <h3>Temas por etiqueta</h3>
+            </div>
+            <div class="tags-chart-wrap"><canvas id="tagsChart"></canvas></div>
+            <p class="hint">Clic en una barra para filtrar el resto del dashboard por esa etiqueta (se puede combinar más de una).</p>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
               <h3>Proximos vencimientos</h3>
               <a class="link" href="#" data-link="agenda">Ver todos</a>
             </div>
             <div class="semaforo" id="semaforoList"></div>
+          </article>
+        </div>
+
+        <div class="grid-2-1">
+          <article class="card span-2">
+            <div class="card-head">
+              <h3>Tendencia de cierres (últimas 8 semanas)</h3>
+            </div>
+            <div style="height:200px"><canvas id="trendChart"></canvas></div>
+          </article>
+
+          <article class="card">
+            <div class="card-head"><h3>Alertas activas</h3><a class="link" href="#" data-link="alertas">Ver todas</a></div>
+            <div class="alert-list" id="alertList"></div>
           </article>
         </div>
 
@@ -168,15 +213,10 @@
           </article>
 
           <article class="card">
-            <div class="card-head"><h3>Alertas activas</h3><a class="link" href="#" data-link="alertas">Ver todas</a></div>
-            <div class="alert-list" id="alertList"></div>
+            <div class="card-head"><h3>Requieren atencion</h3></div>
+            <div class="atencion-list" id="atencionList"></div>
           </article>
         </div>
-
-        <article class="card">
-          <div class="card-head"><h3>Requieren atencion</h3></div>
-          <div class="atencion-list" id="atencionList"></div>
-        </article>
       </section>
 
       <!-- =================== AGENDA (TEMAS) =================== -->
