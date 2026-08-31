@@ -184,3 +184,46 @@ export async function reorderColumnas(pizarraId, orderedIds) {
   });
   if (error) throw error;
 }
+
+// =====================================================================
+// Historial de KPIs del Dashboard (ver supabase/migrations/033) -- foto
+// diaria de los 7 KPIs SIN filtros, para poder comparar "esta semana vs.
+// la semana pasada" y mostrar la flecha de avance. Siempre en base al
+// pizarra_id actual, nunca a una combinacion de filtros del usuario.
+// =====================================================================
+
+// Ultima foto en o antes de `fechaLimite` (ej. hoy - 7 dias): "el
+// snapshot mas reciente disponible a esa fecha", no exige que exista
+// exactamente ese dia (si nadie abrio el dashboard ese dia puntual).
+export async function getKpiSnapshotBaseline(pizarraId, fechaLimite) {
+  const { data, error } = await supabase
+    .from("dashboard_kpi_snapshots")
+    .select("*")
+    .eq("pizarra_id", pizarraId)
+    .lte("fecha", fechaLimite)
+    .order("fecha", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? M.kpiSnapshotFromRow(data) : null;
+}
+
+// Guarda (o actualiza) la foto de "hoy". Se llama sin gating de rol en el
+// cliente -- la RLS (can_edit_board) es quien decide si el usuario actual
+// puede escribir; un Viewer simplemente no deja rastro ese dia, sin que
+// eso rompa nada (ver app.js: el error se descarta en silencio).
+export async function upsertKpiSnapshotToday(pizarraId, fecha, kpis) {
+  const { error } = await supabase.from("dashboard_kpi_snapshots").upsert({
+    pizarra_id: pizarraId,
+    fecha,
+    temas_activos: kpis.activos,
+    temas_vencidos: kpis.vencidosTemas,
+    hitos_vencidos: kpis.hitosVencidos,
+    sin_actividad: kpis.sinActividad,
+    bloqueados: kpis.bloqueados,
+    cerrados_historicos: kpis.cerradosHistoricos,
+    tiempo_prom_resolucion: kpis.tiempoPromResolucion,
+    updated_at: new Date().toISOString()
+  }, { onConflict: "pizarra_id,fecha" });
+  if (error) throw error;
+}

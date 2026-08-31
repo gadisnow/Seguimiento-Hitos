@@ -687,6 +687,14 @@ let showMisHitosOnly = false;
 let dashFiltros = { responsable: "", estado: "", prioridad: "", etiquetas: [] };
 const PRIORIDAD_COLORS = { "Alta": "#dc2626", "Media": "#f59e0b", "Baja": "#3b82f6" };
 
+// Historial de KPIs (flecha "avance desde la semana pasada", ver
+// supabase/migrations/033_dashboard_kpi_snapshots.sql). kpiBaseline es la
+// foto mas reciente a >= 7 dias; se cachea por pizarra para no repetir el
+// fetch en cada render (los filtros del dashboard re-renderizan seguido).
+let kpiBaseline = null;
+let kpiBaselinePizarraId = null;
+let kpiSnapshotSavedKey = null; // `${pizarraId}:${fecha}` ya guardado esta sesion
+
 // =========================================================
 // Init / events
 // =========================================================
@@ -1691,6 +1699,60 @@ function dashboardFilteredTemas() {
     !dashFiltros.etiquetas.length || (t.etiquetas || []).some((e) => dashFiltros.etiquetas.includes(e.nombre))
   );
 }
+
+// Universo SIN ningun filtro de dashFiltros (solo visibilidad/archivado):
+// es lo unico que tiene sentido guardar como foto historica -- una foto
+// por cada combinacion posible de filtros no tendria utilidad ninguna.
+function dashboardTrueBaseTemas() {
+  return state.temas.filter(isTemaVisible).filter((t) => !t.esArchivado);
+}
+
+function computeDashboardKpis(temas) {
+  const today = fmtDate(new Date());
+  const allHitos = temas.flatMap((t) => t.hitos);
+  const activos = temas.filter((t) => !esTemaFinalizado(t)).length;
+  const vencidosTemas = temas.filter((t) => !esTemaFinalizado(t) && daysUntil(t.fechaLimite) < 0).length;
+  const hitosVencidos = allHitos.filter((h) => h.estado !== "Cerrado" && daysUntil(h.fechaLimite) < 0).length;
+  const sinActividad = temas.filter((t) => !esTemaFinalizado(t) && daysBetween(t.ultimaActualizacion, today) > 14).length;
+  const bloqueados = temas.filter((t) => t.estado === "Bloqueado").length;
+  const temasCerrados = temas.filter((t) => esTemaFinalizado(t));
+  const cerradosHoy = temasCerrados.filter((t) => t.fechaCierre === today).length;
+  const cerradosHistoricos = temasCerrados.length;
+  const tiempoPromResolucion = avgResolutionDays(temas);
+  return { activos, vencidosTemas, hitosVencidos, sinActividad, bloqueados, cerradosHoy, cerradosHistoricos, tiempoPromResolucion };
+}
+
+// Trae (una vez por pizarra, cacheado en kpiBaseline) la foto mas cercana
+// a 7 dias atras para poder comparar. Fire-and-forget: si todavia no
+// llego, el render actual sale sin flechas y este mismo fetch dispara un
+// renderDashboard() nuevo al resolver.
+async function ensureKpiBaselineLoaded() {
+  if (!state.currentPizarraId || kpiBaselinePizarraId === state.currentPizarraId) return;
+  kpiBaselinePizarraId = state.currentPizarraId;
+  try {
+    const hace7dias = sumarDias(fmtDate(new Date()), -7);
+    kpiBaseline = await pizarraApi.getKpiSnapshotBaseline(state.currentPizarraId, hace7dias);
+  } catch {
+    kpiBaseline = null;
+  }
+  renderDashboard();
+}
+
+// Guarda la foto de "hoy" (una sola vez por pizarra+dia+sesion). Sin
+// gating de rol en el cliente: la RLS de dashboard_kpi_snapshots decide
+// si este usuario puede escribir (can_edit_board) -- un Viewer sin
+// permiso simplemente no deja rastro ese dia, sin romper nada.
+async function maybeSaveKpiSnapshot(pizarraId, kpisHoy) {
+  const hoy = fmtDate(new Date());
+  const key = `${pizarraId}:${hoy}`;
+  if (kpiSnapshotSavedKey === key) return;
+  kpiSnapshotSavedKey = key;
+  try {
+    await pizarraApi.upsertKpiSnapshotToday(pizarraId, hoy, kpisHoy);
+  } catch {
+    // no critico: sin permiso de edicion en esta pizarra, o error de red.
+  }
+}
 // Clic normal en un bloque del treemap: seleccion excluyente (reemplaza el
 // filtro por esa sola etiqueta; si ya era la unica seleccionada, la
 // deselecciona). Ctrl/Cmd + clic: suma/saca esa etiqueta del filtro
@@ -1926,31 +1988,39 @@ function renderDashboard() {
     ? `filtrando por: ${dashFiltros.etiquetas.join(", ")}`
     : `de ${totalVisible} en total`;
 
-  const activos = temas.filter((t) => !esTemaFinalizado(t)).length;
-  const vencidosTemas = temas.filter((t) => !esTemaFinalizado(t) && daysUntil(t.fechaLimite) < 0).length;
-  const hitosVencidos = allHitos.filter((h) => h.estado !== "Cerrado" && daysUntil(h.fechaLimite) < 0).length;
-  const sinActividad = temas.filter((t) => !esTemaFinalizado(t) && daysBetween(t.ultimaActualizacion, today) > 14).length;
-  const bloqueados = temas.filter((t) => t.estado === "Bloqueado").length;
+  const { activos, vencidosTemas, hitosVencidos, sinActividad, bloqueados, cerradosHoy, cerradosHistoricos, tiempoPromResolucion } =
+    computeDashboardKpis(temas);
 
-  const temasCerrados = temas.filter((t) => esTemaFinalizado(t));
-  const cerradosHoy = temasCerrados.filter((t) => t.fechaCierre === today).length;
-  const cerradosHistoricos = temasCerrados.length;
+  // La foto historica y la flecha de avance son siempre sobre el tablero
+  // COMPLETO (sin dashFiltros) -- con un filtro activo no hay foto
+  // comparable, asi que se omite la flecha en vez de comparar cosas
+  // distintas.
+  if (state.currentPizarraId) {
+    ensureKpiBaselineLoaded();
+    maybeSaveKpiSnapshot(state.currentPizarraId, computeDashboardKpis(dashboardTrueBaseTemas()));
+  }
+  const hasAnyDashFiltro = Boolean(dashFiltros.responsable || dashFiltros.estado || dashFiltros.prioridad || dashFiltros.etiquetas.length);
+  const showAvance = !hasAnyDashFiltro && Boolean(kpiBaseline);
+  const avanza = (actual, key) => showAvance && kpiBaseline[key] != null && actual < kpiBaseline[key];
 
   const kpis = [
     { label: "Temas activos",       val: activos,       tone: "" },
-    { label: "Temas vencidos",      val: vencidosTemas, tone: vencidosTemas ? "down" : "" },
-    { label: "Hitos vencidos",      val: hitosVencidos, tone: hitosVencidos ? "down" : "" },
-    { label: "Sin actividad 14d",   val: sinActividad,  tone: sinActividad ? "down" : "" },
-    { label: "Bloqueados",          val: bloqueados,    tone: bloqueados ? "down" : "" },
+    { label: "Temas vencidos",      val: vencidosTemas, tone: vencidosTemas ? "down" : "", avance: avanza(vencidosTemas, "vencidosTemas") },
+    { label: "Hitos vencidos",      val: hitosVencidos, tone: hitosVencidos ? "down" : "", avance: avanza(hitosVencidos, "hitosVencidos") },
+    { label: "Sin actividad 14d",   val: sinActividad,  tone: sinActividad ? "down" : "", avance: avanza(sinActividad, "sinActividad") },
+    { label: "Bloqueados",          val: bloqueados,    tone: bloqueados ? "down" : "", avance: avanza(bloqueados, "bloqueados") },
     { label: "Cerrados hoy",        val: cerradosHoy,   tone: cerradosHoy ? "up" : "", sub: `Historico: ${cerradosHistoricos}` },
-    { label: "Tiempo prom. resolución", val: `${avgResolutionDays(temas)}d`, tone: "" }
+    { label: "Tiempo prom. resolución", val: `${tiempoPromResolucion}d`, tone: "", avance: avanza(tiempoPromResolucion, "tiempoPromResolucion") }
   ];
 
   els.kpiRow.innerHTML = kpis.map((k) => `
     <article class="kpi">
       <small>${k.label}</small>
       <strong>${k.val}</strong>
-      <span class="delta ${k.tone || ""}">${k.tone === "down" ? "Atencion" : k.tone === "up" ? "Activo" : "Estable"}</span>
+      <span class="delta ${k.tone || ""}">
+        ${k.avance ? `<span class="kpi-avance" title="Mejoro respecto a hace 7 dias">${icon("flechaAvance", 12)}</span>` : ""}
+        ${k.tone === "down" ? "Atencion" : k.tone === "up" ? "Activo" : "Estable"}
+      </span>
       ${k.sub ? `<span class="kpi-sub">${k.sub}</span>` : ""}
     </article>
   `).join("");
@@ -2464,6 +2534,7 @@ const ICONS = {
   adjunto: `<path d="M16.5 6.5l-7.8 7.8a3 3 0 1 0 4.24 4.24l7.4-7.4a5 5 0 1 0-7.07-7.07L5.5 11.83a7 7 0 1 0 9.9 9.9"/>`,
   reordenar: `<circle cx="9" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="9" cy="18" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="18" r="1.2" fill="currentColor" stroke="none"/>`,
   chevronAbajo: `<path d="M6 9l6 6 6-6"/>`,
+  flechaAvance: `<path d="M12 19V5"/><path d="M6 11l6-6 6 6"/>`,
   ajustes: `<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M21 12h-2.5M5.5 12H3M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8M18.4 18.4l-1.8-1.8M7.4 7.4L5.6 5.6"/>`,
   lista: `<circle cx="5" cy="7" r="1" fill="currentColor" stroke="none"/><path d="M8.5 7h11.5"/><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><path d="M8.5 12h11.5"/><circle cx="5" cy="17" r="1" fill="currentColor" stroke="none"/><path d="M8.5 17h11.5"/>`,
   correo: `<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 6.5l8 6.5 8-6.5"/>`,

@@ -268,3 +268,17 @@ export function documentoFromRow(r) {
     uploadedBy: r.uploaded_by || null
   };
 }
+
+// ---------------- dashboard_kpi_snapshots ----------------
+export function kpiSnapshotFromRow(r) {
+  return {
+    fecha: r.fecha,
+    activos: r.temas_activos,
+    vencidosTemas: r.temas_vencidos,
+    hitosVencidos: r.hitos_vencidos,
+    sinActividad: r.sin_actividad,
+    bloqueados: r.bloqueados,
+    cerradosHistoricos: r.cerrados_historicos,
+    tiempoPromResolucion: Number(r.tiempo_prom_resolucion)
+  };
+}
