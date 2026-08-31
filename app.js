@@ -1691,9 +1691,26 @@ function dashboardFilteredTemas() {
     !dashFiltros.etiquetas.length || (t.etiquetas || []).some((e) => dashFiltros.etiquetas.includes(e.nombre))
   );
 }
-function toggleDashTagFilter(nombre) {
+// Clic normal en un bloque del treemap: seleccion excluyente (reemplaza el
+// filtro por esa sola etiqueta; si ya era la unica seleccionada, la
+// deselecciona). Ctrl/Cmd + clic: suma/saca esa etiqueta del filtro
+// existente (OR entre las activas), igual que hacia el grafico de barras.
+function toggleDashTagFilter(nombre, additive) {
   const idx = dashFiltros.etiquetas.indexOf(nombre);
-  if (idx === -1) dashFiltros.etiquetas.push(nombre); else dashFiltros.etiquetas.splice(idx, 1);
+  if (additive) {
+    if (idx === -1) dashFiltros.etiquetas.push(nombre); else dashFiltros.etiquetas.splice(idx, 1);
+  } else {
+    dashFiltros.etiquetas = (idx === -1 || dashFiltros.etiquetas.length > 1) ? [nombre] : [];
+  }
+  renderDashboard();
+}
+
+// Quitar un chip especifico (boton "x"): siempre saca solo esa etiqueta,
+// sin importar el modo excluyente/aditivo de toggleDashTagFilter.
+function removeDashTagFilter(nombre) {
+  const idx = dashFiltros.etiquetas.indexOf(nombre);
+  if (idx === -1) return;
+  dashFiltros.etiquetas.splice(idx, 1);
   renderDashboard();
 }
 
@@ -1902,7 +1919,7 @@ function renderDashboard() {
     return `<span class="etiqueta-chip" style="background:${bg};color:${text}">${escHtml(nombre)}<button type="button" class="etiqueta-chip-remove" data-dash-tag-remove="${escHtml(nombre)}" aria-label="Quitar filtro">${icon("cerrar", 12)}</button></span>`;
   }).join("");
   els.dashTagChips.querySelectorAll("[data-dash-tag-remove]").forEach((btn) =>
-    btn.addEventListener("click", () => toggleDashTagFilter(btn.dataset.dashTagRemove)));
+    btn.addEventListener("click", () => removeDashTagFilter(btn.dataset.dashTagRemove)));
   const totalVisible = state.temas.filter(isTemaVisible).filter((t) => !t.esArchivado).length;
   els.dashCount.textContent = temas.length;
   els.dashCountSub.textContent = dashFiltros.etiquetas.length
@@ -2093,32 +2110,61 @@ function renderTagsChart(baseTemas) {
   const ordered = [...counts.entries()].sort((a, b) => b[1] - a[1]);
   const dark = getDark();
   const hasActive = dashFiltros.etiquetas.length > 0;
-  const bg = ordered.map(([nombre]) => {
-    const { bg } = resolveTagColor(colorMap.get(nombre) || nombre);
-    return !hasActive || dashFiltros.etiquetas.includes(nombre) ? bg : bg + "35";
-  });
-  const borderColor = ordered.map(([nombre]) => dashFiltros.etiquetas.includes(nombre) ? (dark ? "#e2e8f0" : "#18181B") : "transparent");
   if (charts.tags) charts.tags.destroy();
   if (!ordered.length) { els.tagsChart.getContext("2d").clearRect(0, 0, els.tagsChart.width, els.tagsChart.height); return; }
   charts.tags = new Chart(els.tagsChart, {
-    type: "bar",
-    data: { labels: ordered.map(([n]) => n), datasets: [{ data: ordered.map(([, c]) => c), backgroundColor: bg, borderColor, borderWidth: 2, borderRadius: 6, barThickness: 18 }] },
+    type: "treemap",
+    data: {
+      datasets: [{
+        tree: ordered.map(([nombre, count]) => ({ nombre, count })),
+        key: "count",
+        groups: ["nombre"],
+        backgroundColor: (ctx) => {
+          if (!ctx.raw) return "transparent";
+          const nombre = ctx.raw.g;
+          const { bg } = resolveTagColor(colorMap.get(nombre) || nombre);
+          return !hasActive || dashFiltros.etiquetas.includes(nombre) ? bg : bg + "35";
+        },
+        borderColor: (ctx) => {
+          if (!ctx.raw) return "transparent";
+          return dashFiltros.etiquetas.includes(ctx.raw.g) ? (dark ? "#e2e8f0" : "#18181B") : "transparent";
+        },
+        borderWidth: 2,
+        spacing: 2,
+        labels: {
+          display: true,
+          align: "center",
+          color: (ctx) => {
+            if (!ctx.raw) return "#fff";
+            const { text } = resolveTagColor(colorMap.get(ctx.raw.g) || ctx.raw.g);
+            return text;
+          },
+          font: { size: 12, weight: "600" },
+          formatter: (ctx) => [ctx.raw.g, `${ctx.raw.v} temas`]
+        }
+      }]
+    },
     options: {
-      indexAxis: "y",
       maintainAspectRatio: false,
-      onClick: (evt, elements) => { if (elements.length) toggleDashTagFilter(ordered[elements[0].index][0]); },
-      onHover: (evt, elements) => { evt.native.target.style.cursor = elements.length ? "pointer" : "default"; },
-      scales: {
-        x: { beginAtZero: true, ticks: { precision: 0, color: dark ? "#94a3b8" : undefined }, grid: { color: dark ? "#334155" : "#f1f4f8" } },
-        y: { grid: { display: false }, ticks: { color: dark ? "#94a3b8" : undefined } }
+      onClick: (evt, elements) => {
+        if (!elements.length) return;
+        const point = charts.tags.data.datasets[0].data[elements[0].index];
+        const nombre = point && point.g;
+        if (!nombre) return;
+        const additive = Boolean(evt.native && (evt.native.ctrlKey || evt.native.metaKey));
+        toggleDashTagFilter(nombre, additive);
       },
+      onHover: (evt, elements) => { evt.native.target.style.cursor = elements.length ? "pointer" : "default"; },
       plugins: {
         legend: { display: false },
         tooltip: {
           backgroundColor: dark ? "#334155" : "rgba(15,23,42,0.92)",
           titleColor: dark ? "#e2e8f0" : "#ffffff",
           bodyColor: dark ? "#94a3b8" : "rgba(255,255,255,0.78)",
-          callbacks: { label: (c) => `${c.raw} temas` }
+          callbacks: {
+            title: (items) => items[0]?.raw?.g || "",
+            label: (c) => `${c.raw.v} temas`
+          }
         }
       }
     }
