@@ -446,13 +446,19 @@ button {
 }
 
 /* ============== KPI row ============== */
+/* flex (no grid): asi la ultima tarjeta de una fila incompleta se estira
+   para ocupar el ancho sobrante en vez de quedar sola en una fila nueva
+   con el resto vacio (lo que pasaba con grid-template-columns fijo al
+   agregar la 7ma tarjeta "Tiempo prom. resolucion"). */
 .kpi-row {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 22px;
 }
 
 .kpi {
+  flex: 1 1 150px;
+  min-width: 110px;
   background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -2228,13 +2234,13 @@ html[data-theme="dark"] .switch .track::before { background: #cbd5e1; }
 }
 
 @media (max-width: 1180px) {
-  .kpi-row { grid-template-columns: repeat(4, 1fr); }
+  .kpi { flex-basis: calc((100% - 66px) / 4); }
   .grid-2-1 { grid-template-columns: 1fr 1fr; }
   .span-2 { grid-column: span 2; }
 }
 
 @media (max-width: 900px) {
-  .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .kpi { flex-basis: calc((100% - 22px) / 2); }
   .grid-2-1 { grid-template-columns: 1fr; }
   .span-2 { grid-column: span 1; }
   .reports-grid { grid-template-columns: 1fr 1fr; }
@@ -2250,7 +2256,7 @@ html[data-theme="dark"] .switch .track::before { background: #cbd5e1; }
   .user-menu-name { display: none; }
   .topbar { padding: 0 12px; gap: 10px; }
   .tabbar { padding: 0 12px; }
-  .kpi-row { grid-template-columns: 1fr 1fr; }
+  .kpi { flex-basis: calc((100% - 22px) / 2); }
   .reports-grid { grid-template-columns: 1fr; }
   .resp-grid { grid-template-columns: 1fr; }
   #dynamicForm .row { grid-template-columns: 1fr; }
