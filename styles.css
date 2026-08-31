@@ -482,6 +482,9 @@ button {
 .kpi .delta.up { color: #059669; }
 .kpi .delta.down { color: #dc2626; }
 
+.kpi-avance { display: inline-flex; color: #059669; }
+.kpi-avance svg { width: 12px; height: 12px; }
+
 .kpi-sub { font-size: 11px; color: var(--muted); }
 
 /* ============== 2-1 grid (donuts + lateral) ============== */
