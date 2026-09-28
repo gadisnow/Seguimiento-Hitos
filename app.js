@@ -202,7 +202,7 @@ function defaultReportFilters() {
 
 let state = {
   config: { currentUser: "", areaDefault: "SSOyS", rol: "Viewer" },
-  temas: [], expedientes: [], responsables: [], documentos: [], usuarios: [], etiquetas: [],
+  temas: [], expedientes: [], responsables: [], documentos: [], usuarios: [], etiquetas: [], notas: [],
   columnas: [], currentPizarraId: null, pizarraActual: null,
   profile: null,
   reportFilters: defaultReportFilters()
@@ -278,6 +278,7 @@ async function reloadState(pizarraId) {
   state.documentos = data.documentos;
   state.usuarios = data.usuarios;
   state.etiquetas = data.etiquetas;
+  state.notas = data.notas;
   state.columnas = data.columnas;
   state.currentPizarraId = data.pizarraId;
   state.pizarraActual = data.pizarra;
@@ -583,6 +584,7 @@ const els = {
   agendaKanban:       $("agendaKanban"),
   tableHitos:         $("tableHitos"),
   tableExpedientes:   $("tableExpedientes"),
+  notasGrid:          $("notasGrid"),
   tableAlertas:       $("tableAlertas"),
   reportCards:        $("reportCards"),
   drawer:             $("drawer"),
@@ -916,6 +918,7 @@ function bindEvents() {
 
   $("btnNewTema").addEventListener("click", () => openTemaForm());
   $("btnNewExpediente").addEventListener("click", () => openExpedienteForm());
+  $("btnNewNota").addEventListener("click", () => openNotaForm());
   $("btnNewResponsable").addEventListener("click", () => openResponsableForm());
   $("btnNewUsuario").addEventListener("click", () => openUsuarioForm());
 
@@ -1121,6 +1124,7 @@ function showView(view) {
   if (view === "agenda") renderAgenda();
   if (view === "hitos") renderHitos();
   if (view === "calendario") renderCalendar();
+  if (view === "notas") renderNotas();
   if (view === "responsables") renderResponsables();
   if (view === "usuarios") renderUsuarios();
   if (view === "mispizarras") renderMisPizarras();
@@ -1179,6 +1183,8 @@ function updateHeaderForRole() {
   if (btnNT) btnNT.style.display = puedeEditar() ? "" : "none";
   const btnNE = $("btnNewExpediente");
   if (btnNE) btnNE.style.display = puedeEditar() ? "" : "none";
+  const btnNN = $("btnNewNota");
+  if (btnNN) btnNN.style.display = puedeEditar() ? "" : "none";
   const btnNR = $("btnNewResponsable");
   if (btnNR) btnNR.style.display = puedeEditar() ? "" : "none";
 
@@ -1855,6 +1861,7 @@ function renderAll() {
   renderAgenda();
   renderHitos();
   renderExpedientes();
+  renderNotas();
   renderAlertas();
   renderReportes();
   renderResponsables();
@@ -7001,6 +7008,92 @@ function openExpedienteForm(existing = null, onCreated = null) {
     if (!isEdit && onCreated) onCreated(data.numero);
   };
   els.modalForm.showModal();
+}
+
+// =========================================================
+// Notas -- bloc de notas libres por pizarra (ver supabase/migrations/034).
+// Cualquier colaborador con permiso de edicion puede editar/borrar
+// cualquier nota, no solo la propia (a diferencia de comentarios).
+// =========================================================
+let notaQuillInstance = null;
+
+function renderNotas() {
+  if (!els.notasGrid) return;
+  const notas = (state.notas || []).slice().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  if (!notas.length) {
+    els.notasGrid.innerHTML = `<p style="color:var(--muted)">Todavia no hay notas en esta pizarra.${puedeEditar() ? ' Crea la primera con "+ Nueva nota".' : ""}</p>`;
+    return;
+  }
+  els.notasGrid.innerHTML = notas.map((n) => `
+    <article class="nota-card" data-nota-id="${n.id}">
+      ${puedeEditar() ? `
+        <div class="nota-card-actions">
+          <button type="button" class="nota-card-action" data-nota-edit="${n.id}" title="Editar">${icon("lapiz", 13)}</button>
+          <button type="button" class="nota-card-action" data-nota-delete="${n.id}" title="Eliminar">${icon("papelera", 13)}</button>
+        </div>` : ""}
+      <div class="nota-card-titulo">${escHtml(n.titulo || "Sin titulo")}</div>
+      <div class="nota-card-body">${n.contenido || ""}</div>
+      <div class="nota-card-meta">${n.autor ? escHtml(n.autor) + " · " : ""}${fmtDateTimeNice(n.updatedAt)}</div>
+    </article>
+  `).join("");
+
+  els.notasGrid.querySelectorAll("[data-nota-edit]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const nota = state.notas.find((n) => n.id === btn.dataset.notaEdit);
+      if (nota) openNotaForm(nota);
+    });
+  });
+  els.notasGrid.querySelectorAll("[data-nota-delete]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Eliminar esta nota? Esta accion no se puede deshacer.")) return;
+      const ok = await withBusy(async () => {
+        await dataApi.deleteNota(btn.dataset.notaDelete);
+        await reloadState();
+      });
+      if (ok) showToast("Nota eliminada");
+    });
+  });
+}
+
+function openNotaForm(existing = null) {
+  const isEdit = Boolean(existing?.id);
+  els.dynamicForm.innerHTML = `
+    <h3>${isEdit ? "Editar nota" : "Nueva nota"}</h3>
+    <label>Titulo<input name="titulo" maxlength="120" placeholder="Titulo de la nota" value="${escHtml(existing?.titulo || "")}" /></label>
+    <div class="task-feed-quill-wrap"><div id="notaQuill"></div></div>
+    <div class="btn-group">
+      <button class="primary" type="submit">Guardar</button>
+      <button class="ghost js-close-modal-form" type="button">Cancelar</button>
+    </div>
+  `;
+  notaQuillInstance = new Quill(document.getElementById("notaQuill"), {
+    theme: "snow",
+    modules: {
+      toolbar: {
+        container: [["bold", "italic"], [{ list: "ordered" }, { list: "bullet" }], ["link", "image"]],
+        handlers: { link: quillLinkHandler }
+      }
+    }
+  });
+  if (existing?.contenido) notaQuillInstance.clipboard.dangerouslyPasteHTML(existing.contenido);
+
+  els.dynamicForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const titulo = els.dynamicForm.querySelector('[name="titulo"]').value.trim();
+    const html = notaQuillInstance.root.innerHTML;
+    const plain = notaQuillInstance.getText().trim();
+    if (!titulo && !plain) { showToast("La nota necesita un titulo o contenido."); return; }
+    const ok = await withBusy(async () => {
+      if (isEdit) await dataApi.updateNota(existing.id, titulo, html);
+      else await dataApi.createNota(titulo, html);
+      await reloadState();
+    });
+    if (!ok) return;
+    els.modalForm.close();
+    showToast(isEdit ? "Nota actualizada" : "Nota creada");
+  };
+  els.modalForm.showModal();
+  notaQuillInstance.focus();
 }
 
 // =========================================================

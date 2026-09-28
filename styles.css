@@ -2092,6 +2092,44 @@ dialog#modalNewResp::backdrop {
   background: var(--card); color: var(--muted); font-size: 12px;
 }
 .resp-card-edit:hover { color: var(--primary); border-color: var(--primary); }
+
+/* ============== Notas ============== */
+.notas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+.nota-card {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 150px;
+}
+.nota-card-actions { position: absolute; top: 10px; right: 10px; display: flex; gap: 4px; }
+.nota-card-action {
+  width: 24px; height: 24px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: 7px;
+  background: var(--card); color: var(--muted);
+}
+.nota-card-action:hover { color: var(--primary); border-color: var(--primary); }
+.nota-card-titulo { font-size: 14px; font-weight: 600; color: var(--text); padding-right: 56px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nota-card-body {
+  font-size: 13px; color: var(--text); flex: 1;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical;
+}
+.nota-card-body p { margin: 0 0 6px; }
+.nota-card-body p:last-child { margin-bottom: 0; }
+.nota-card-meta { font-size: 11px; color: var(--muted); margin-top: auto; padding-top: 4px; }
+
+#notaQuill { background: var(--card); border-radius: 8px; }
+#notaQuill .ql-editor { min-height: 140px; font-size: 13.5px; }
 .resp-card-head { display: flex; gap: 8px; align-items: center; padding-right: 28px; }
 .resp-avatar-lg, .resp-avatar-sm {
   border-radius: 50%;

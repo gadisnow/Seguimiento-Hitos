@@ -269,6 +269,19 @@ export function documentoFromRow(r) {
   };
 }
 
+// ---------------- notas ----------------
+export function notaFromRow(r) {
+  return {
+    id: r.id,
+    titulo: r.titulo || "",
+    contenido: r.contenido || "",
+    userId: r.user_id || null,
+    autor: r.autor_nombre || "",
+    createdAt: r.created_at,
+    updatedAt: r.updated_at
+  };
+}
+
 // ---------------- dashboard_kpi_snapshots ----------------
 export function kpiSnapshotFromRow(r) {
   return {

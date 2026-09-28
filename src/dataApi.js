@@ -53,7 +53,7 @@ export async function fetchInitialState(pizarraId = null) {
   // usuario con acceso a mas de un tablero podia traer del servidor filas
   // de OTRO tablero con el mismo codigo de tema/hito y el join por texto
   // (temaById[h.tema_id]) las pegaba igual, mezclando datos entre tableros.
-  const [temasR, hitosR, expR, respR, comR, actR, docR, profR, etqR] = await Promise.all([
+  const [temasR, hitosR, expR, respR, comR, actR, docR, profR, etqR, notR] = await Promise.all([
     supabase.from("temas").select("*").eq("pizarra_id", currentPizarraId).order("orden", { ascending: true, nullsFirst: false }).order("id"),
     supabase.from("hitos").select("*").eq("pizarra_id", currentPizarraId).order("orden", { ascending: true, nullsFirst: false }).order("id"),
     supabase.from("expedientes").select("*").eq("pizarra_id", currentPizarraId).order("numero"),
@@ -62,9 +62,10 @@ export async function fetchInitialState(pizarraId = null) {
     supabase.from("activity_log").select("*").eq("pizarra_id", currentPizarraId).order("created_at", { ascending: true }),
     supabase.from("documentos").select("*").eq("pizarra_id", currentPizarraId).order("created_at", { ascending: true }),
     supabase.from("profiles").select("*").order("created_at", { ascending: true }),
-    supabase.from("etiquetas").select("*").eq("pizarra_id", currentPizarraId).order("orden", { ascending: true, nullsFirst: false }).order("nombre")
+    supabase.from("etiquetas").select("*").eq("pizarra_id", currentPizarraId).order("orden", { ascending: true, nullsFirst: false }).order("nombre"),
+    supabase.from("notas").select("*").eq("pizarra_id", currentPizarraId).order("updated_at", { ascending: false })
   ]);
-  for (const r of [temasR, hitosR, expR, respR, comR, actR, docR, profR, etqR]) must(r);
+  for (const r of [temasR, hitosR, expR, respR, comR, actR, docR, profR, etqR, notR]) must(r);
 
   const temas = (temasR.data || []).map((r) => M.temaFromRow(r, columnaById));
   const temaById = Object.fromEntries(temas.map((t) => [t.id, t]));
@@ -94,8 +95,9 @@ export async function fetchInitialState(pizarraId = null) {
   const responsables = (respR.data || []).map(M.responsableFromRow);
   const usuarios = (profR.data || []).map(M.profileToUsuario);
   const etiquetas = (etqR.data || []).map(M.etiquetaFromRow);
+  const notas = (notR.data || []).map(M.notaFromRow);
 
-  return { temas, expedientes, responsables, documentos, usuarios, etiquetas, columnas, pizarraId: currentPizarraId, pizarra };
+  return { temas, expedientes, responsables, documentos, usuarios, etiquetas, notas, columnas, pizarraId: currentPizarraId, pizarra };
 }
 
 // =====================================================================
@@ -287,6 +289,43 @@ export async function updateComentario(id, texto) {
 // de llamar esto.
 export async function deleteComentario(id) {
   must(await supabase.from("comentarios").delete().eq("id", id));
+}
+
+// =====================================================================
+// Notas (ver supabase/migrations/034) -- bloc de notas libres por
+// pizarra, no atadas a un tema/hito puntual. A diferencia de
+// comentarios, cualquier colaborador con permiso de edicion puede
+// editar/borrar CUALQUIER nota del tablero (RLS can_edit_board, no
+// restringido al autor).
+// =====================================================================
+export async function createNota(titulo, contenidoHtml) {
+  const id = crypto.randomUUID();
+  const userId = currentUserId();
+  const autorNombre = currentUserName();
+  const tituloLimpio = (titulo || "").trim();
+  const contenidoLimpio = DOMPurify.sanitize(contenidoHtml);
+  must(await supabase.from("notas").insert({
+    id,
+    pizarra_id: currentPizarraId,
+    titulo: tituloLimpio,
+    contenido: contenidoLimpio,
+    user_id: userId,
+    autor_nombre: autorNombre
+  }));
+  const now = new Date().toISOString();
+  return { id, titulo: tituloLimpio, contenido: contenidoLimpio, userId, autor: autorNombre, createdAt: now, updatedAt: now };
+}
+
+export async function updateNota(id, titulo, contenidoHtml) {
+  must(await supabase.from("notas").update({
+    titulo: (titulo || "").trim(),
+    contenido: DOMPurify.sanitize(contenidoHtml),
+    updated_at: new Date().toISOString()
+  }).eq("id", id).eq("pizarra_id", currentPizarraId));
+}
+
+export async function deleteNota(id) {
+  must(await supabase.from("notas").delete().eq("id", id).eq("pizarra_id", currentPizarraId));
 }
 
 // =====================================================================
