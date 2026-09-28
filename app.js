@@ -7079,7 +7079,7 @@ function notaReadCardHtml(n) {
     tema ? `<button type="button" class="nota-chip nota-chip-link" data-nota-open-tema="${tema.id}">${icon("enlace", 11)} ${escHtml(tema.nombre)}</button>` : ""
   ].join("");
   return `
-    <article class="nota-card" data-nota-id="${n.id}">
+    <article class="nota-card" data-nota-id="${n.id}" ${puedeEditar() ? 'draggable="true"' : ""}>
       <div class="nota-card-titulo">${escHtml(n.titulo || "Sin titulo")}</div>
       ${chips ? `<div class="nota-card-chips">${chips}</div>` : ""}
       <div class="nota-card-body">${n.contenido || ""}</div>
@@ -7136,7 +7136,67 @@ function renderNotas() {
   wireNotaCards();
 }
 
+// Arrastrar una tarjeta sobre otra las agrupa (mismo gesto que en un
+// celular al soltar un icono sobre otro para crear una carpeta): si el
+// destino ya tiene grupo, la que se soltó se suma a ese grupo; si ninguna
+// tiene grupo todavia, se crea uno nuevo (pide el nombre) y quedan las dos
+// adentro. targetEl recibe un pulso de animacion (nota-merge-pop) antes
+// de recargar, para que se sienta la union en vez de un cambio brusco.
+async function mergeNotasEnGrupo(sourceId, targetId, targetEl) {
+  const source = state.notas.find((n) => n.id === sourceId);
+  const target = state.notas.find((n) => n.id === targetId);
+  if (!source || !target) return;
+
+  let grupoId = target.grupoId || source.grupoId || null;
+  let grupoNombre = grupoId ? notaGrupoNombre(grupoId) : "";
+  if (!grupoId) {
+    const nombre = window.prompt("Nombre del grupo para unir estas notas:", "Nuevo grupo");
+    if (!nombre || !nombre.trim()) return;
+    const grupo = await dataApi.createNotaGrupo(nombre.trim());
+    state.notasGrupos.push(grupo);
+    grupoId = grupo.id;
+    grupoNombre = grupo.nombre;
+  }
+
+  targetEl?.classList.add("nota-merge-pop");
+  await new Promise((resolve) => setTimeout(resolve, 220));
+
+  const ok = await withBusy(async () => {
+    if (source.grupoId !== grupoId) await dataApi.updateNota(source.id, source.titulo, source.contenido, { grupoId, temaId: source.temaId });
+    if (target.grupoId !== grupoId) await dataApi.updateNota(target.id, target.titulo, target.contenido, { grupoId, temaId: target.temaId });
+    await reloadState();
+  });
+  if (ok) showToast(`Notas agrupadas en "${grupoNombre}"`);
+}
+
 function wireNotaCards() {
+  let notaDragId = "";
+  if (puedeEditar()) {
+    els.notasGrid.querySelectorAll(".nota-card[draggable='true']").forEach((card) => {
+      card.addEventListener("dragstart", (e) => {
+        notaDragId = card.dataset.notaId;
+        card.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+      });
+      card.addEventListener("dragend", () => card.classList.remove("dragging"));
+      card.addEventListener("dragover", (e) => {
+        if (!notaDragId || notaDragId === card.dataset.notaId) return;
+        e.preventDefault();
+        card.classList.add("nota-merge-target");
+      });
+      card.addEventListener("dragleave", () => card.classList.remove("nota-merge-target"));
+      card.addEventListener("drop", async (e) => {
+        e.preventDefault();
+        card.classList.remove("nota-merge-target");
+        const targetId = card.dataset.notaId;
+        const sourceId = notaDragId;
+        notaDragId = "";
+        if (!sourceId || sourceId === targetId) return;
+        await mergeNotasEnGrupo(sourceId, targetId, card);
+      });
+    });
+  }
+
   els.notasGrid.querySelectorAll("[data-nota-edit]").forEach((btn) => {
     btn.addEventListener("click", () => {
       if (editingNotaId) return; // ya hay una tarjeta en edicion
@@ -7176,6 +7236,7 @@ function wireNotaCards() {
   });
   if (existing?.contenido) notaEditQuillInstance.clipboard.dangerouslyPasteHTML(existing.contenido);
   document.getElementById("notaEditTitulo").focus();
+  editQuillContainer.closest(".nota-card")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
 
   // "+ Nuevo grupo…": se crea al toque (sin cerrar la edicion en curso, sin
   // reloadState -- perderia lo que se esta tipeando en el Quill) y se
