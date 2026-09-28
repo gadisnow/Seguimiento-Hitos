@@ -2174,8 +2174,16 @@ dialog#modalNewResp::backdrop {
   text-overflow: ellipsis;
 }
 
-#notaEditQuill { background: var(--card); border-radius: 8px; }
+/* .ql-container trae height:100% de quill.core.css. Adentro de un flex
+   column (.nota-card-editing) esa altura "100%" se resuelve contra la
+   altura que el propio algoritmo de flex ya le habia asignado a
+   .task-feed-quill-wrap -- circular, y el navegador termina agrandando
+   el editor mas alla de su contenedor, tapando los botones de abajo
+   (Guardar/Cancelar quedaban debajo del editor, sin poder clickearse).
+   height:auto (mas especifico por ID) corta esa circularidad. */
+#notaEditQuill { height: auto; background: var(--card); border-radius: 8px; }
 #notaEditQuill .ql-editor { min-height: 90px; font-size: 13.5px; }
+.nota-card-editing .task-feed-quill-wrap { flex-shrink: 0; }
 .resp-card-head { display: flex; gap: 8px; align-items: center; padding-right: 28px; }
 .resp-avatar-lg, .resp-avatar-sm {
   border-radius: 50%;
