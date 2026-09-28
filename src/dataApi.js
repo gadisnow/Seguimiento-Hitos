@@ -53,7 +53,7 @@ export async function fetchInitialState(pizarraId = null) {
   // usuario con acceso a mas de un tablero podia traer del servidor filas
   // de OTRO tablero con el mismo codigo de tema/hito y el join por texto
   // (temaById[h.tema_id]) las pegaba igual, mezclando datos entre tableros.
-  const [temasR, hitosR, expR, respR, comR, actR, docR, profR, etqR, notR] = await Promise.all([
+  const [temasR, hitosR, expR, respR, comR, actR, docR, profR, etqR, notR, notGrR] = await Promise.all([
     supabase.from("temas").select("*").eq("pizarra_id", currentPizarraId).order("orden", { ascending: true, nullsFirst: false }).order("id"),
     supabase.from("hitos").select("*").eq("pizarra_id", currentPizarraId).order("orden", { ascending: true, nullsFirst: false }).order("id"),
     supabase.from("expedientes").select("*").eq("pizarra_id", currentPizarraId).order("numero"),
@@ -63,9 +63,10 @@ export async function fetchInitialState(pizarraId = null) {
     supabase.from("documentos").select("*").eq("pizarra_id", currentPizarraId).order("created_at", { ascending: true }),
     supabase.from("profiles").select("*").order("created_at", { ascending: true }),
     supabase.from("etiquetas").select("*").eq("pizarra_id", currentPizarraId).order("orden", { ascending: true, nullsFirst: false }).order("nombre"),
-    supabase.from("notas").select("*").eq("pizarra_id", currentPizarraId).order("updated_at", { ascending: false })
+    supabase.from("notas").select("*").eq("pizarra_id", currentPizarraId).order("updated_at", { ascending: false }),
+    supabase.from("notas_grupos").select("*").eq("pizarra_id", currentPizarraId).order("nombre")
   ]);
-  for (const r of [temasR, hitosR, expR, respR, comR, actR, docR, profR, etqR, notR]) must(r);
+  for (const r of [temasR, hitosR, expR, respR, comR, actR, docR, profR, etqR, notR, notGrR]) must(r);
 
   const temas = (temasR.data || []).map((r) => M.temaFromRow(r, columnaById));
   const temaById = Object.fromEntries(temas.map((t) => [t.id, t]));
@@ -96,8 +97,9 @@ export async function fetchInitialState(pizarraId = null) {
   const usuarios = (profR.data || []).map(M.profileToUsuario);
   const etiquetas = (etqR.data || []).map(M.etiquetaFromRow);
   const notas = (notR.data || []).map(M.notaFromRow);
+  const notasGrupos = (notGrR.data || []).map(M.notaGrupoFromRow);
 
-  return { temas, expedientes, responsables, documentos, usuarios, etiquetas, notas, columnas, pizarraId: currentPizarraId, pizarra };
+  return { temas, expedientes, responsables, documentos, usuarios, etiquetas, notas, notasGrupos, columnas, pizarraId: currentPizarraId, pizarra };
 }
 
 // =====================================================================
@@ -292,13 +294,15 @@ export async function deleteComentario(id) {
 }
 
 // =====================================================================
-// Notas (ver supabase/migrations/034) -- bloc de notas libres por
-// pizarra, no atadas a un tema/hito puntual. A diferencia de
+// Notas (ver supabase/migrations/034 y 035) -- bloc de notas libres por
+// pizarra, no atadas a un tema/hito puntual (aunque opcionalmente se
+// pueden vincular a un tema puntual, ver temaId). A diferencia de
 // comentarios, cualquier colaborador con permiso de edicion puede
 // editar/borrar CUALQUIER nota del tablero (RLS can_edit_board, no
-// restringido al autor).
+// restringido al autor). grupoId agrupa tipo carpeta (ver notas_grupos
+// mas abajo) -- una nota pertenece a un grupo o ninguno.
 // =====================================================================
-export async function createNota(titulo, contenidoHtml) {
+export async function createNota(titulo, contenidoHtml, { grupoId = null, temaId = null } = {}) {
   const id = crypto.randomUUID();
   const userId = currentUserId();
   const autorNombre = currentUserName();
@@ -309,23 +313,39 @@ export async function createNota(titulo, contenidoHtml) {
     pizarra_id: currentPizarraId,
     titulo: tituloLimpio,
     contenido: contenidoLimpio,
+    grupo_id: grupoId,
+    tema_id: temaId,
     user_id: userId,
     autor_nombre: autorNombre
   }));
   const now = new Date().toISOString();
-  return { id, titulo: tituloLimpio, contenido: contenidoLimpio, userId, autor: autorNombre, createdAt: now, updatedAt: now };
+  return { id, titulo: tituloLimpio, contenido: contenidoLimpio, grupoId, temaId, userId, autor: autorNombre, createdAt: now, updatedAt: now };
 }
 
-export async function updateNota(id, titulo, contenidoHtml) {
+export async function updateNota(id, titulo, contenidoHtml, { grupoId = null, temaId = null } = {}) {
   must(await supabase.from("notas").update({
     titulo: (titulo || "").trim(),
     contenido: DOMPurify.sanitize(contenidoHtml),
+    grupo_id: grupoId,
+    tema_id: temaId,
     updated_at: new Date().toISOString()
   }).eq("id", id).eq("pizarra_id", currentPizarraId));
 }
 
 export async function deleteNota(id) {
   must(await supabase.from("notas").delete().eq("id", id).eq("pizarra_id", currentPizarraId));
+}
+
+// ---------------- notas_grupos (carpetas de notas) ----------------
+export async function createNotaGrupo(nombre) {
+  const id = crypto.randomUUID();
+  const nombreLimpio = (nombre || "").trim();
+  must(await supabase.from("notas_grupos").insert({ id, pizarra_id: currentPizarraId, nombre: nombreLimpio }));
+  return { id, nombre: nombreLimpio };
+}
+
+export async function deleteNotaGrupo(id) {
+  must(await supabase.from("notas_grupos").delete().eq("id", id).eq("pizarra_id", currentPizarraId));
 }
 
 // =====================================================================

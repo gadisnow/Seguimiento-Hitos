@@ -275,11 +275,17 @@ export function notaFromRow(r) {
     id: r.id,
     titulo: r.titulo || "",
     contenido: r.contenido || "",
+    grupoId: r.grupo_id || null,
+    temaId: r.tema_id || null,
     userId: r.user_id || null,
     autor: r.autor_nombre || "",
     createdAt: r.created_at,
     updatedAt: r.updated_at
   };
+}
+
+export function notaGrupoFromRow(r) {
+  return { id: r.id, nombre: r.nombre || "" };
 }
 
 // ---------------- dashboard_kpi_snapshots ----------------

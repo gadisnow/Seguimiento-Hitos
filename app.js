@@ -202,7 +202,7 @@ function defaultReportFilters() {
 
 let state = {
   config: { currentUser: "", areaDefault: "SSOyS", rol: "Viewer" },
-  temas: [], expedientes: [], responsables: [], documentos: [], usuarios: [], etiquetas: [], notas: [],
+  temas: [], expedientes: [], responsables: [], documentos: [], usuarios: [], etiquetas: [], notas: [], notasGrupos: [],
   columnas: [], currentPizarraId: null, pizarraActual: null,
   profile: null,
   reportFilters: defaultReportFilters()
@@ -279,6 +279,7 @@ async function reloadState(pizarraId) {
   state.usuarios = data.usuarios;
   state.etiquetas = data.etiquetas;
   state.notas = data.notas;
+  state.notasGrupos = data.notasGrupos;
   state.columnas = data.columnas;
   state.currentPizarraId = data.pizarraId;
   state.pizarraActual = data.pizarra;
@@ -585,6 +586,7 @@ const els = {
   tableHitos:         $("tableHitos"),
   tableExpedientes:   $("tableExpedientes"),
   notasGrid:          $("notasGrid"),
+  notaGrupoPills:     $("notaGrupoPills"),
   tableAlertas:       $("tableAlertas"),
   reportCards:        $("reportCards"),
   drawer:             $("drawer"),
@@ -918,7 +920,7 @@ function bindEvents() {
 
   $("btnNewTema").addEventListener("click", () => openTemaForm());
   $("btnNewExpediente").addEventListener("click", () => openExpedienteForm());
-  $("btnNewNota").addEventListener("click", () => openNotaForm());
+  $("btnNewNota").addEventListener("click", () => startNotaCreate());
   $("btnNewResponsable").addEventListener("click", () => openResponsableForm());
   $("btnNewUsuario").addEventListener("click", () => openUsuarioForm());
 
@@ -7011,36 +7013,135 @@ function openExpedienteForm(existing = null, onCreated = null) {
 }
 
 // =========================================================
-// Notas -- bloc de notas libres por pizarra (ver supabase/migrations/034).
-// Cualquier colaborador con permiso de edicion puede editar/borrar
-// cualquier nota, no solo la propia (a diferencia de comentarios).
+// Notas -- bloc de notas libres por pizarra (ver supabase/migrations/034
+// y 035). Cualquier colaborador con permiso de edicion puede editar/
+// borrar cualquier nota, no solo la propia (a diferencia de comentarios).
+// Edicion IN-LINE sobre la propia tarjeta (sin modal): editingNotaId
+// controla cual tarjeta (si hay alguna) esta en modo edicion ahora mismo
+// -- "new" para una tarjeta en blanco todavia no guardada, o el id de una
+// nota existente. Solo una tarjeta puede estar en edicion a la vez, mismo
+// criterio que editingComentarioId en el feed de comentarios.
 // =========================================================
-let notaQuillInstance = null;
+let editingNotaId = null;
+let notaEditQuillInstance = null;
+let notaGrupoFiltro = ""; // "" = todas; "__sin_grupo__"; o id de un grupo
+
+function notaGrupoNombre(id) {
+  const g = (state.notasGrupos || []).find((x) => x.id === id);
+  return g ? g.nombre : "";
+}
+
+function startNotaCreate() {
+  if (editingNotaId) return; // ya hay una tarjeta en edicion, no abrir una segunda
+  editingNotaId = "new";
+  renderNotas();
+}
+
+function renderNotaGrupoPills() {
+  if (!els.notaGrupoPills) return;
+  const grupos = (state.notasGrupos || []).slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const pill = (value, label, deletable) => `
+    <button type="button" class="pill nota-grupo-pill ${notaGrupoFiltro === value ? "active" : ""}" data-nota-grupo-filter="${escHtml(value)}">
+      ${escHtml(label)}
+      ${deletable && puedeEditar() ? `<span class="nota-grupo-pill-x" data-nota-grupo-delete="${value}" title="Eliminar grupo">${icon("cerrar", 10)}</span>` : ""}
+    </button>`;
+  els.notaGrupoPills.innerHTML = [
+    pill("", "Todas", false),
+    pill("__sin_grupo__", "Sin grupo", false),
+    ...grupos.map((g) => pill(g.id, g.nombre, true))
+  ].join("");
+
+  els.notaGrupoPills.querySelectorAll("[data-nota-grupo-filter]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      if (e.target.closest("[data-nota-grupo-delete]")) return;
+      notaGrupoFiltro = btn.dataset.notaGrupoFilter;
+      renderNotas();
+    });
+  });
+  els.notaGrupoPills.querySelectorAll("[data-nota-grupo-delete]").forEach((x) => {
+    x.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!confirm("Eliminar este grupo? Las notas quedan sin grupo, no se borran.")) return;
+      const id = x.dataset.notaGrupoDelete;
+      const ok = await withBusy(async () => {
+        await dataApi.deleteNotaGrupo(id);
+        await reloadState();
+      });
+      if (ok) { if (notaGrupoFiltro === id) notaGrupoFiltro = ""; showToast("Grupo eliminado"); }
+    });
+  });
+}
+
+function notaReadCardHtml(n) {
+  const tema = n.temaId ? state.temas.find((t) => t.id === n.temaId) : null;
+  const chips = [
+    n.grupoId ? `<span class="nota-chip">${icon("carpeta", 11)} ${escHtml(notaGrupoNombre(n.grupoId))}</span>` : "",
+    tema ? `<button type="button" class="nota-chip nota-chip-link" data-nota-open-tema="${tema.id}">${icon("enlace", 11)} ${escHtml(tema.nombre)}</button>` : ""
+  ].join("");
+  return `
+    <article class="nota-card" data-nota-id="${n.id}">
+      <div class="nota-card-titulo">${escHtml(n.titulo || "Sin titulo")}</div>
+      ${chips ? `<div class="nota-card-chips">${chips}</div>` : ""}
+      <div class="nota-card-body">${n.contenido || ""}</div>
+      <div class="nota-card-meta">${n.autor ? escHtml(n.autor) + " · " : ""}${fmtDateTimeNice(n.updatedAt)}</div>
+      ${puedeEditar() ? `
+        <div class="nota-card-footer">
+          <button type="button" class="ghost nota-btn" data-nota-edit="${n.id}">${icon("lapiz", 12)} Editar</button>
+          <button type="button" class="ghost nota-btn nota-btn-danger" data-nota-delete="${n.id}">${icon("papelera", 12)} Eliminar</button>
+        </div>` : ""}
+    </article>`;
+}
+
+function notaEditCardHtml(existing) {
+  const grupos = (state.notasGrupos || []).slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const temasOrdenados = state.temas.slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
+  return `
+    <article class="nota-card nota-card-editing">
+      <input type="text" id="notaEditTitulo" class="nota-edit-titulo" maxlength="120" placeholder="Titulo de la nota" value="${escHtml(existing?.titulo || "")}" />
+      <div class="nota-edit-row">
+        <select id="notaEditGrupo">
+          <option value="">Sin grupo</option>
+          ${grupos.map((g) => `<option value="${g.id}" ${existing?.grupoId === g.id ? "selected" : ""}>${escHtml(g.nombre)}</option>`).join("")}
+          <option value="__nuevo__">+ Nuevo grupo…</option>
+        </select>
+        <select id="notaEditTema">
+          <option value="">Sin tema vinculado</option>
+          ${temasOrdenados.map((t) => `<option value="${escHtml(t.id)}" ${existing?.temaId === t.id ? "selected" : ""}>${escHtml(t.nombre)}</option>`).join("")}
+        </select>
+      </div>
+      <div class="task-feed-quill-wrap"><div id="notaEditQuill"></div></div>
+      <div class="nota-card-footer">
+        <button type="button" class="primary nota-btn" id="notaSaveBtn">${icon("check", 12)} Guardar</button>
+        <button type="button" class="ghost nota-btn" id="notaCancelBtn">Cancelar</button>
+      </div>
+    </article>`;
+}
 
 function renderNotas() {
   if (!els.notasGrid) return;
-  const notas = (state.notas || []).slice().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-  if (!notas.length) {
-    els.notasGrid.innerHTML = `<p style="color:var(--muted)">Todavia no hay notas en esta pizarra.${puedeEditar() ? ' Crea la primera con "+ Nueva nota".' : ""}</p>`;
-    return;
-  }
-  els.notasGrid.innerHTML = notas.map((n) => `
-    <article class="nota-card" data-nota-id="${n.id}">
-      ${puedeEditar() ? `
-        <div class="nota-card-actions">
-          <button type="button" class="nota-card-action" data-nota-edit="${n.id}" title="Editar">${icon("lapiz", 13)}</button>
-          <button type="button" class="nota-card-action" data-nota-delete="${n.id}" title="Eliminar">${icon("papelera", 13)}</button>
-        </div>` : ""}
-      <div class="nota-card-titulo">${escHtml(n.titulo || "Sin titulo")}</div>
-      <div class="nota-card-body">${n.contenido || ""}</div>
-      <div class="nota-card-meta">${n.autor ? escHtml(n.autor) + " · " : ""}${fmtDateTimeNice(n.updatedAt)}</div>
-    </article>
-  `).join("");
+  renderNotaGrupoPills();
 
+  let notas = (state.notas || []).slice().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  if (notaGrupoFiltro === "__sin_grupo__") notas = notas.filter((n) => !n.grupoId);
+  else if (notaGrupoFiltro) notas = notas.filter((n) => n.grupoId === notaGrupoFiltro);
+
+  const cards = [];
+  if (editingNotaId === "new") cards.push(notaEditCardHtml(null));
+  notas.forEach((n) => cards.push(n.id === editingNotaId ? notaEditCardHtml(n) : notaReadCardHtml(n)));
+
+  els.notasGrid.innerHTML = cards.length
+    ? cards.join("")
+    : `<p style="color:var(--muted)">Todavia no hay notas${notaGrupoFiltro ? " en este grupo" : " en esta pizarra"}.${puedeEditar() ? ' Crea la primera con "+ Nueva nota".' : ""}</p>`;
+
+  wireNotaCards();
+}
+
+function wireNotaCards() {
   els.notasGrid.querySelectorAll("[data-nota-edit]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const nota = state.notas.find((n) => n.id === btn.dataset.notaEdit);
-      if (nota) openNotaForm(nota);
+      if (editingNotaId) return; // ya hay una tarjeta en edicion
+      editingNotaId = btn.dataset.notaEdit;
+      renderNotas();
     });
   });
   els.notasGrid.querySelectorAll("[data-nota-delete]").forEach((btn) => {
@@ -7053,20 +7154,18 @@ function renderNotas() {
       if (ok) showToast("Nota eliminada");
     });
   });
-}
+  els.notasGrid.querySelectorAll("[data-nota-open-tema]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tema = state.temas.find((t) => t.id === btn.dataset.notaOpenTema);
+      if (tema) openTemaForm(tema, undefined, { mode: "edit" });
+    });
+  });
 
-function openNotaForm(existing = null) {
-  const isEdit = Boolean(existing?.id);
-  els.dynamicForm.innerHTML = `
-    <h3>${isEdit ? "Editar nota" : "Nueva nota"}</h3>
-    <label>Titulo<input name="titulo" maxlength="120" placeholder="Titulo de la nota" value="${escHtml(existing?.titulo || "")}" /></label>
-    <div class="task-feed-quill-wrap"><div id="notaQuill"></div></div>
-    <div class="btn-group">
-      <button class="primary" type="submit">Guardar</button>
-      <button class="ghost js-close-modal-form" type="button">Cancelar</button>
-    </div>
-  `;
-  notaQuillInstance = new Quill(document.getElementById("notaQuill"), {
+  const editQuillContainer = document.getElementById("notaEditQuill");
+  if (!editQuillContainer) return; // ninguna tarjeta en edicion ahora mismo
+
+  const existing = editingNotaId !== "new" ? state.notas.find((n) => n.id === editingNotaId) : null;
+  notaEditQuillInstance = new Quill(editQuillContainer, {
     theme: "snow",
     modules: {
       toolbar: {
@@ -7075,25 +7174,48 @@ function openNotaForm(existing = null) {
       }
     }
   });
-  if (existing?.contenido) notaQuillInstance.clipboard.dangerouslyPasteHTML(existing.contenido);
+  if (existing?.contenido) notaEditQuillInstance.clipboard.dangerouslyPasteHTML(existing.contenido);
+  document.getElementById("notaEditTitulo").focus();
 
-  els.dynamicForm.onsubmit = async (e) => {
-    e.preventDefault();
-    const titulo = els.dynamicForm.querySelector('[name="titulo"]').value.trim();
-    const html = notaQuillInstance.root.innerHTML;
-    const plain = notaQuillInstance.getText().trim();
+  // "+ Nuevo grupo…": se crea al toque (sin cerrar la edicion en curso, sin
+  // reloadState -- perderia lo que se esta tipeando en el Quill) y se
+  // inserta como <option> nueva antes del sentinel "__nuevo__".
+  document.getElementById("notaEditGrupo").addEventListener("change", async (e) => {
+    const sel = e.target;
+    if (sel.value !== "__nuevo__") return;
+    const nombre = window.prompt("Nombre del nuevo grupo:");
+    if (!nombre || !nombre.trim()) { sel.value = existing?.grupoId || ""; return; }
+    const grupo = await dataApi.createNotaGrupo(nombre.trim());
+    state.notasGrupos.push(grupo);
+    const opt = document.createElement("option");
+    opt.value = grupo.id;
+    opt.textContent = grupo.nombre;
+    sel.insertBefore(opt, sel.querySelector('option[value="__nuevo__"]'));
+    sel.value = grupo.id;
+  });
+
+  document.getElementById("notaCancelBtn").addEventListener("click", () => {
+    editingNotaId = null;
+    notaEditQuillInstance = null;
+    renderNotas();
+  });
+  document.getElementById("notaSaveBtn").addEventListener("click", async () => {
+    const titulo = document.getElementById("notaEditTitulo").value.trim();
+    const grupoId = document.getElementById("notaEditGrupo").value || null;
+    const temaId = document.getElementById("notaEditTema").value || null;
+    const html = notaEditQuillInstance.root.innerHTML;
+    const plain = notaEditQuillInstance.getText().trim();
     if (!titulo && !plain) { showToast("La nota necesita un titulo o contenido."); return; }
+    const isEdit = editingNotaId !== "new";
+    const idEnEdicion = editingNotaId;
     const ok = await withBusy(async () => {
-      if (isEdit) await dataApi.updateNota(existing.id, titulo, html);
-      else await dataApi.createNota(titulo, html);
+      if (isEdit) await dataApi.updateNota(idEnEdicion, titulo, html, { grupoId, temaId });
+      else await dataApi.createNota(titulo, html, { grupoId, temaId });
+      editingNotaId = null;
       await reloadState();
     });
-    if (!ok) return;
-    els.modalForm.close();
-    showToast(isEdit ? "Nota actualizada" : "Nota creada");
-  };
-  els.modalForm.showModal();
-  notaQuillInstance.focus();
+    if (ok) showToast(isEdit ? "Nota actualizada" : "Nota creada");
+  });
 }
 
 // =========================================================

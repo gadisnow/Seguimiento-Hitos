@@ -2094,13 +2094,25 @@ dialog#modalNewResp::backdrop {
 .resp-card-edit:hover { color: var(--primary); border-color: var(--primary); }
 
 /* ============== Notas ============== */
+.notas-grupo-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.nota-grupo-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: 999px; border: 1px solid var(--border); background: var(--card);
+  padding: 6px 12px; font-size: 12.5px; color: var(--muted);
+}
+.nota-grupo-pill.active { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+.nota-grupo-pill-x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 50%; color: inherit; opacity: .6;
+}
+.nota-grupo-pill-x:hover { opacity: 1; color: var(--vencido); }
+
 .notas-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
 }
 .nota-card {
-  position: relative;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -2111,15 +2123,16 @@ dialog#modalNewResp::backdrop {
   gap: 6px;
   min-height: 150px;
 }
-.nota-card-actions { position: absolute; top: 10px; right: 10px; display: flex; gap: 4px; }
-.nota-card-action {
-  width: 24px; height: 24px; padding: 0;
-  display: flex; align-items: center; justify-content: center;
-  border: 1px solid var(--border); border-radius: 7px;
-  background: var(--card); color: var(--muted);
+.nota-card-titulo { font-size: 14px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nota-card-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.nota-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--muted);
+  background: var(--bg); border: 1px solid var(--border); border-radius: 999px;
+  padding: 2px 8px;
 }
-.nota-card-action:hover { color: var(--primary); border-color: var(--primary); }
-.nota-card-titulo { font-size: 14px; font-weight: 600; color: var(--text); padding-right: 56px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nota-chip-link { cursor: pointer; color: var(--primary); border-color: var(--primary-soft-border); }
+.nota-chip-link:hover { background: var(--primary-soft); }
 .nota-card-body {
   font-size: 13px; color: var(--text); flex: 1;
   overflow: hidden; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical;
@@ -2127,9 +2140,21 @@ dialog#modalNewResp::backdrop {
 .nota-card-body p { margin: 0 0 6px; }
 .nota-card-body p:last-child { margin-bottom: 0; }
 .nota-card-meta { font-size: 11px; color: var(--muted); margin-top: auto; padding-top: 4px; }
+.nota-card-footer { display: flex; gap: 8px; padding-top: 6px; border-top: 1px solid var(--border); margin-top: 4px; }
+.nota-btn { font-size: 12px; padding: 5px 10px; display: inline-flex; align-items: center; gap: 5px; }
+.nota-btn-danger { color: var(--vencido); }
+.nota-btn-danger:hover { background: rgba(220,38,38,0.08); border-color: var(--vencido); }
 
-#notaQuill { background: var(--card); border-radius: 8px; }
-#notaQuill .ql-editor { min-height: 140px; font-size: 13.5px; }
+.nota-card-editing { gap: 8px; }
+.nota-edit-titulo {
+  font-size: 14px; font-weight: 600; color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px;
+}
+.nota-edit-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.nota-edit-row select { flex: 1 1 140px; font-size: 12.5px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); }
+
+#notaEditQuill { background: var(--card); border-radius: 8px; }
+#notaEditQuill .ql-editor { min-height: 140px; font-size: 13.5px; }
 .resp-card-head { display: flex; gap: 8px; align-items: center; padding-right: 28px; }
 .resp-avatar-lg, .resp-avatar-sm {
   border-radius: 50%;
