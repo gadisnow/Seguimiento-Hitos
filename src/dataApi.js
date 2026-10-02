@@ -348,6 +348,10 @@ export async function deleteNotaGrupo(id) {
   must(await supabase.from("notas_grupos").delete().eq("id", id).eq("pizarra_id", currentPizarraId));
 }
 
+export async function renameNotaGrupo(id, nombre) {
+  must(await supabase.from("notas_grupos").update({ nombre: (nombre || "").trim() }).eq("id", id).eq("pizarra_id", currentPizarraId));
+}
+
 // =====================================================================
 // Usuarios (profiles) - operaciones de administrador (protegidas por RLS)
 // =====================================================================

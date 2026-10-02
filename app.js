@@ -7027,17 +7027,17 @@ let editingNotaId = null;
 let notaEditQuillInstance = null;
 let notaPopupQuillInstance = null;
 let notaGrupoFiltro = ""; // "" = todas (grupos colapsados en tiles); "__sin_grupo__"
-let notaNuevoGrupoDefault = null; // grupo preseleccionado al crear desde "+ Nueva nota aqui"
-
 function notaGrupoNombre(id) {
   const g = (state.notasGrupos || []).find((x) => x.id === id);
   return g ? g.nombre : "";
 }
 
-function startNotaCreate(defaultGrupoId = null) {
+// Solo para notas sueltas (sin grupo): la tarjeta en blanco se edita
+// in-line en la grilla. Crear una nota DENTRO de un grupo se hace con
+// openNotaDetailEditForm(null, grupoId), que se queda en el popup.
+function startNotaCreate() {
   if (editingNotaId) return; // ya hay una tarjeta en edicion, no abrir una segunda
   editingNotaId = "new";
-  notaNuevoGrupoDefault = defaultGrupoId;
   renderNotas();
 }
 
@@ -7116,10 +7116,10 @@ function notaGroupCardHtml(grupo, notasDelGrupo) {
     </article>`;
 }
 
-function notaEditCardHtml(existing, defaultGrupoId = null) {
+function notaEditCardHtml(existing) {
   const grupos = (state.notasGrupos || []).slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
   const temasOrdenados = state.temas.slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
-  const grupoActual = existing ? existing.grupoId : defaultGrupoId;
+  const grupoActual = existing?.grupoId || null;
   return `
     <article class="nota-card nota-card-editing">
       <input type="text" id="notaEditTitulo" class="nota-edit-titulo" maxlength="120" placeholder="Titulo de la nota" value="${escHtml(existing?.titulo || "")}" />
@@ -7151,7 +7151,7 @@ function renderNotas() {
   if (soloSinGrupo) notas = notas.filter((n) => !n.grupoId);
 
   const cards = [];
-  if (editingNotaId === "new") cards.push(notaEditCardHtml(null, notaNuevoGrupoDefault));
+  if (editingNotaId === "new") cards.push(notaEditCardHtml(null));
 
   if (soloSinGrupo) {
     notas.forEach((n) => cards.push(n.id === editingNotaId ? notaEditCardHtml(n) : notaReadCardHtml(n)));
@@ -7192,7 +7192,11 @@ function openNotaGroupPopup(grupoId) {
   const grupo = (state.notasGrupos || []).find((g) => g.id === grupoId) || { id: grupoId, nombre: "Grupo" };
   const notas = (state.notas || []).filter((n) => n.grupoId === grupoId).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
   els.dynamicForm.innerHTML = `
-    <h3>${icon("carpeta", 15)} ${escHtml(grupo.nombre)}</h3>
+    <div class="nota-group-popup-head">
+      ${icon("carpeta", 16)}
+      <input type="text" id="notaGroupNombreInput" class="nota-group-popup-nombre" maxlength="60" value="${escHtml(grupo.nombre)}" ${puedeEditar() ? "" : "disabled"} />
+      ${puedeEditar() ? `<button type="button" class="icon-btn" id="notaGroupDeleteBtn" title="Eliminar grupo">${icon("papelera", 14)}</button>` : ""}
+    </div>
     <div class="nota-group-popup-list">
       ${notas.length ? notas.map((n) => `
         <button type="button" class="nota-group-popup-item" data-nota-open="${n.id}">
@@ -7203,17 +7207,13 @@ function openNotaGroupPopup(grupoId) {
     </div>
     <div class="btn-group">
       ${puedeEditar() ? `<button type="button" class="ghost" id="notaGroupAddBtn">+ Nueva nota aqui</button>` : ""}
-      ${puedeEditar() ? `<button type="button" class="ghost nota-btn-danger" id="notaGroupDeleteBtn">Eliminar grupo</button>` : ""}
       <button type="button" class="ghost js-close-modal-form">Cerrar</button>
     </div>
   `;
   els.dynamicForm.querySelectorAll("[data-nota-open]").forEach((btn) => {
     btn.addEventListener("click", () => openNotaDetailPopup(btn.dataset.notaOpen, grupoId));
   });
-  document.getElementById("notaGroupAddBtn")?.addEventListener("click", () => {
-    els.modalForm.close();
-    startNotaCreate(grupoId);
-  });
+  document.getElementById("notaGroupAddBtn")?.addEventListener("click", () => openNotaDetailEditForm(null, grupoId));
   document.getElementById("notaGroupDeleteBtn")?.addEventListener("click", async () => {
     if (!confirm("Eliminar este grupo? Las notas quedan sin grupo, no se borran.")) return;
     const ok = await withBusy(async () => {
@@ -7222,6 +7222,28 @@ function openNotaGroupPopup(grupoId) {
     });
     if (ok) { els.modalForm.close(); showToast("Grupo eliminado"); }
   });
+
+  // Nombre editable in-place: se guarda al perder foco o con Enter, sin
+  // reloadState (perderia el popup abierto) -- se parchea state.notasGrupos
+  // a mano y se refrescan los pills de afuera.
+  if (puedeEditar()) {
+    const nombreInput = document.getElementById("notaGroupNombreInput");
+    let nombreVigente = grupo.nombre;
+    const guardarNombre = async () => {
+      const nuevo = nombreInput.value.trim();
+      if (!nuevo || nuevo === nombreVigente) { nombreInput.value = nombreVigente; return; }
+      const ok = await withBusy(async () => {
+        await dataApi.renameNotaGrupo(grupoId, nuevo);
+        const g = state.notasGrupos.find((x) => x.id === grupoId);
+        if (g) g.nombre = nuevo;
+      });
+      if (ok) { nombreVigente = nuevo; renderNotaGrupoPills(); }
+      else nombreInput.value = nombreVigente;
+    };
+    nombreInput.addEventListener("blur", guardarNombre);
+    nombreInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); nombreInput.blur(); } });
+  }
+
   if (!els.modalForm.open) els.modalForm.showModal();
 }
 
@@ -7262,22 +7284,26 @@ function openNotaDetailPopup(notaId, grupoId) {
   if (!els.modalForm.open) els.modalForm.showModal();
 }
 
+// notaId null = nota nueva (desde "+ Nueva nota aqui" en el popup del
+// grupo); si no, edita la existente. Mismo formulario para ambos casos,
+// igual que notaEditCardHtml(existing) en la grilla.
 function openNotaDetailEditForm(notaId, grupoId) {
-  const existing = state.notas.find((n) => n.id === notaId);
-  if (!existing) { openNotaGroupPopup(grupoId); return; }
+  const existing = notaId ? state.notas.find((n) => n.id === notaId) : null;
+  if (notaId && !existing) { openNotaGroupPopup(grupoId); return; }
   const grupos = (state.notasGrupos || []).slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
   const temasOrdenados = state.temas.slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const grupoActual = existing ? existing.grupoId : grupoId;
   els.dynamicForm.innerHTML = `
-    <h3>Editar nota</h3>
-    <input type="text" id="notaPopupEditTitulo" class="nota-edit-titulo" maxlength="120" placeholder="Titulo de la nota" value="${escHtml(existing.titulo || "")}" />
+    <h3>${existing ? "Editar nota" : "Nueva nota"}</h3>
+    <input type="text" id="notaPopupEditTitulo" class="nota-edit-titulo" maxlength="120" placeholder="Titulo de la nota" value="${escHtml(existing?.titulo || "")}" />
     <div class="nota-edit-row">
       <select id="notaPopupEditGrupo">
         <option value="">Sin grupo</option>
-        ${grupos.map((g) => `<option value="${g.id}" ${existing.grupoId === g.id ? "selected" : ""}>${escHtml(g.nombre)}</option>`).join("")}
+        ${grupos.map((g) => `<option value="${g.id}" ${grupoActual === g.id ? "selected" : ""}>${escHtml(g.nombre)}</option>`).join("")}
       </select>
       <select id="notaPopupEditTema">
         <option value="">Sin tema vinculado</option>
-        ${temasOrdenados.map((t) => `<option value="${escHtml(t.id)}" ${existing.temaId === t.id ? "selected" : ""}>${escHtml(t.nombre)}</option>`).join("")}
+        ${temasOrdenados.map((t) => `<option value="${escHtml(t.id)}" ${existing?.temaId === t.id ? "selected" : ""}>${escHtml(t.nombre)}</option>`).join("")}
       </select>
     </div>
     <div class="task-feed-quill-wrap"><div id="notaPopupEditQuill"></div></div>
@@ -7295,10 +7321,12 @@ function openNotaDetailEditForm(notaId, grupoId) {
       }
     }
   });
-  if (existing.contenido) notaPopupQuillInstance.clipboard.dangerouslyPasteHTML(existing.contenido);
+  if (existing?.contenido) notaPopupQuillInstance.clipboard.dangerouslyPasteHTML(existing.contenido);
   document.getElementById("notaPopupEditTitulo").focus();
 
-  document.getElementById("notaPopupCancelBtn").addEventListener("click", () => openNotaDetailPopup(notaId, grupoId));
+  document.getElementById("notaPopupCancelBtn").addEventListener("click", () => {
+    if (existing) openNotaDetailPopup(notaId, grupoId); else openNotaGroupPopup(grupoId);
+  });
   document.getElementById("notaPopupSaveBtn").addEventListener("click", async () => {
     const titulo = document.getElementById("notaPopupEditTitulo").value.trim();
     const nuevoGrupoId = document.getElementById("notaPopupEditGrupo").value || null;
@@ -7307,11 +7335,12 @@ function openNotaDetailEditForm(notaId, grupoId) {
     const plain = notaPopupQuillInstance.getText().trim();
     if (!titulo && !plain) { showToast("La nota necesita un titulo o contenido."); return; }
     const ok = await withBusy(async () => {
-      await dataApi.updateNota(notaId, titulo, html, { grupoId: nuevoGrupoId, temaId });
+      if (existing) await dataApi.updateNota(notaId, titulo, html, { grupoId: nuevoGrupoId, temaId });
+      else await dataApi.createNota(titulo, html, { grupoId: nuevoGrupoId, temaId });
       await reloadState();
     });
     if (!ok) return;
-    showToast("Nota actualizada");
+    showToast(existing ? "Nota actualizada" : "Nota creada");
     if (nuevoGrupoId) openNotaGroupPopup(nuevoGrupoId); else els.modalForm.close();
   });
   if (!els.modalForm.open) els.modalForm.showModal();

@@ -2201,6 +2201,17 @@ dialog#modalNewResp::backdrop {
 .nota-card-editing .task-feed-quill-wrap { flex-shrink: 0; }
 
 /* ---- Popups de grupo: lista -> detalle -> editar, dentro de #dynamicForm ---- */
+.nota-group-popup-head { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.nota-group-popup-nombre {
+  flex: 1; min-width: 0;
+  font-size: 18px; font-weight: 700; color: var(--text);
+  border: 1px solid transparent; border-radius: 8px; padding: 4px 8px; margin: -4px -8px;
+  background: transparent;
+}
+.nota-group-popup-nombre:hover:not(:disabled), .nota-group-popup-nombre:focus { border-color: var(--border); background: var(--card); }
+.nota-group-popup-nombre:disabled { color: var(--text); }
+.nota-group-popup-head .icon-btn { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; color: var(--vencido); }
+.nota-group-popup-head .icon-btn:hover { background: rgba(220,38,38,0.08); border-color: var(--vencido); }
 .nota-group-popup-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; margin: 4px 0 2px; }
 .nota-group-popup-item {
   display: flex; justify-content: space-between; align-items: center; gap: 10px;
