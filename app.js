@@ -2543,6 +2543,7 @@ const ICONS = {
   adjunto: `<path d="M16.5 6.5l-7.8 7.8a3 3 0 1 0 4.24 4.24l7.4-7.4a5 5 0 1 0-7.07-7.07L5.5 11.83a7 7 0 1 0 9.9 9.9"/>`,
   reordenar: `<circle cx="9" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="9" cy="18" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="18" r="1.2" fill="currentColor" stroke="none"/>`,
   chevronAbajo: `<path d="M6 9l6 6 6-6"/>`,
+  chevronIzquierda: `<path d="M15 6l-6 6 6 6"/>`,
   flechaAvance: `<path d="M12 19V5"/><path d="M6 11l6-6 6 6"/>`,
   ajustes: `<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M21 12h-2.5M5.5 12H3M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8M18.4 18.4l-1.8-1.8M7.4 7.4L5.6 5.6"/>`,
   lista: `<circle cx="5" cy="7" r="1" fill="currentColor" stroke="none"/><path d="M8.5 7h11.5"/><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><path d="M8.5 12h11.5"/><circle cx="5" cy="17" r="1" fill="currentColor" stroke="none"/><path d="M8.5 17h11.5"/>`,
@@ -7024,19 +7025,25 @@ function openExpedienteForm(existing = null, onCreated = null) {
 // =========================================================
 let editingNotaId = null;
 let notaEditQuillInstance = null;
-let notaGrupoFiltro = ""; // "" = todas; "__sin_grupo__"; o id de un grupo
+let notaPopupQuillInstance = null;
+let notaGrupoFiltro = ""; // "" = todas (grupos colapsados en tiles); "__sin_grupo__"
+let notaNuevoGrupoDefault = null; // grupo preseleccionado al crear desde "+ Nueva nota aqui"
 
 function notaGrupoNombre(id) {
   const g = (state.notasGrupos || []).find((x) => x.id === id);
   return g ? g.nombre : "";
 }
 
-function startNotaCreate() {
+function startNotaCreate(defaultGrupoId = null) {
   if (editingNotaId) return; // ya hay una tarjeta en edicion, no abrir una segunda
   editingNotaId = "new";
+  notaNuevoGrupoDefault = defaultGrupoId;
   renderNotas();
 }
 
+// Pills "Todas"/"Sin grupo" filtran la grilla principal; un grupo puntual
+// no filtra -- directamente abre su popup (mismo destino que tocar el
+// tile), para no mantener un tercer modo de vista intermedio.
 function renderNotaGrupoPills() {
   if (!els.notaGrupoPills) return;
   const grupos = (state.notasGrupos || []).slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -7054,8 +7061,9 @@ function renderNotaGrupoPills() {
   els.notaGrupoPills.querySelectorAll("[data-nota-grupo-filter]").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       if (e.target.closest("[data-nota-grupo-delete]")) return;
-      notaGrupoFiltro = btn.dataset.notaGrupoFilter;
-      renderNotas();
+      const value = btn.dataset.notaGrupoFilter;
+      if (value === "" || value === "__sin_grupo__") { notaGrupoFiltro = value; renderNotas(); }
+      else if (!editingNotaId) openNotaGroupPopup(value);
     });
   });
   els.notaGrupoPills.querySelectorAll("[data-nota-grupo-delete]").forEach((x) => {
@@ -7067,7 +7075,7 @@ function renderNotaGrupoPills() {
         await dataApi.deleteNotaGrupo(id);
         await reloadState();
       });
-      if (ok) { if (notaGrupoFiltro === id) notaGrupoFiltro = ""; showToast("Grupo eliminado"); }
+      if (ok) showToast("Grupo eliminado");
     });
   });
 }
@@ -7075,7 +7083,6 @@ function renderNotaGrupoPills() {
 function notaReadCardHtml(n) {
   const tema = n.temaId ? state.temas.find((t) => t.id === n.temaId) : null;
   const chips = [
-    n.grupoId ? `<span class="nota-chip">${icon("carpeta", 11)} ${escHtml(notaGrupoNombre(n.grupoId))}</span>` : "",
     tema ? `<button type="button" class="nota-chip nota-chip-link" data-nota-open-tema="${tema.id}">${icon("enlace", 11)} ${escHtml(tema.nombre)}</button>` : ""
   ].join("");
   return `
@@ -7092,16 +7099,34 @@ function notaReadCardHtml(n) {
     </article>`;
 }
 
-function notaEditCardHtml(existing) {
+// Tile tipo "carpeta" que representa UN grupo entero en la grilla principal
+// (vista "Todas"): clic abre el popup con la lista de notas de adentro,
+// igual gesto que una carpeta de apps en un celular. El mini-stack de
+// arriba es solo un preview (hasta 4 titulos), no son clickeables por si
+// solos.
+function notaGroupCardHtml(grupo, notasDelGrupo) {
+  const preview = notasDelGrupo.slice(0, 4);
+  return `
+    <article class="nota-card nota-group-card" data-nota-group="${grupo.id}">
+      <div class="nota-group-card-stack">
+        ${preview.map((n) => `<span class="nota-group-card-chip">${escHtml(n.titulo || "Sin titulo")}</span>`).join("")}
+      </div>
+      <div class="nota-card-titulo">${icon("carpeta", 13)} ${escHtml(grupo.nombre)}</div>
+      <div class="nota-card-meta">${notasDelGrupo.length} nota${notasDelGrupo.length === 1 ? "" : "s"}</div>
+    </article>`;
+}
+
+function notaEditCardHtml(existing, defaultGrupoId = null) {
   const grupos = (state.notasGrupos || []).slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
   const temasOrdenados = state.temas.slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const grupoActual = existing ? existing.grupoId : defaultGrupoId;
   return `
     <article class="nota-card nota-card-editing">
       <input type="text" id="notaEditTitulo" class="nota-edit-titulo" maxlength="120" placeholder="Titulo de la nota" value="${escHtml(existing?.titulo || "")}" />
       <div class="nota-edit-row">
         <select id="notaEditGrupo">
           <option value="">Sin grupo</option>
-          ${grupos.map((g) => `<option value="${g.id}" ${existing?.grupoId === g.id ? "selected" : ""}>${escHtml(g.nombre)}</option>`).join("")}
+          ${grupos.map((g) => `<option value="${g.id}" ${grupoActual === g.id ? "selected" : ""}>${escHtml(g.nombre)}</option>`).join("")}
           <option value="__nuevo__">+ Nuevo grupo…</option>
         </select>
         <select id="notaEditTema">
@@ -7121,19 +7146,175 @@ function renderNotas() {
   if (!els.notasGrid) return;
   renderNotaGrupoPills();
 
+  const soloSinGrupo = notaGrupoFiltro === "__sin_grupo__";
   let notas = (state.notas || []).slice().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-  if (notaGrupoFiltro === "__sin_grupo__") notas = notas.filter((n) => !n.grupoId);
-  else if (notaGrupoFiltro) notas = notas.filter((n) => n.grupoId === notaGrupoFiltro);
+  if (soloSinGrupo) notas = notas.filter((n) => !n.grupoId);
 
   const cards = [];
-  if (editingNotaId === "new") cards.push(notaEditCardHtml(null));
-  notas.forEach((n) => cards.push(n.id === editingNotaId ? notaEditCardHtml(n) : notaReadCardHtml(n)));
+  if (editingNotaId === "new") cards.push(notaEditCardHtml(null, notaNuevoGrupoDefault));
+
+  if (soloSinGrupo) {
+    notas.forEach((n) => cards.push(n.id === editingNotaId ? notaEditCardHtml(n) : notaReadCardHtml(n)));
+  } else {
+    // Vista "Todas": las notas agrupadas se colapsan en UN tile por grupo
+    // (una sola vez cada uno); las sueltas se ven igual que siempre.
+    const gruposVistos = new Set();
+    notas.forEach((n) => {
+      if (n.id === editingNotaId) { cards.push(notaEditCardHtml(n)); return; }
+      if (n.grupoId) {
+        if (gruposVistos.has(n.grupoId)) return;
+        gruposVistos.add(n.grupoId);
+        const grupo = (state.notasGrupos || []).find((g) => g.id === n.grupoId) || { id: n.grupoId, nombre: "Grupo" };
+        const delGrupo = notas.filter((x) => x.grupoId === n.grupoId);
+        cards.push(notaGroupCardHtml(grupo, delGrupo));
+      } else {
+        cards.push(notaReadCardHtml(n));
+      }
+    });
+  }
 
   els.notasGrid.innerHTML = cards.length
     ? cards.join("")
-    : `<p style="color:var(--muted)">Todavia no hay notas${notaGrupoFiltro ? " en este grupo" : " en esta pizarra"}.${puedeEditar() ? ' Crea la primera con "+ Nueva nota".' : ""}</p>`;
+    : `<p style="color:var(--muted)">Todavia no hay notas${soloSinGrupo ? " sin grupo" : " en esta pizarra"}.${puedeEditar() ? ' Crea la primera con "+ Nueva nota".' : ""}</p>`;
 
   wireNotaCards();
+}
+
+// =========================================================
+// Popups de grupo (lista de notas adentro -> detalle de una nota -> editar)
+// Reusan el dialog generico els.modalForm/els.dynamicForm (mismo que
+// Expedientes/Responsables). Las tres vistas navegan DENTRO del mismo
+// dialog ya abierto (showModal() en un <dialog> ya abierto tira
+// InvalidStateError) -- "Volver" solo reemplaza el innerHTML, no abre un
+// dialog nuevo encima.
+// =========================================================
+function openNotaGroupPopup(grupoId) {
+  const grupo = (state.notasGrupos || []).find((g) => g.id === grupoId) || { id: grupoId, nombre: "Grupo" };
+  const notas = (state.notas || []).filter((n) => n.grupoId === grupoId).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  els.dynamicForm.innerHTML = `
+    <h3>${icon("carpeta", 15)} ${escHtml(grupo.nombre)}</h3>
+    <div class="nota-group-popup-list">
+      ${notas.length ? notas.map((n) => `
+        <button type="button" class="nota-group-popup-item" data-nota-open="${n.id}">
+          <span class="nota-group-popup-item-titulo">${escHtml(n.titulo || "Sin titulo")}</span>
+          <span class="nota-group-popup-item-meta">${fmtDateTimeNice(n.updatedAt)}</span>
+        </button>
+      `).join("") : `<p style="color:var(--muted)">Este grupo todavia no tiene notas.</p>`}
+    </div>
+    <div class="btn-group">
+      ${puedeEditar() ? `<button type="button" class="ghost" id="notaGroupAddBtn">+ Nueva nota aqui</button>` : ""}
+      ${puedeEditar() ? `<button type="button" class="ghost nota-btn-danger" id="notaGroupDeleteBtn">Eliminar grupo</button>` : ""}
+      <button type="button" class="ghost js-close-modal-form">Cerrar</button>
+    </div>
+  `;
+  els.dynamicForm.querySelectorAll("[data-nota-open]").forEach((btn) => {
+    btn.addEventListener("click", () => openNotaDetailPopup(btn.dataset.notaOpen, grupoId));
+  });
+  document.getElementById("notaGroupAddBtn")?.addEventListener("click", () => {
+    els.modalForm.close();
+    startNotaCreate(grupoId);
+  });
+  document.getElementById("notaGroupDeleteBtn")?.addEventListener("click", async () => {
+    if (!confirm("Eliminar este grupo? Las notas quedan sin grupo, no se borran.")) return;
+    const ok = await withBusy(async () => {
+      await dataApi.deleteNotaGrupo(grupoId);
+      await reloadState();
+    });
+    if (ok) { els.modalForm.close(); showToast("Grupo eliminado"); }
+  });
+  if (!els.modalForm.open) els.modalForm.showModal();
+}
+
+function openNotaDetailPopup(notaId, grupoId) {
+  const nota = state.notas.find((n) => n.id === notaId);
+  if (!nota) { openNotaGroupPopup(grupoId); return; }
+  const tema = nota.temaId ? state.temas.find((t) => t.id === nota.temaId) : null;
+  els.dynamicForm.innerHTML = `
+    <button type="button" class="ghost nota-popup-back" id="notaPopupBack">${icon("chevronIzquierda", 13)} Volver</button>
+    <h3>${escHtml(nota.titulo || "Sin titulo")}</h3>
+    ${tema ? `<button type="button" class="nota-chip nota-chip-link" data-nota-open-tema="${tema.id}">${icon("enlace", 11)} ${escHtml(tema.nombre)}</button>` : ""}
+    <div class="nota-popup-body">${nota.contenido || ""}</div>
+    <div class="nota-card-meta">${nota.autor ? escHtml(nota.autor) + " · " : ""}${fmtDateTimeNice(nota.updatedAt)}</div>
+    <div class="btn-group">
+      ${puedeEditar() ? `<button type="button" class="ghost" id="notaPopupEditBtn">${icon("lapiz", 12)} Editar</button>` : ""}
+      ${puedeEditar() ? `<button type="button" class="ghost nota-btn-danger" id="notaPopupDeleteBtn">${icon("papelera", 12)} Eliminar</button>` : ""}
+      <button type="button" class="ghost js-close-modal-form">Cerrar</button>
+    </div>
+  `;
+  document.getElementById("notaPopupBack").addEventListener("click", () => openNotaGroupPopup(grupoId));
+  document.getElementById("notaPopupEditBtn")?.addEventListener("click", () => openNotaDetailEditForm(notaId, grupoId));
+  document.getElementById("notaPopupDeleteBtn")?.addEventListener("click", async () => {
+    if (!confirm("Eliminar esta nota? Esta accion no se puede deshacer.")) return;
+    const ok = await withBusy(async () => {
+      await dataApi.deleteNota(notaId);
+      await reloadState();
+    });
+    if (!ok) return;
+    showToast("Nota eliminada");
+    if (state.notas.some((n) => n.grupoId === grupoId)) openNotaGroupPopup(grupoId); else els.modalForm.close();
+  });
+  els.dynamicForm.querySelectorAll("[data-nota-open-tema]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const t = state.temas.find((x) => x.id === btn.dataset.notaOpenTema);
+      if (t) { els.modalForm.close(); openTemaForm(t, undefined, { mode: "edit" }); }
+    });
+  });
+  if (!els.modalForm.open) els.modalForm.showModal();
+}
+
+function openNotaDetailEditForm(notaId, grupoId) {
+  const existing = state.notas.find((n) => n.id === notaId);
+  if (!existing) { openNotaGroupPopup(grupoId); return; }
+  const grupos = (state.notasGrupos || []).slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const temasOrdenados = state.temas.slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
+  els.dynamicForm.innerHTML = `
+    <h3>Editar nota</h3>
+    <input type="text" id="notaPopupEditTitulo" class="nota-edit-titulo" maxlength="120" placeholder="Titulo de la nota" value="${escHtml(existing.titulo || "")}" />
+    <div class="nota-edit-row">
+      <select id="notaPopupEditGrupo">
+        <option value="">Sin grupo</option>
+        ${grupos.map((g) => `<option value="${g.id}" ${existing.grupoId === g.id ? "selected" : ""}>${escHtml(g.nombre)}</option>`).join("")}
+      </select>
+      <select id="notaPopupEditTema">
+        <option value="">Sin tema vinculado</option>
+        ${temasOrdenados.map((t) => `<option value="${escHtml(t.id)}" ${existing.temaId === t.id ? "selected" : ""}>${escHtml(t.nombre)}</option>`).join("")}
+      </select>
+    </div>
+    <div class="task-feed-quill-wrap"><div id="notaPopupEditQuill"></div></div>
+    <div class="btn-group">
+      <button type="button" class="primary" id="notaPopupSaveBtn">${icon("check", 12)} Guardar</button>
+      <button type="button" class="ghost" id="notaPopupCancelBtn">Cancelar</button>
+    </div>
+  `;
+  notaPopupQuillInstance = new Quill(document.getElementById("notaPopupEditQuill"), {
+    theme: "snow",
+    modules: {
+      toolbar: {
+        container: [["bold", "italic"], [{ list: "ordered" }, { list: "bullet" }], ["link", "image"]],
+        handlers: { link: quillLinkHandler }
+      }
+    }
+  });
+  if (existing.contenido) notaPopupQuillInstance.clipboard.dangerouslyPasteHTML(existing.contenido);
+  document.getElementById("notaPopupEditTitulo").focus();
+
+  document.getElementById("notaPopupCancelBtn").addEventListener("click", () => openNotaDetailPopup(notaId, grupoId));
+  document.getElementById("notaPopupSaveBtn").addEventListener("click", async () => {
+    const titulo = document.getElementById("notaPopupEditTitulo").value.trim();
+    const nuevoGrupoId = document.getElementById("notaPopupEditGrupo").value || null;
+    const temaId = document.getElementById("notaPopupEditTema").value || null;
+    const html = notaPopupQuillInstance.root.innerHTML;
+    const plain = notaPopupQuillInstance.getText().trim();
+    if (!titulo && !plain) { showToast("La nota necesita un titulo o contenido."); return; }
+    const ok = await withBusy(async () => {
+      await dataApi.updateNota(notaId, titulo, html, { grupoId: nuevoGrupoId, temaId });
+      await reloadState();
+    });
+    if (!ok) return;
+    showToast("Nota actualizada");
+    if (nuevoGrupoId) openNotaGroupPopup(nuevoGrupoId); else els.modalForm.close();
+  });
+  if (!els.modalForm.open) els.modalForm.showModal();
 }
 
 // Arrastrar una tarjeta sobre otra las agrupa (mismo gesto que en un
@@ -7169,6 +7350,21 @@ async function mergeNotasEnGrupo(sourceId, targetId, targetEl) {
   if (ok) showToast(`Notas agrupadas en "${grupoNombre}"`);
 }
 
+// Soltar una nota suelta directo sobre el tile de un grupo: a diferencia
+// de mergeNotasEnGrupo, el grupo destino ya existe (es el tile), asi que
+// no hace falta preguntar nombre -- solo se suma.
+async function addNotaToGrupo(notaId, grupoId, targetEl) {
+  const nota = state.notas.find((n) => n.id === notaId);
+  if (!nota || nota.grupoId === grupoId) return;
+  targetEl?.classList.add("nota-merge-pop");
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  const ok = await withBusy(async () => {
+    await dataApi.updateNota(nota.id, nota.titulo, nota.contenido, { grupoId, temaId: nota.temaId });
+    await reloadState();
+  });
+  if (ok) showToast("Nota agregada al grupo");
+}
+
 function wireNotaCards() {
   let notaDragId = "";
   if (puedeEditar()) {
@@ -7195,7 +7391,35 @@ function wireNotaCards() {
         await mergeNotasEnGrupo(sourceId, targetId, card);
       });
     });
+
+    els.notasGrid.querySelectorAll(".nota-group-card").forEach((tile) => {
+      tile.addEventListener("dragover", (e) => {
+        if (!notaDragId) return;
+        e.preventDefault();
+        tile.classList.add("nota-merge-target");
+      });
+      tile.addEventListener("dragleave", () => tile.classList.remove("nota-merge-target"));
+      tile.addEventListener("drop", async (e) => {
+        e.preventDefault();
+        tile.classList.remove("nota-merge-target");
+        const sourceId = notaDragId;
+        notaDragId = "";
+        if (!sourceId) return;
+        await addNotaToGrupo(sourceId, tile.dataset.notaGroup, tile);
+      });
+    });
   }
+
+  // El tile de grupo es un solo clic = abrir el popup con la lista de
+  // adentro (gesto de carpeta), sin importar el rol -- cualquiera puede
+  // VER una nota, aunque solo Editor/Admin pueda modificarla una vez
+  // adentro del popup (eso ya lo filtra puedeEditar() en cada botón).
+  els.notasGrid.querySelectorAll(".nota-group-card").forEach((tile) => {
+    tile.addEventListener("click", () => {
+      if (editingNotaId) return;
+      openNotaGroupPopup(tile.dataset.notaGroup);
+    });
+  });
 
   els.notasGrid.querySelectorAll("[data-nota-edit]").forEach((btn) => {
     btn.addEventListener("click", () => {

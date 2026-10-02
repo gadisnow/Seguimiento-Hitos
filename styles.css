@@ -2133,7 +2133,22 @@ dialog#modalNewResp::backdrop {
 .nota-card.nota-merge-target { transform: scale(1.04); border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft-border), var(--shadow); }
 @keyframes notaMergePop { 0% { transform: scale(1); } 40% { transform: scale(1.08); } 100% { transform: scale(1); } }
 .nota-card.nota-merge-pop { animation: notaMergePop .3s ease; }
-.nota-card-titulo { font-size: 14px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nota-card-titulo { font-size: 14px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+
+/* Tile de grupo (carpeta): mismo tamaño/sombra que una nota suelta, pero
+   con un mini-stack de hasta 4 titulos arriba (preview tipo carpeta de
+   apps) y sin footer de acciones -- clic abre el popup con la lista. */
+.nota-group-card { cursor: pointer; justify-content: flex-start; }
+.nota-group-card-stack {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 6px;
+  min-height: 56px;
+}
+.nota-group-card-chip {
+  background: var(--card); border: 1px solid var(--border); border-radius: 5px;
+  font-size: 10px; font-weight: 500; color: var(--muted); padding: 5px 6px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .nota-card-chips { display: flex; flex-wrap: wrap; gap: 5px; }
 .nota-chip {
   display: inline-flex; align-items: center; gap: 4px;
@@ -2184,6 +2199,25 @@ dialog#modalNewResp::backdrop {
 #notaEditQuill { height: auto; background: var(--card); border-radius: 8px; }
 #notaEditQuill .ql-editor { min-height: 90px; font-size: 13.5px; }
 .nota-card-editing .task-feed-quill-wrap { flex-shrink: 0; }
+
+/* ---- Popups de grupo: lista -> detalle -> editar, dentro de #dynamicForm ---- */
+.nota-group-popup-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; margin: 4px 0 2px; }
+.nota-group-popup-item {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  text-align: left; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--card);
+}
+.nota-group-popup-item:hover { border-color: var(--primary); background: var(--primary-soft); }
+.nota-group-popup-item-titulo { font-weight: 600; font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nota-group-popup-item-meta { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+.nota-popup-back { align-self: flex-start; font-size: 12px; padding: 5px 10px; display: inline-flex; align-items: center; gap: 4px; }
+.nota-popup-body { font-size: 13.5px; color: var(--text); max-height: 45vh; overflow-y: auto; }
+.nota-popup-body p { margin: 0 0 8px; }
+.nota-popup-body p:last-child { margin-bottom: 0; }
+/* Mismo bug/fix que #notaEditQuill: #dynamicForm es display:grid, y
+   .ql-container{height:100%} de Quill se resuelve circular ahi tambien. */
+#notaPopupEditQuill { height: auto; background: var(--card); border-radius: 8px; }
+#notaPopupEditQuill .ql-editor { min-height: 90px; font-size: 13.5px; }
 .resp-card-head { display: flex; gap: 8px; align-items: center; padding-right: 28px; }
 .resp-avatar-lg, .resp-avatar-sm {
   border-radius: 50%;
