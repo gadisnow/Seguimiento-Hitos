@@ -2150,6 +2150,24 @@ html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,
 }
 .nota-card-body p { margin: 0 0 6px; }
 .nota-card-body p:last-child { margin-bottom: 0; }
+/* Imagenes adjuntas (Quill las inserta como <img> base64 inline, igual
+   que en comentarios): siempre el mismo tamano de miniatura en vez del
+   tamano original de la imagen pegada -- object-fit:cover recorta en vez
+   de deformar. Mismo tratamiento en la tarjeta, el popup de detalle y
+   los dos editores (ahi sin click-to-ampliar, ver wireNotaCards/
+   bindEvents -- durante la edicion el click selecciona/mueve el cursor
+   de Quill, no corresponde interceptarlo). */
+.nota-card-body img, .nota-popup-body img,
+#notaEditQuill .ql-editor img, #notaPopupEditQuill .ql-editor img {
+  display: inline-block; width: 64px; height: 64px; object-fit: cover;
+  border-radius: 8px; border: 1px solid var(--border);
+  margin: 2px; vertical-align: middle;
+}
+.nota-card-body img, .nota-popup-body img {
+  cursor: zoom-in;
+  transition: opacity .12s ease;
+}
+.nota-card-body img:hover, .nota-popup-body img:hover { opacity: .85; }
 .nota-card-meta { font-size: 11px; color: var(--muted); margin-top: auto; padding-top: 4px; }
 .nota-card-footer { display: flex; gap: 8px; padding-top: 6px; border-top: 1px solid var(--border); margin-top: 4px; }
 .nota-btn { font-size: 12px; padding: 5px 10px; display: inline-flex; align-items: center; gap: 5px; }
@@ -2197,17 +2215,32 @@ html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,
 .nota-group-popup-nombre:hover:not(:disabled), .nota-group-popup-nombre:focus { border-color: var(--border); background: var(--card); }
 .nota-group-popup-nombre:disabled { color: var(--text); }
 .nota-group-popup-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; margin: 4px 0 2px; }
+/* Contenedor (no boton -- adentro hay DOS botones: abrir y quitar del
+   grupo, y un <button> no puede anidar otro <button>). Igual que .kcard
+   en el kanban, los botones de adentro llevan draggable="false" para que
+   el drag-and-drop de reordenar siga arrancando desde el resto de la
+   fila sin que el click en ellos lo interrumpa. */
 .nota-group-popup-item {
-  display: flex; justify-content: space-between; align-items: center; gap: 10px;
-  text-align: left; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+  display: flex; align-items: center; gap: 2px;
+  border: 1px solid var(--border); border-radius: 8px;
   background: var(--card);
-  transition: opacity .15s ease, transform .15s ease;
+  transition: opacity .15s ease, transform .15s ease, border-color .15s ease, background .15s ease;
 }
 .nota-group-popup-item:hover { border-color: var(--primary); background: var(--primary-soft); }
 .nota-group-popup-item[draggable="true"] { cursor: grab; }
 .nota-group-popup-item.dragging { opacity: .4; }
+.nota-group-popup-item-open {
+  flex: 1; min-width: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  text-align: left; padding: 10px 12px; background: transparent; border: 0; border-radius: 8px;
+}
 .nota-group-popup-item-titulo { font-weight: 600; font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nota-group-popup-item-meta { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+.nota-group-popup-item-remove {
+  flex-shrink: 0; width: 24px; height: 24px; margin-right: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; background: transparent; color: var(--muted); border-radius: 50%;
+}
+.nota-group-popup-item-remove:hover { background: rgba(220,38,38,0.14); color: var(--vencido); }
 /* Volver (si hay) a la izquierda, X de cerrar siempre a la derecha --
    mismo header en el detalle de una nota y en su formulario de edicion
    (ahi el lado izquierdo queda vacio, ver notaEditDetailForm en app.js). */

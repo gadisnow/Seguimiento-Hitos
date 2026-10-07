@@ -1092,7 +1092,24 @@ function bindEvents() {
   // responsable, aviso de registro) -- delegado en vez de un onclick=""
   // inline por boton, para no necesitar 'unsafe-inline' en script-src (CSP).
   els.modalForm?.addEventListener("click", (e) => {
-    if (e.target.closest(".js-close-modal-form")) els.modalForm.close();
+    if (e.target.closest(".js-close-modal-form")) { els.modalForm.close(); return; }
+    // Imagenes/enlaces del detalle de una nota (.nota-popup-body, ver
+    // openNotaDetailPopup) -- mismo lightbox/apertura en pestana nueva
+    // que ya usa el feed de comentarios (wireFeedPanel).
+    const img = e.target.closest(".nota-popup-body img");
+    if (img) { openImagePreview(img.src); return; }
+    const link = e.target.closest(".nota-popup-body a[href]");
+    if (link) { e.preventDefault(); window.open(link.href, "_blank", "noopener,noreferrer"); }
+  });
+
+  // Mismo lightbox para las imagenes de una nota SUELTA en la grilla
+  // (.nota-card-body) -- delegado en #notasGrid (se cablea una sola vez
+  // acá; sobrevive a que renderNotas() reemplace el innerHTML adentro).
+  els.notasGrid?.addEventListener("click", (e) => {
+    const img = e.target.closest(".nota-card-body img");
+    if (img) { openImagePreview(img.src); return; }
+    const link = e.target.closest(".nota-card-body a[href]");
+    if (link) { e.preventDefault(); window.open(link.href, "_blank", "noopener,noreferrer"); }
   });
 
   // Red de seguridad independiente del estado del canal Realtime: al volver
@@ -7230,10 +7247,13 @@ function openNotaGroupPopup(grupoId) {
     </div>
     <div class="nota-group-popup-list" id="notaGroupPopupList">
       ${notas.length ? notas.map((n) => `
-        <button type="button" class="nota-group-popup-item" data-nota-id="${n.id}" ${puedeEditar() ? 'draggable="true"' : ""}>
-          <span class="nota-group-popup-item-titulo">${escHtml(n.titulo || "Sin titulo")}</span>
-          <span class="nota-group-popup-item-meta">${fmtDateTimeNice(n.updatedAt)}</span>
-        </button>
+        <div class="nota-group-popup-item" data-nota-id="${n.id}" ${puedeEditar() ? 'draggable="true"' : ""}>
+          <button type="button" class="nota-group-popup-item-open" data-nota-id="${n.id}" draggable="false">
+            <span class="nota-group-popup-item-titulo">${escHtml(n.titulo || "Sin titulo")}</span>
+            <span class="nota-group-popup-item-meta">${fmtDateTimeNice(n.updatedAt)}</span>
+          </button>
+          ${puedeEditar() ? `<button type="button" class="nota-group-popup-item-remove" data-nota-remove="${n.id}" draggable="false" title="Quitar del grupo" aria-label="Quitar del grupo">${icon("cerrar", 12)}</button>` : ""}
+        </div>
       `).join("") : `<p style="color:var(--muted)">Este grupo todavia no tiene notas.</p>`}
     </div>
     ${puedeEditar() ? `
@@ -7244,8 +7264,14 @@ function openNotaGroupPopup(grupoId) {
   `;
   document.getElementById("notaGroupBackBtn").addEventListener("click", () => els.modalForm.close());
   document.getElementById("notaGroupCloseBtn").addEventListener("click", () => els.modalForm.close());
-  els.dynamicForm.querySelectorAll("[data-nota-id]").forEach((btn) => {
+  els.dynamicForm.querySelectorAll(".nota-group-popup-item-open").forEach((btn) => {
     btn.addEventListener("click", () => openNotaDetailPopup(btn.dataset.notaId, grupoId));
+  });
+  els.dynamicForm.querySelectorAll("[data-nota-remove]").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await removeNotaFromGrupo(btn.dataset.notaRemove, grupoId);
+    });
   });
   document.getElementById("notaGroupAddBtn")?.addEventListener("click", () => openNotaDetailEditForm(null, grupoId));
   document.getElementById("notaGroupDeleteBtn")?.addEventListener("click", async () => {
@@ -7492,6 +7518,22 @@ async function addNotaToGrupo(notaId, grupoId, targetEl) {
     await reloadState();
   });
   if (ok) showToast("Nota agregada al grupo");
+}
+
+// Saca una nota del grupo sin borrarla (vuelve a "Sin grupo"). Mismo
+// criterio que borrar la ultima nota de un popup abierto: si no queda
+// ninguna, se cierra el dialog en vez de mostrar un popup de grupo
+// vacio; si quedan otras, se refresca la lista en el lugar.
+async function removeNotaFromGrupo(notaId, grupoId) {
+  const nota = state.notas.find((n) => n.id === notaId);
+  if (!nota) return;
+  const ok = await withBusy(async () => {
+    await dataApi.updateNota(nota.id, nota.titulo, nota.contenido, { grupoId: null, temaId: nota.temaId });
+    await reloadState();
+  });
+  if (!ok) return;
+  showToast("Nota quitada del grupo");
+  if (state.notas.some((n) => n.grupoId === grupoId)) openNotaGroupPopup(grupoId); else els.modalForm.close();
 }
 
 function wireNotaCards() {
