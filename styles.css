@@ -2207,10 +2207,21 @@ html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,
 .nota-group-popup-item:hover { border-color: var(--primary); background: var(--primary-soft); }
 .nota-group-popup-item-titulo { font-weight: 600; font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nota-group-popup-item-meta { font-size: 11px; color: var(--muted); flex-shrink: 0; }
-.nota-popup-back { align-self: flex-start; font-size: 12px; padding: 5px 10px; display: inline-flex; align-items: center; gap: 4px; }
+/* Volver (si hay) a la izquierda, X de cerrar siempre a la derecha --
+   mismo header en el detalle de una nota y en su formulario de edicion
+   (ahi el lado izquierdo queda vacio, ver notaEditDetailForm en app.js). */
+.nota-popup-head-row { display: flex; justify-content: space-between; align-items: center; }
+.nota-popup-back { font-size: 12px; padding: 5px 10px; display: inline-flex; align-items: center; gap: 4px; }
+.nota-popup-head-row .icon-btn { width: 32px; height: 32px; border-radius: 8px; }
 .nota-popup-body { font-size: 13.5px; color: var(--text); max-height: 45vh; overflow-y: auto; }
 .nota-popup-body p { margin: 0 0 8px; }
 .nota-popup-body p:last-child { margin-bottom: 0; }
+/* Tacho a la izquierda, Editar a la derecha -- reemplaza el viejo
+   btn-group de 3 botones (Editar/Eliminar/Cerrar); Cerrar ahora es la X
+   del header de arriba. */
+.nota-popup-footer-row { display: flex; justify-content: space-between; align-items: center; }
+.nota-popup-footer-row .icon-btn { color: var(--vencido); }
+.nota-popup-footer-row .icon-btn:hover { background: rgba(220,38,38,0.08); border-color: var(--vencido); }
 /* Mismo bug/fix que #notaEditQuill: #dynamicForm es display:grid, y
    .ql-container{height:100%} de Quill se resuelve circular ahi tambien. */
 #notaPopupEditQuill { height: auto; background: var(--card); border-radius: 8px; }

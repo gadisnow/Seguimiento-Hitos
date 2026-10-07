@@ -7266,18 +7266,22 @@ function openNotaDetailPopup(notaId, grupoId) {
   if (!nota) { openNotaGroupPopup(grupoId); return; }
   const tema = nota.temaId ? state.temas.find((t) => t.id === nota.temaId) : null;
   els.dynamicForm.innerHTML = `
-    <button type="button" class="ghost nota-popup-back" id="notaPopupBack">${icon("chevronIzquierda", 13)} Volver</button>
+    <div class="nota-popup-head-row">
+      <button type="button" class="ghost nota-popup-back" id="notaPopupBack">${icon("chevronIzquierda", 13)} Volver</button>
+      <button type="button" class="icon-btn" id="notaPopupCloseBtn" title="Cerrar" aria-label="Cerrar">${icon("cerrar", 16)}</button>
+    </div>
     <h3>${escHtml(nota.titulo || "Sin titulo")}</h3>
     ${tema ? `<button type="button" class="nota-chip nota-chip-link" data-nota-open-tema="${tema.id}">${icon("enlace", 11)} ${escHtml(tema.nombre)}</button>` : ""}
     <div class="nota-popup-body">${nota.contenido || ""}</div>
     <div class="nota-card-meta">${nota.autor ? escHtml(nota.autor) + " · " : ""}${fmtDateTimeNice(nota.updatedAt)}</div>
-    <div class="btn-group">
-      ${puedeEditar() ? `<button type="button" class="ghost" id="notaPopupEditBtn">${icon("lapiz", 12)} Editar</button>` : ""}
-      ${puedeEditar() ? `<button type="button" class="ghost nota-btn-danger" id="notaPopupDeleteBtn">${icon("papelera", 12)} Eliminar</button>` : ""}
-      <button type="button" class="ghost js-close-modal-form">Cerrar</button>
-    </div>
+    ${puedeEditar() ? `
+      <div class="nota-popup-footer-row">
+        <button type="button" class="icon-btn nota-btn-danger" id="notaPopupDeleteBtn" title="Eliminar" aria-label="Eliminar">${icon("papelera", 16)}</button>
+        <button type="button" class="primary" id="notaPopupEditBtn">${icon("lapiz", 12)} Editar</button>
+      </div>` : ""}
   `;
   document.getElementById("notaPopupBack").addEventListener("click", () => openNotaGroupPopup(grupoId));
+  document.getElementById("notaPopupCloseBtn").addEventListener("click", () => els.modalForm.close());
   document.getElementById("notaPopupEditBtn")?.addEventListener("click", () => openNotaDetailEditForm(notaId, grupoId));
   document.getElementById("notaPopupDeleteBtn")?.addEventListener("click", async () => {
     if (!confirm("Eliminar esta nota? Esta accion no se puede deshacer.")) return;
@@ -7308,6 +7312,10 @@ function openNotaDetailEditForm(notaId, grupoId) {
   const temasOrdenados = state.temas.slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
   const grupoActual = existing ? existing.grupoId : grupoId;
   els.dynamicForm.innerHTML = `
+    <div class="nota-popup-head-row">
+      <span></span>
+      <button type="button" class="icon-btn" id="notaPopupEditCloseBtn" title="Cerrar" aria-label="Cerrar">${icon("cerrar", 16)}</button>
+    </div>
     <h3>${existing ? "Editar nota" : "Nueva nota"}</h3>
     <input type="text" id="notaPopupEditTitulo" class="nota-edit-titulo" maxlength="120" placeholder="Titulo de la nota" value="${escHtml(existing?.titulo || "")}" />
     <div class="nota-edit-row">
@@ -7338,6 +7346,22 @@ function openNotaDetailEditForm(notaId, grupoId) {
   if (existing?.contenido) notaPopupQuillInstance.clipboard.dangerouslyPasteHTML(existing.contenido);
   document.getElementById("notaPopupEditTitulo").focus();
 
+  // Guarda sin preguntar (es una salida explicita); la X de arriba, en
+  // cambio, es el cierre "accidental" -- esa si se frena si hay cambios
+  // sin guardar (ver notaFormDirty, marcado por interaccion real en vez
+  // de comparar HTML serializado contra el original, que puede diferir
+  // en formato sin que el usuario haya tocado nada).
+  let notaFormDirty = false;
+  const marcarDirty = () => { notaFormDirty = true; };
+  document.getElementById("notaPopupEditTitulo").addEventListener("input", marcarDirty);
+  document.getElementById("notaPopupEditGrupo").addEventListener("change", marcarDirty);
+  document.getElementById("notaPopupEditTema").addEventListener("change", marcarDirty);
+  notaPopupQuillInstance.on("text-change", marcarDirty);
+
+  document.getElementById("notaPopupEditCloseBtn").addEventListener("click", () => {
+    if (notaFormDirty) { showToast("Tenés cambios sin guardar. Guardalos o cancelá antes de cerrar."); return; }
+    els.modalForm.close();
+  });
   document.getElementById("notaPopupCancelBtn").addEventListener("click", () => {
     if (existing) openNotaDetailPopup(notaId, grupoId); else openNotaGroupPopup(grupoId);
   });
