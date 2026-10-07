@@ -1288,10 +1288,8 @@ html[data-theme="dark"] .fb-label { color: var(--primary); }
 .cal-legend { display: flex; gap: 12px; font-size: 12px; color: var(--muted); align-items: center; }
 /* Puramente informativa (los eventos ya llevan su propio color) -- se
    saca en celulares para no sumarle mas filas al toolbar, que ya tiene
-   4 botones de vista + los de navegacion compitiendo por el ancho. */
-@media (max-width: 640px) {
-  .cal-legend { display: none; }
-}
+   4 botones de vista + los de navegacion compitiendo por el ancho (ver
+   regla en el breakpoint de Móvil, mas abajo). */
 
 .dot { width: 9px; height: 9px; border-radius: 999px; display: inline-block; margin-right: 5px; }
 .dot-pendiente { background: var(--pendiente); }
@@ -1476,36 +1474,6 @@ html[data-theme="dark"] .fb-label { color: var(--primary); }
   gap: 16px;
 }
 
-@media (max-width: 900px) {
-  .drawer {
-    width: 96vw;
-    max-height: 92vh;
-  }
-  .drawer-detail-grid {
-    grid-template-columns: 1fr;
-  }
-  .drawer .right-rail {
-    width: 100%;
-  }
-  .detail-grid {
-    grid-template-columns: 1fr;
-  }
-  .hito-row {
-    grid-template-columns: 22px 1fr auto auto auto 100px;
-  }
-}
-
-@media (max-width: 600px) {
-  .hito-row {
-    grid-template-columns: 22px 1fr auto;
-    grid-template-rows: auto auto;
-  }
-  .hito-row .hito-actions {
-    grid-column: 1 / -1;
-    justify-content: flex-end;
-  }
-}
-
 .drawer-head {
   display: flex; justify-content: space-between; align-items: center;
   padding: 12px 16px;
@@ -1648,11 +1616,8 @@ html[data-theme="dark"] .fb-label { color: var(--primary); }
 .colab-invite-row select { flex-shrink: 0; }
 /* Sin esto el email queda en ~6-8 caracteres visibles dentro de #dynamicForm
    en celulares -- riesgo real de invitar a la persona equivocada sin poder
-   verificar lo que se escribio. El input pasa a su propia linea completa. */
-@media (max-width: 520px) {
-  .colab-invite-row { flex-wrap: wrap; }
-  .colab-invite-row input { flex: 1 1 100%; }
-}
+   verificar lo que se escribio. El input pasa a su propia linea completa
+   (ver regla en el breakpoint de Móvil, mas abajo). */
 
 .colab-list-title {
   font-size: 12px; font-weight: 600; color: var(--muted);
@@ -1701,15 +1666,6 @@ html[data-theme="dark"] .fb-label { color: var(--primary); }
 .pizarra-mgmt-protegida {
   font-size: 11.5px; color: var(--muted); font-style: italic; padding: 5px 4px;
 }
-/* A ~330px de acciones (Entrar/Colaboradores/Renombrar/Eliminar) el
-   flex-wrap de arriba ya no alcanza en celulares: manda toda la fila a
-   columna para que las acciones tengan su propio ancho completo en vez
-   de recortarse contra .app{overflow-x:hidden}. */
-@media (max-width: 560px) {
-  .pizarra-mgmt-row { flex-direction: column; align-items: stretch; }
-  .pizarra-mgmt-actions { justify-content: flex-end; }
-}
-
 /* Apertura/cierre: mismo lenguaje que dialog#modalTask (fade + scale via
    @starting-style, linea ~2687) -- este dialogo generico es el que usan
    Colaboradores, Renombrar pizarra, editar hito y varios formularios mas,
@@ -2288,8 +2244,6 @@ dialog#modalNewResp::backdrop {
 .filters-intro p { margin: 0; font-size: 12.5px; color: var(--muted); }
 
 .filters-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 20px; }
-@media (max-width: 900px) { .filters-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 620px) { .filters-grid { grid-template-columns: 1fr; } }
 
 .filter-group label.title { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 8px; }
 
@@ -2374,22 +2328,53 @@ html[data-theme="dark"] .switch .track::before { background: #cbd5e1; }
   min-width: 0;
 }
 
-@media (max-width: 1180px) {
-  .kpi { flex-basis: calc((100% - 66px) / 4); }
-  .grid-2-1 { grid-template-columns: 1fr 1fr; }
-  .span-2 { grid-column: span 2; }
-}
+/* ===========================================================
+   Breakpoints consolidados (manual de marca v2.7, sección 06 —
+   Adaptabilidad): solo dos cortes, Tablet (<=1024px) y Móvil (<=640px),
+   en vez de los 8 valores sueltos que había antes (520/560/600/620/640/
+   700/900/1180) -- esos dejaban zonas intermedias con layouts a medio
+   adaptar. Todo lo que antes vivía repartido en esos 8 breakpoints se
+   consolidó acá (el bloque de Móvil más abajo, cerca del final del
+   archivo, junta lo que antes estaba en 520/560/600/640/700).
 
-@media (max-width: 900px) {
+   El paso intermedio que antes existía solo entre 900 y 1180px (donde
+   .kpi/.grid-2-1/.span-2 mostraban una versión "a medio achicar", ya con
+   4 columnas en vez de las 6 del desktop completo) se elimina a
+   propósito: de 1025px para arriba es desktop completo, de 1024px para
+   abajo ya entra directo el tratamiento más compacto (el que antes solo
+   aparecía por debajo de 900px). Es exactamente la "zona intermedia" que
+   el manual pide sacar. */
+@media (max-width: 1024px) {
+  .filters-grid { grid-template-columns: repeat(2, 1fr); }
+  .drawer { width: 96vw; max-height: 92vh; }
+  .drawer-detail-grid { grid-template-columns: 1fr; }
+  .drawer .right-rail { width: 100%; }
+  .detail-grid { grid-template-columns: 1fr; }
+  .hito-row { grid-template-columns: 22px 1fr auto auto auto 100px; }
   .kpi { flex-basis: calc((100% - 22px) / 2); }
   .grid-2-1 { grid-template-columns: 1fr; }
   .span-2 { grid-column: span 1; }
   .reports-grid { grid-template-columns: 1fr 1fr; }
   .resp-grid { grid-template-columns: repeat(2, 1fr); }
   .filter-pills { gap: 6px; }
+  .task-modal-body { flex-direction: column; }
+  .task-feed-panel { width: 100%; border-left: 0; border-top: 1px solid var(--border); max-height: 420px; }
+  .task-datos-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-@media (max-width: 700px) {
+/* Móvil: <=640px (manual v2.7). Junta lo que antes estaba repartido en
+   520/560/600/640/700 -- cada selector conserva el mismo valor que tenía
+   en su breakpoint original, solo cambia el corte en el que se activa. */
+@media (max-width: 640px) {
+  .cal-legend { display: none; }
+  .hito-row { grid-template-columns: 22px 1fr auto; grid-template-rows: auto auto; }
+  .hito-row .hito-actions { grid-column: 1 / -1; justify-content: flex-end; }
+  .colab-invite-row { flex-wrap: wrap; }
+  .colab-invite-row input { flex: 1 1 100%; }
+  .pizarra-mgmt-row { flex-direction: column; align-items: stretch; }
+  .pizarra-mgmt-actions { justify-content: flex-end; }
+  .filters-grid { grid-template-columns: 1fr; }
+  .detalle-layout { grid-template-columns: 1fr; }
   .app { overflow-x: hidden; }
   .brand-name { display: none; }
   .topbar-pizarra-btn { display: none !important; }
@@ -2397,7 +2382,6 @@ html[data-theme="dark"] .switch .track::before { background: #cbd5e1; }
   .user-menu-name { display: none; }
   .topbar { padding: 0 12px; gap: 10px; }
   .tabbar { padding: 0 12px; }
-  .kpi { flex-basis: calc((100% - 22px) / 2); }
   .reports-grid { grid-template-columns: 1fr; }
   .resp-grid { grid-template-columns: 1fr; }
   #dynamicForm .row { grid-template-columns: 1fr; }
@@ -2627,10 +2611,6 @@ html[data-theme="dark"] .col-En-revision { background: rgba(139,92,246,0.06); }
   gap: 18px;
   align-items: start;
   margin-bottom: 18px;
-}
-
-@media (max-width: 700px) {
-  .detalle-layout { grid-template-columns: 1fr; }
 }
 
 /* ============== Detail input (inside drawer) ============== */
@@ -3423,12 +3403,6 @@ html[data-theme="dark"] .feed-comment-edit-actions .btn-delete { color: #fca5a5;
 html[data-theme="dark"] .ql-snow .ql-stroke { stroke: var(--muted); }
 html[data-theme="dark"] .ql-snow .ql-fill { fill: var(--muted); }
 html[data-theme="dark"] .ql-snow .ql-picker { color: var(--muted); }
-
-@media (max-width: 900px) {
-  .task-modal-body { flex-direction: column; }
-  .task-feed-panel { width: 100%; border-left: 0; border-top: 1px solid var(--border); max-height: 420px; }
-  .task-datos-grid { grid-template-columns: repeat(2, 1fr); }
-}
 
 .task-section { margin-bottom: 18px; }
 .task-section:last-child { margin-bottom: 0; }

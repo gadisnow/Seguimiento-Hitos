@@ -183,6 +183,17 @@
   .letterglyph.italic{font-style:italic;font-weight:600}
   .letterglyph.bold{font-weight:800}
 
+  /* ---------- mode toggle ---------- */
+  .mode-toggle-row{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    max-width:260px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-top:20px;
+  }
+  .mode-toggle-row .left{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink)}
+  .toggle-switch{width:38px;height:22px;border-radius:99px;background:var(--line);position:relative;flex-shrink:0}
+  .toggle-switch::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+  .toggle-switch.on{background:var(--blue)}
+  .toggle-switch.on::after{left:auto;right:2px}
+
   /* ---------- filetype exception ---------- */
   .filetype-menu{display:flex;flex-direction:column;gap:2px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px;max-width:260px}
   .filetype-item{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:8px;font-size:14px;font-weight:500;color:var(--ink)}
@@ -218,6 +229,43 @@
   .progress-wrap{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
   .progress-label{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
 
+  /* ---------- responsive: breakpoints + device mockups ---------- */
+  .bp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:20px}
+  .bp{border:1px solid var(--line);border-radius:12px;background:#fff;padding:16px 18px}
+  .bp .bp-name{font-weight:700;font-size:15px}
+  .bp .bp-range{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--blue);margin-top:2px}
+  .bp .bp-use{font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.5}
+
+  .devices{display:flex;align-items:flex-end;justify-content:center;gap:32px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:14px;padding:32px 20px;margin-top:20px}
+  .dev{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .dev .cap{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
+  .dev-screen{border:2px solid var(--ink);background:var(--paper);overflow:hidden;display:flex;flex-direction:column}
+  .dev-desktop .dev-screen{width:380px;height:236px;border-radius:8px}
+  .dev-tablet .dev-screen{width:196px;height:256px;border-radius:14px}
+  .dev-phone .dev-screen{width:116px;height:236px;border-radius:18px}
+  .mk-top{height:24px;flex-shrink:0;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px;padding:0 8px;color:#A1A1AA}
+  .mk-top .grow{flex:1}
+  .mk-tabs{display:flex;gap:7px;margin-left:8px;align-items:center}
+  .mk-tabs .on{color:var(--blue)}
+  .mk-avatar{width:11px;height:11px;border-radius:50%;background:var(--line)}
+  .mk-body{flex:1;display:flex;gap:6px;padding:8px;min-height:0;overflow:hidden}
+  .mk-col{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+  .mk-col.fixed{flex:0 0 54px}
+  .mk-col-h{height:12px;border-radius:4px}
+  .mk-card{height:30px;border-radius:5px;background:#fff;border:1px solid var(--line)}
+  .mk-pills{display:flex;gap:3px;padding:7px 7px 0}
+  .mk-pill{height:8px;flex:1;border-radius:99px;background:var(--line)}
+  .mk-pill.on{background:var(--blue)}
+  .mk-nav{height:28px;flex-shrink:0;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:center;color:#A1A1AA}
+  .mk-nav .on{color:var(--blue)}
+
+  .adapt{margin-top:24px;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}
+  .adapt-row{display:grid;grid-template-columns:1fr 1.15fr 1.15fr 1.15fr;border-top:1px solid var(--line)}
+  .adapt-row:first-child{border-top:none;background:var(--paper)}
+  .adapt-row > div{padding:12px 14px;font-size:13px;line-height:1.5;color:#3F3F46}
+  .adapt-row > div:first-child{font-weight:700;color:var(--ink)}
+  .adapt-row.head > div{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+
   /* ---------- do / dont ---------- */
   .rules{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:24px}
   .rule{border:1px solid var(--line);border-radius:12px;padding:20px;background:#fff}
@@ -248,11 +296,34 @@
 
   footer{padding:48px 0 64px;color:var(--muted);font-size:13px}
 
+  .panel svg,.clearspace svg{max-width:100%;height:auto}
+
+  /* Tablet: 641–1024 */
+  @media(max-width:1024px){
+    .wrap{padding:0 28px}
+    section{padding:60px 0}
+    h2{font-size:29px}
+    .adapt-row{grid-template-columns:.9fr 1fr 1fr 1fr}
+  }
+
+  /* Móvil: ≤ 640 */
   @media(max-width:680px){
     .grid2,.rules{grid-template-columns:1fr}
     .typerow{grid-template-columns:1fr;gap:6px}
     .wrap{padding:0 20px}
     section{padding:52px 0}
+    h2{font-size:26px}
+    .panel,.clearspace{padding:24px 16px}
+    .bp-grid{grid-template-columns:1fr}
+    .devices{padding:24px 12px;gap:24px}
+    .dev-desktop .dev-screen{width:296px;height:190px}
+    .adapt-row{grid-template-columns:1fr}
+    .adapt-row.head{display:none}
+    .adapt-row > div{padding:8px 14px}
+    .adapt-row > div:first-child{padding-top:14px}
+    .adapt-row > div:last-child{padding-bottom:14px}
+    .adapt-row > div[data-l]::before{content:attr(data-l);display:block;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--blue);margin-bottom:2px}
+    .tagpalette{grid-template-columns:repeat(2,1fr)}
   }
 </style>
 </head>
@@ -269,7 +340,7 @@
       </svg>
     </div>
     <h1>notby</h1>
-    <div class="sub">Manual de marca · v2.5</div>
+    <div class="sub">Manual de marca · v2.7</div>
   </div>
 </div>
 
@@ -459,7 +530,7 @@
     <h3>Ajustes obligatorios en dark mode</h3>
     <p>El logo no se invierte automáticamente. Sobre fondo oscuro cambian tres valores: el contenedor sube de <code>#18181B</code> a <code>#2E2E33</code> para no desaparecer contra la superficie; el azul pasa a <code>#60A5FA</code> porque el tono saturado pierde legibilidad sobre fondos oscuros; y la tarjeta superior baja de 45% a 33% de opacidad, ya que el blanco pesa más sobre gris carbón.</p>
     <p>La superficie oscura es <code>#1C1C1F</code>, no negro puro. El negro absoluto genera un contraste duro que cansa en sesiones largas, que es exactamente el modo en que se usa una herramienta de gestión. El gris es neutro y no cálido: mantiene la coherencia con el ink <code>#18181B</code> y funciona como base fría, coherente con el acento azul.</p>
-    <p><strong>Nota de contraste:</strong> <code>#2563EB</code> tiene menor luminancia que el naranja que reemplaza, así que no se comporta igual sobre todos los fondos. Texto en ink sólido sobre azul da ~2.9:1 (insuficiente incluso para texto grande) — por eso cualquier texto o ícono que vaya <em>sobre</em> un fondo azul sólido usa blanco, no ink. Ver el ejemplo en la sección 06 — Uso.</p>
+    <p><strong>Nota de contraste:</strong> <code>#2563EB</code> tiene menor luminancia que el naranja que reemplaza, así que no se comporta igual sobre todos los fondos. Texto en ink sólido sobre azul da ~2.9:1 (insuficiente incluso para texto grande) — por eso cualquier texto o ícono que vaya <em>sobre</em> un fondo azul sólido usa blanco, no ink. Ver el ejemplo en la sección 07 — Uso.</p>
     <p><strong>Colores de estado:</strong> además de esta paleta de marca, el producto usa un set de colores semánticos para el estado de temas y columnas (pendiente, en curso, bloqueado…). Es un sistema aparte — no reemplaza al azul de marca — documentado junto a sus íconos en 04 — Iconografía.</p>
 
     <h3>Colores funcionales</h3>
@@ -606,7 +677,15 @@
       </div>
       <div class="icon-card">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M21 12h-2.5M5.5 12H3M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8M18.4 18.4l-1.8-1.8M7.4 7.4L5.6 5.6"/>
+          <circle cx="12" cy="12" r="6.2"/><circle cx="12" cy="12" r="2.2"/>
+          <rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8"/>
+          <rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(45 12 12)"/>
+          <rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(90 12 12)"/>
+          <rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(135 12 12)"/>
+          <rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(180 12 12)"/>
+          <rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(225 12 12)"/>
+          <rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(270 12 12)"/>
+          <rect x="10.7" y="2.6" width="2.6" height="3" rx="0.8" transform="rotate(315 12 12)"/>
         </svg>
         <div class="iname">Ajustes</div>
       </div>
@@ -815,8 +894,16 @@
     </div>
 
     <h3>Acciones transversales</h3>
-    <p class="familynote">Configuración reutiliza Ajustes. Notificación reutiliza Alertas. Adjuntar archivo reutiliza Adjunto del set base.</p>
+    <p class="familynote">Configuración reutiliza Ajustes (engranaje — ver set base). Notificación reutiliza Alertas. Adjuntar archivo reutiliza Adjunto del set base.</p>
     <div class="icongrid compact">
+      <div class="icon-card">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.1 5.1l2.1 2.1M16.8 16.8l2.1 2.1M5.1 18.9l2.1-2.1M16.8 7.2l2.1-2.1"/></svg>
+        <div class="iname">Modo claro</div>
+      </div>
+      <div class="icon-card">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>
+        <div class="iname">Modo oscuro</div>
+      </div>
       <div class="icon-card">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 4.5h17L14 13v6.5l-4 2V13z"/></svg>
         <div class="iname">Filtrar</div>
@@ -838,6 +925,14 @@
         <div class="iname">Adjuntar imagen</div>
       </div>
     </div>
+    <div class="mode-toggle-row">
+      <div class="left">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>
+        Modo oscuro
+      </div>
+      <div class="toggle-switch"></div>
+    </div>
+    <div class="caption">El toggle usa un solo ícono según el estado actual del modo, no los dos a la vez — acá el sol/luna se documentan por separado para dejar registrados ambos glifos.</div>
 
     <h3>Formatos de archivo <span style="font-weight:400;color:var(--muted);font-size:13px">— excepción documentada</span></h3>
     <p class="familynote">Único caso en todo el sistema donde un ícono no es de línea ni monocromo. Excel, PDF y Word usan la convención de color por formato ya establecida fuera de la marca (verde, rojo, gris) — cambiarla generaría más fricción que coherencia. Aparecen exclusivamente dentro del menú que abre "Exportar" (línea/ink, set base) — nunca reemplazan a Exportar, ni el azul de acento se usa acá: el ítem resaltado del menú usa el mismo tinte de azul que cualquier fila activa (ver 05 — Componentes), no el color del formato.</p>
@@ -976,10 +1071,175 @@
   </div>
 </section>
 
+<!-- ============ ADAPTABILIDAD ============ -->
+<section>
+  <div class="wrap">
+    <div class="eyebrow">06 — Adaptabilidad</div>
+    <h2>PC, tablet y celular</h2>
+    <p>notby se usa en el escritorio para planificar y en el celular para consultar y actualizar en el momento. La marca no cambia entre dispositivos — lo que cambia es cuánto se muestra a la vez, cómo se navega y qué tamaño tiene lo que se toca. Tres reglas lo sostienen: el contenido se reorganiza antes de achicarse, todo lo que se toca mide al menos 44 px, y nada importante depende del hover.</p>
+
+    <h3>Breakpoints</h3>
+    <div class="bp-grid">
+      <div class="bp"><div class="bp-name">Móvil</div><div class="bp-range">hasta 640 px</div><div class="bp-use">Una columna, una mano. Navegación inferior fija, detalle en pantalla completa.</div></div>
+      <div class="bp"><div class="bp-name">Tablet</div><div class="bp-range">641 – 1024 px</div><div class="bp-use">Mitad de columnas con scroll horizontal. Táctil primero, pero con puntero si lo hay.</div></div>
+      <div class="bp"><div class="bp-name">Escritorio</div><div class="bp-range">desde 1025 px</div><div class="bp-use">Las cinco columnas a la vista, panel lateral del tema abierto, menús contextuales.</div></div>
+    </div>
+    <div class="note"><code>styles.css</code> hoy define breakpoints sueltos (520, 560, 600, 620, 640, 700, 900 y 1180 px). Al aplicar el manual conviene consolidarlos en dos cortes — <code>640</code> y <code>1024</code> — para que cada pantalla cambie en los mismos puntos y no haya zonas intermedias con layouts a medio adaptar.</div>
+
+    <h3>Cómo se ve en cada uno</h3>
+    <div class="devices">
+      <div class="dev dev-desktop">
+        <div class="dev-screen">
+          <div class="mk-top">
+            <svg width="12" height="12" viewBox="0 0 120 120"><rect width="120" height="120" rx="28" fill="#18181B"/><rect x="26" y="30" width="58" height="34" rx="10" fill="#fff" opacity=".45"/><rect x="38" y="56" width="58" height="34" rx="10" fill="#2563EB"/></svg>
+            <span style="font-weight:800;font-size:9px;letter-spacing:-.03em;color:var(--ink)">notby</span>
+            <div class="mk-tabs">
+              <svg class="on" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="4.5" height="15" rx="2"/><rect x="9.75" y="4.5" width="4.5" height="10" rx="2"/><rect x="16" y="4.5" width="4.5" height="13" rx="2"/></svg>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4"/><path d="M6 4.5h10.5a1 1 0 0 1 .8 1.6l-2.6 3.4 2.6 3.4a1 1 0 0 1-.8 1.6H6"/></svg>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="4"/><path d="M3.5 10h17"/></svg>
+            </div>
+            <div class="grow"></div>
+            <div class="mk-avatar"></div>
+          </div>
+          <div class="mk-body">
+            <div class="mk-col"><div class="mk-col-h" style="background:#EF4444"></div><div class="mk-card"></div><div class="mk-card"></div></div>
+            <div class="mk-col"><div class="mk-col-h" style="background:#3B82F6"></div><div class="mk-card"></div><div class="mk-card"></div></div>
+            <div class="mk-col"><div class="mk-col-h" style="background:#8B5CF6"></div><div class="mk-card"></div></div>
+            <div class="mk-col"><div class="mk-col-h" style="background:#F59E0B"></div><div class="mk-card"></div></div>
+            <div class="mk-col"><div class="mk-col-h" style="background:#10B981"></div><div class="mk-card"></div></div>
+          </div>
+        </div>
+        <div class="cap">Escritorio · 5 columnas</div>
+      </div>
+
+      <div class="dev dev-tablet">
+        <div class="dev-screen">
+          <div class="mk-top">
+            <svg width="12" height="12" viewBox="0 0 120 120"><rect width="120" height="120" rx="28" fill="#18181B"/><rect x="26" y="30" width="58" height="34" rx="10" fill="#fff" opacity=".45"/><rect x="38" y="56" width="58" height="34" rx="10" fill="#2563EB"/></svg>
+            <span style="font-weight:800;font-size:9px;letter-spacing:-.03em;color:var(--ink)">notby</span>
+            <div class="grow"></div>
+            <div class="mk-tabs" style="margin-left:0">
+              <svg class="on" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="4.5" height="15" rx="2"/><rect x="9.75" y="4.5" width="4.5" height="10" rx="2"/><rect x="16" y="4.5" width="4.5" height="13" rx="2"/></svg>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4"/><path d="M6 4.5h10.5a1 1 0 0 1 .8 1.6l-2.6 3.4 2.6 3.4a1 1 0 0 1-.8 1.6H6"/></svg>
+            </div>
+          </div>
+          <div class="mk-body">
+            <div class="mk-col fixed"><div class="mk-col-h" style="background:#EF4444"></div><div class="mk-card"></div><div class="mk-card"></div></div>
+            <div class="mk-col fixed"><div class="mk-col-h" style="background:#3B82F6"></div><div class="mk-card"></div><div class="mk-card"></div></div>
+            <div class="mk-col fixed"><div class="mk-col-h" style="background:#8B5CF6"></div><div class="mk-card"></div></div>
+            <div class="mk-col fixed"><div class="mk-col-h" style="background:#F59E0B"></div><div class="mk-card"></div></div>
+          </div>
+        </div>
+        <div class="cap">Tablet · 2–3 columnas + scroll</div>
+      </div>
+
+      <div class="dev dev-phone">
+        <div class="dev-screen">
+          <div class="mk-top">
+            <svg width="12" height="12" viewBox="0 0 120 120"><rect width="120" height="120" rx="28" fill="#18181B"/><rect x="26" y="30" width="58" height="34" rx="10" fill="#fff" opacity=".45"/><rect x="38" y="56" width="58" height="34" rx="10" fill="#2563EB"/></svg>
+            <div class="grow"></div>
+            <div class="mk-avatar"></div>
+          </div>
+          <div class="mk-pills"><div class="mk-pill"></div><div class="mk-pill on"></div><div class="mk-pill"></div><div class="mk-pill"></div><div class="mk-pill"></div></div>
+          <div class="mk-body" style="flex-direction:column">
+            <div class="mk-col-h" style="background:#3B82F6;flex:none"></div>
+            <div class="mk-card"></div><div class="mk-card"></div><div class="mk-card"></div>
+          </div>
+          <div class="mk-nav">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7.5" height="7.5" rx="2"/><rect x="13" y="3.5" width="7.5" height="7.5" rx="2"/><rect x="3.5" y="13" width="7.5" height="7.5" rx="2"/><rect x="13" y="13" width="7.5" height="7.5" rx="2"/></svg>
+            <svg class="on" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="4.5" height="15" rx="2"/><rect x="9.75" y="4.5" width="4.5" height="10" rx="2"/><rect x="16" y="4.5" width="4.5" height="13" rx="2"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4"/><path d="M6 4.5h10.5a1 1 0 0 1 .8 1.6l-2.6 3.4 2.6 3.4a1 1 0 0 1-.8 1.6H6"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9.5a6 6 0 0 1 12 0c0 4.5 1.8 5.8 1.8 5.8H4.2S6 14 6 9.5z"/><path d="M10 18.5a2 2 0 0 0 4 0"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="4"/><path d="M3.5 10h17"/></svg>
+          </div>
+        </div>
+        <div class="cap">Móvil · 1 columna</div>
+      </div>
+    </div>
+    <div class="caption">Esquemas, no pantallas reales. En móvil, la barra inferior reutiliza los cinco íconos de Navegación núcleo (04 — Iconografía) y el azul marca la sección activa.</div>
+
+    <h3>Qué cambia en cada tamaño</h3>
+    <div class="adapt">
+      <div class="adapt-row head"><div>Elemento</div><div>Escritorio</div><div>Tablet</div><div>Móvil</div></div>
+      <div class="adapt-row">
+        <div>Logo en el header</div>
+        <div data-l="Escritorio">Lockup horizontal</div>
+        <div data-l="Tablet">Lockup horizontal</div>
+        <div data-l="Móvil">Solo ícono (32 px). Lockup apilado en splash y login</div>
+      </div>
+      <div class="adapt-row">
+        <div>Navegación</div>
+        <div data-l="Escritorio">Barra superior: ícono + texto</div>
+        <div data-l="Tablet">Barra superior: ícono + texto corto</div>
+        <div data-l="Móvil">Barra inferior fija, 5 íconos; sección activa en azul</div>
+      </div>
+      <div class="adapt-row">
+        <div>Tablero</div>
+        <div data-l="Escritorio">5 columnas a la vista (ancho 220–800 px)</div>
+        <div data-l="Tablet">2–3 columnas con scroll horizontal y snap</div>
+        <div data-l="Móvil">Una columna por vez; el estado se elige con chips arriba</div>
+      </div>
+      <div class="adapt-row">
+        <div>Detalle del tema</div>
+        <div data-l="Escritorio">Modal centrado (máx. 960 px) con panel lateral abierto</div>
+        <div data-l="Tablet">Modal al 90% de ancho; panel lateral colapsado</div>
+        <div data-l="Móvil">Pantalla completa, con tabs y botón de volver</div>
+      </div>
+      <div class="adapt-row">
+        <div>Íconos</div>
+        <div data-l="Escritorio">24 px · 20 px en inputs y chips</div>
+        <div data-l="Tablet">24 px · área táctil 40 px</div>
+        <div data-l="Móvil">24 px · área táctil 44 px</div>
+      </div>
+      <div class="adapt-row">
+        <div>Tipografía</div>
+        <div data-l="Escritorio">Display 44 · Título 26 · Cuerpo 14–16</div>
+        <div data-l="Tablet">Display 36 · Título 24 · Cuerpo 15</div>
+        <div data-l="Móvil">Display 28 · Título 22 · Cuerpo 16 (inputs siempre ≥ 16 px: evita el zoom de iOS)</div>
+      </div>
+      <div class="adapt-row">
+        <div>Interacción</div>
+        <div data-l="Escritorio">Hover y clic; menús contextuales; arrastrar con puntero</div>
+        <div data-l="Tablet">Táctil primero; hover solo si hay puntero</div>
+        <div data-l="Móvil">Solo táctil: acciones en menú de más opciones, sin depender de hover</div>
+      </div>
+      <div class="adapt-row">
+        <div>Margen lateral</div>
+        <div data-l="Escritorio">32 px</div>
+        <div data-l="Tablet">28 px</div>
+        <div data-l="Móvil">16–20 px</div>
+      </div>
+    </div>
+
+    <div class="rules">
+      <div class="rule ok">
+        <span class="tag">Correcto</span>
+        <ul>
+          <li>Reorganizar el contenido antes de achicar la tipografía</li>
+          <li>Áreas táctiles de 44 px mínimo en móvil, aunque el glifo mida 24 px</li>
+          <li>Mismos íconos, mismos colores y mismo azul de acento en los tres tamaños</li>
+          <li>Probar claro y oscuro en cada breakpoint</li>
+          <li>Reservar <code>@media (hover: hover)</code> para los efectos de hover</li>
+        </ul>
+      </div>
+      <div class="rule no">
+        <span class="tag">Incorrecto</span>
+        <ul>
+          <li>Esconder una acción importante detrás de un hover</li>
+          <li>Inputs de menos de 16 px en móvil</li>
+          <li>Scroll horizontal de toda la página (solo el tablero puede scrollear a los costados)</li>
+          <li>Cambiar el logo, el acento o los colores de estado según el dispositivo</li>
+          <li>Crear breakpoints nuevos por pantalla en vez de usar 640 y 1024</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ============ USO ============ -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">06 — Uso</div>
+    <div class="eyebrow">07 — Uso</div>
     <h2>Qué sí y qué no</h2>
 
     <div class="rules">
@@ -1030,7 +1290,7 @@
 <!-- ============ VOZ ============ -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">07 — Voz</div>
+    <div class="eyebrow">08 — Voz</div>
     <h2>Cómo escribe notby</h2>
     <p>Verbos directos, sentence case, sin relleno. Las etiquetas nombran lo que la persona controla, no cómo está construido el sistema. Una acción conserva el mismo nombre en todo el flujo: si el botón dice "Publicar", el aviso dice "Publicado".</p>
     <p>Los errores no piden disculpas ni son vagos: explican qué pasó y cómo resolverlo. Una pantalla vacía es una invitación a actuar, no un mensaje de ánimo.</p>
@@ -1058,7 +1318,7 @@
 
 <footer>
   <div class="wrap">
-    notby — Manual de marca v2.5 · Agosto 2026<br>
+    notby — Manual de marca v2.7 · Agosto 2026<br>
     Consultas sobre uso de marca antes de aplicar el logo en contextos no cubiertos por este documento.
   </div>
 </footer>
