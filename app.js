@@ -2527,7 +2527,10 @@ const ICONS = {
   candado: `<rect x="5" y="11" width="14" height="9.5" rx="2.5"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/>`,
   papelera: `<path d="M4.5 7h15"/><path d="M6.5 7l1 12.5a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1L17.5 7"/><path d="M9.5 7V4.5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V7"/><path d="M10.2 11v6M13.8 11v6"/>`,
   lapiz: `<path d="M4 20l.9-4 10-10 3.1 3.1-10 10-4 .9z"/><path d="M13.5 6.5l3.1 3.1"/>`,
-  enlace: `<path d="M9.5 14.5l5-5"/><path d="M8 16l-1.5 1.5a3.2 3.2 0 0 1-4.5-4.5L4 11"/><path d="M16 8l1.5-1.5a3.2 3.2 0 0 1 4.5 4.5L20 13"/>`,
+  // Rediseñado en el manual v2.8: pasa de dos trazos diagonales sueltos a
+  // un icono de cadena (dos eslabones), mas reconocible como "enlace" a
+  // 15-16px (toolbar de Quill) que el trazo anterior.
+  enlace: `<g transform="rotate(-30 12 12)"><path d="M9.5 7.5H7.5a4.5 4.5 0 0 0 0 9h4"/><path d="M14.5 16.5h2a4.5 4.5 0 0 0 0-9h-4"/><path d="M9.75 12h4.5"/></g>`,
   comentario: `<path d="M4 5.5h16A1.5 1.5 0 0 1 21.5 7v8A1.5 1.5 0 0 1 20 16.5H9l-4.2 3.3a.5.5 0 0 1-.8-.4V16.5H4A1.5 1.5 0 0 1 2.5 15V7A1.5 1.5 0 0 1 4 5.5z"/>`,
   documento: `<path d="M6 3h7l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M13 3v4h4"/><path d="M8 12h8M8 15.5h8M8 9h3"/>`,
   alerta: `<path d="M12 3.5 21.3 20H2.7z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="0.9" fill="currentColor" stroke="none"/>`,
@@ -7104,15 +7107,26 @@ function notaReadCardHtml(n) {
 // igual gesto que una carpeta de apps en un celular. El mini-stack de
 // arriba es solo un preview (hasta 4 titulos), no son clickeables por si
 // solos.
+// Preview tipo carpeta de iOS: el stack se adapta a cuantas notas hay
+// realmente adentro (1 = un bloque ancho, 2 = dos lado a lado, 3 = uno
+// arriba + dos abajo, 4+ = grilla 2x2 con un "+N" en el ultimo lugar en
+// vez de la 4ta nota real). stack-<n> (n=1..4) define el grid-template-
+// columns en CSS; cada chip entra con una animacion escalonada
+// (nota-group-card-stack .nota-group-card-chip, ver styles.css) para que
+// se sienta una transicion, no un refresco brusco.
 function notaGroupCardHtml(grupo, notasDelGrupo) {
-  const preview = notasDelGrupo.slice(0, 4);
+  const total = notasDelGrupo.length;
+  const stackCount = Math.min(total, 4);
+  const preview = notasDelGrupo.slice(0, total > 4 ? 3 : 4);
+  const chips = preview.map((n) => `<span class="nota-group-card-chip">${escHtml(n.titulo || "Sin titulo")}</span>`);
+  if (total > 4) chips.push(`<span class="nota-group-card-chip nota-group-card-chip-more">+${total - 3}</span>`);
   return `
     <article class="nota-card nota-group-card" data-nota-group="${grupo.id}">
-      <div class="nota-group-card-stack">
-        ${preview.map((n) => `<span class="nota-group-card-chip">${escHtml(n.titulo || "Sin titulo")}</span>`).join("")}
-      </div>
       <div class="nota-card-titulo">${icon("carpeta", 13)} ${escHtml(grupo.nombre)}</div>
-      <div class="nota-card-meta">${notasDelGrupo.length} nota${notasDelGrupo.length === 1 ? "" : "s"}</div>
+      <div class="nota-group-card-stack stack-${stackCount}">
+        ${chips.join("")}
+      </div>
+      <div class="nota-card-meta">${total} nota${total === 1 ? "" : "s"}</div>
     </article>`;
 }
 

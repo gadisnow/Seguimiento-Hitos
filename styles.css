@@ -2091,19 +2091,49 @@ dialog#modalNewResp::backdrop {
 .nota-card.nota-merge-pop { animation: notaMergePop .3s ease; }
 .nota-card-titulo { font-size: 14px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
 
-/* Tile de grupo (carpeta): mismo tamaño/sombra que una nota suelta, pero
-   con un mini-stack de hasta 4 titulos arriba (preview tipo carpeta de
-   apps) y sin footer de acciones -- clic abre el popup con la lista. */
+/* Tile de grupo (carpeta): mismo tamaño/sombra que una nota suelta, con
+   el nombre del grupo arriba del todo y un mini-stack debajo (preview
+   tipo carpeta de apps) -- clic abre el popup con la lista. Sin footer de
+   acciones. Hover usa la misma transition de .nota-card (transform/
+   box-shadow .18s, linea ~2125) -- no hace falta redeclararla acá. */
 .nota-group-card { cursor: pointer; justify-content: flex-start; }
+.nota-group-card:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(15,23,42,0.12); }
+html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,0,0,0.3); }
+
+/* Adaptativo: la cantidad de columnas/filas del mini-stack cambia segun
+   cuantas notas tiene el grupo (1 a 4; de 5 en adelante la 4ta celda pasa
+   a ser un "+N" en vez de la 4ta nota real, ver notaGroupCardHtml en
+   app.js). grid-template-columns con transition propia (no alcanza con
+   la transition generica de .nota-card, que es sobre el ARTICLE, no
+   sobre este grid interno) para que pasar de, por ej., 1 a 2 columnas
+   al agregar una nota se sienta como un acomodo, no un salto. */
 .nota-group-card-stack {
   display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
   background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 6px;
   min-height: 56px;
+  transition: grid-template-columns .2s ease;
 }
+.nota-group-card-stack.stack-1 { grid-template-columns: 1fr; }
+.nota-group-card-stack.stack-3 .nota-group-card-chip:first-child { grid-column: 1 / -1; }
 .nota-group-card-chip {
   background: var(--card); border: 1px solid var(--border); border-radius: 5px;
   font-size: 10px; font-weight: 500; color: var(--muted); padding: 5px 6px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  animation: notaChipIn .22s var(--ease-out) backwards;
+}
+.nota-group-card-stack.stack-1 .nota-group-card-chip { display: flex; align-items: center; font-size: 11px; }
+.nota-group-card-chip-more {
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; color: var(--primary); background: var(--primary-soft);
+  border-color: var(--primary-soft-border);
+}
+.nota-group-card-stack .nota-group-card-chip:nth-child(1) { animation-delay: 0s; }
+.nota-group-card-stack .nota-group-card-chip:nth-child(2) { animation-delay: .035s; }
+.nota-group-card-stack .nota-group-card-chip:nth-child(3) { animation-delay: .07s; }
+.nota-group-card-stack .nota-group-card-chip:nth-child(4) { animation-delay: .105s; }
+@keyframes notaChipIn { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .nota-group-card-chip { animation: none; }
 }
 .nota-card-chips { display: flex; flex-wrap: wrap; gap: 5px; }
 .nota-chip {
