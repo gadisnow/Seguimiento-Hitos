@@ -7035,6 +7035,15 @@ function notaGrupoNombre(id) {
   return g ? g.nombre : "";
 }
 
+// Orden a asignarle a una nota que ENTRA a grupoId (recien creada, o
+// movida desde otro grupo/suelta) para que caiga al final de la lista
+// manual existente, en vez de competir por la posicion 0 con lo que ya
+// este ahi (ver migrations/037_notas_orden.sql).
+function nextOrdenEnGrupo(grupoId) {
+  const existentes = state.notas.filter((n) => n.grupoId === grupoId).map((n) => n.orden ?? 0);
+  return existentes.length ? Math.max(...existentes) + 1 : 0;
+}
+
 // Solo para notas sueltas (sin grupo): la tarjeta en blanco se edita
 // in-line en la grilla. Crear una nota DENTRO de un grupo se hace con
 // openNotaDetailEditForm(null, grupoId), que se queda en el popup.
@@ -7179,7 +7188,10 @@ function renderNotas() {
         if (gruposVistos.has(n.grupoId)) return;
         gruposVistos.add(n.grupoId);
         const grupo = (state.notasGrupos || []).find((g) => g.id === n.grupoId) || { id: n.grupoId, nombre: "Grupo" };
-        const delGrupo = notas.filter((x) => x.grupoId === n.grupoId);
+        // Mismo orden manual que el popup del grupo (ver openNotaGroupPopup),
+        // no el updatedAt desc del resto de la grilla -- asi el preview del
+        // tile no "salta" respecto de como se ve la lista de adentro.
+        const delGrupo = notas.filter((x) => x.grupoId === n.grupoId).sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
         cards.push(notaGroupCardHtml(grupo, delGrupo));
       } else {
         cards.push(notaReadCardHtml(n));
@@ -7204,28 +7216,36 @@ function renderNotas() {
 // =========================================================
 function openNotaGroupPopup(grupoId) {
   const grupo = (state.notasGrupos || []).find((g) => g.id === grupoId) || { id: grupoId, nombre: "Grupo" };
-  const notas = (state.notas || []).filter((n) => n.grupoId === grupoId).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  // Orden manual (arrastrar en la lista de abajo), no updatedAt -- ver
+  // migrations/037_notas_orden.sql.
+  const notas = (state.notas || []).filter((n) => n.grupoId === grupoId).sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
   els.dynamicForm.innerHTML = `
+    <div class="nota-popup-head-row">
+      <button type="button" class="ghost nota-popup-back" id="notaGroupBackBtn">${icon("chevronIzquierda", 13)} Volver</button>
+      <button type="button" class="icon-btn" id="notaGroupCloseBtn" title="Cerrar" aria-label="Cerrar">${icon("cerrar", 16)}</button>
+    </div>
     <div class="nota-group-popup-head">
       ${icon("carpeta", 16)}
       <input type="text" id="notaGroupNombreInput" class="nota-group-popup-nombre" maxlength="60" value="${escHtml(grupo.nombre)}" ${puedeEditar() ? "" : "disabled"} />
-      ${puedeEditar() ? `<button type="button" class="icon-btn" id="notaGroupDeleteBtn" title="Eliminar grupo">${icon("papelera", 14)}</button>` : ""}
     </div>
-    <div class="nota-group-popup-list">
+    <div class="nota-group-popup-list" id="notaGroupPopupList">
       ${notas.length ? notas.map((n) => `
-        <button type="button" class="nota-group-popup-item" data-nota-open="${n.id}">
+        <button type="button" class="nota-group-popup-item" data-nota-id="${n.id}" ${puedeEditar() ? 'draggable="true"' : ""}>
           <span class="nota-group-popup-item-titulo">${escHtml(n.titulo || "Sin titulo")}</span>
           <span class="nota-group-popup-item-meta">${fmtDateTimeNice(n.updatedAt)}</span>
         </button>
       `).join("") : `<p style="color:var(--muted)">Este grupo todavia no tiene notas.</p>`}
     </div>
-    <div class="btn-group">
-      ${puedeEditar() ? `<button type="button" class="ghost" id="notaGroupAddBtn">+ Nueva nota aqui</button>` : ""}
-      <button type="button" class="ghost js-close-modal-form">Cerrar</button>
-    </div>
+    ${puedeEditar() ? `
+      <div class="nota-popup-footer-row">
+        <button type="button" class="icon-btn nota-btn-danger" id="notaGroupDeleteBtn" title="Eliminar grupo" aria-label="Eliminar grupo">${icon("papelera", 16)}</button>
+        <button type="button" class="primary" id="notaGroupAddBtn">+ Nueva nota</button>
+      </div>` : ""}
   `;
-  els.dynamicForm.querySelectorAll("[data-nota-open]").forEach((btn) => {
-    btn.addEventListener("click", () => openNotaDetailPopup(btn.dataset.notaOpen, grupoId));
+  document.getElementById("notaGroupBackBtn").addEventListener("click", () => els.modalForm.close());
+  document.getElementById("notaGroupCloseBtn").addEventListener("click", () => els.modalForm.close());
+  els.dynamicForm.querySelectorAll("[data-nota-id]").forEach((btn) => {
+    btn.addEventListener("click", () => openNotaDetailPopup(btn.dataset.notaId, grupoId));
   });
   document.getElementById("notaGroupAddBtn")?.addEventListener("click", () => openNotaDetailEditForm(null, grupoId));
   document.getElementById("notaGroupDeleteBtn")?.addEventListener("click", async () => {
@@ -7256,6 +7276,39 @@ function openNotaGroupPopup(grupoId) {
     };
     nombreInput.addEventListener("blur", guardarNombre);
     nombreInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); nombreInput.blur(); } });
+  }
+
+  // Arrastrar para reordenar manualmente las notas de este grupo (mismo
+  // patron que bindKanban(): insertBefore segun la posicion vertical del
+  // cursor). Al soltar, se persiste el orden final del DOM -- no hace
+  // falta parchear state.notas a mano, reloadState() ya lo trae
+  // actualizado y no toca este popup (no esta atado a renderNotas()).
+  if (puedeEditar()) {
+    const list = document.getElementById("notaGroupPopupList");
+    let dragId = "";
+    list?.querySelectorAll(".nota-group-popup-item[draggable='true']").forEach((item) => {
+      item.addEventListener("dragstart", () => { dragId = item.dataset.notaId; item.classList.add("dragging"); });
+      item.addEventListener("dragend", () => item.classList.remove("dragging"));
+      item.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        const dragging = list.querySelector(".nota-group-popup-item.dragging");
+        if (!dragging || dragging === item) return;
+        const rect = item.getBoundingClientRect();
+        const before = (e.clientY - rect.top) < rect.height / 2;
+        item.parentElement.insertBefore(dragging, before ? item : item.nextSibling);
+      });
+    });
+    list?.addEventListener("dragover", (e) => e.preventDefault());
+    list?.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      if (!dragId) return;
+      dragId = "";
+      const orderedIds = [...list.querySelectorAll(".nota-group-popup-item")].map((el) => el.dataset.notaId);
+      await withBusy(async () => {
+        await dataApi.reorderNotas(orderedIds);
+        await reloadState();
+      });
+    });
   }
 
   if (!els.modalForm.open) els.modalForm.showModal();
@@ -7372,9 +7425,14 @@ function openNotaDetailEditForm(notaId, grupoId) {
     const html = notaPopupQuillInstance.root.innerHTML;
     const plain = notaPopupQuillInstance.getText().trim();
     if (!titulo && !plain) { showToast("La nota necesita un titulo o contenido."); return; }
+    // Cambio de grupo (o nota nueva directo en un grupo): va al final de
+    // la lista manual de ese grupo. Si el grupo no cambio, no se toca el
+    // orden existente (se omite el campo, ver updateNota en dataApi.js).
+    const cambioDeGrupo = nuevoGrupoId && nuevoGrupoId !== (existing?.grupoId || null);
+    const orden = cambioDeGrupo ? nextOrdenEnGrupo(nuevoGrupoId) : undefined;
     const ok = await withBusy(async () => {
-      if (existing) await dataApi.updateNota(notaId, titulo, html, { grupoId: nuevoGrupoId, temaId });
-      else await dataApi.createNota(titulo, html, { grupoId: nuevoGrupoId, temaId });
+      if (existing) await dataApi.updateNota(notaId, titulo, html, { grupoId: nuevoGrupoId, temaId, orden });
+      else await dataApi.createNota(titulo, html, { grupoId: nuevoGrupoId, temaId, orden: orden ?? null });
       await reloadState();
     });
     if (!ok) return;
@@ -7409,9 +7467,13 @@ async function mergeNotasEnGrupo(sourceId, targetId, targetEl) {
   targetEl?.classList.add("nota-merge-pop");
   await new Promise((resolve) => setTimeout(resolve, 220));
 
+  // Contador local (no nextOrdenEnGrupo repetido): si el grupo es nuevo,
+  // state.notas todavia no sabe de ninguna de las dos hasta el reloadState
+  // final, asi que llamarla dos veces daria el mismo valor para ambas.
+  let siguienteOrden = nextOrdenEnGrupo(grupoId);
   const ok = await withBusy(async () => {
-    if (source.grupoId !== grupoId) await dataApi.updateNota(source.id, source.titulo, source.contenido, { grupoId, temaId: source.temaId });
-    if (target.grupoId !== grupoId) await dataApi.updateNota(target.id, target.titulo, target.contenido, { grupoId, temaId: target.temaId });
+    if (source.grupoId !== grupoId) await dataApi.updateNota(source.id, source.titulo, source.contenido, { grupoId, temaId: source.temaId, orden: siguienteOrden++ });
+    if (target.grupoId !== grupoId) await dataApi.updateNota(target.id, target.titulo, target.contenido, { grupoId, temaId: target.temaId, orden: siguienteOrden++ });
     await reloadState();
   });
   if (ok) showToast(`Notas agrupadas en "${grupoNombre}"`);
@@ -7426,7 +7488,7 @@ async function addNotaToGrupo(notaId, grupoId, targetEl) {
   targetEl?.classList.add("nota-merge-pop");
   await new Promise((resolve) => setTimeout(resolve, 220));
   const ok = await withBusy(async () => {
-    await dataApi.updateNota(nota.id, nota.titulo, nota.contenido, { grupoId, temaId: nota.temaId });
+    await dataApi.updateNota(nota.id, nota.titulo, nota.contenido, { grupoId, temaId: nota.temaId, orden: nextOrdenEnGrupo(grupoId) });
     await reloadState();
   });
   if (ok) showToast("Nota agregada al grupo");
@@ -7560,9 +7622,12 @@ function wireNotaCards() {
     if (!titulo && !plain) { showToast("La nota necesita un titulo o contenido."); return; }
     const isEdit = editingNotaId !== "new";
     const idEnEdicion = editingNotaId;
+    const existente = isEdit ? state.notas.find((n) => n.id === idEnEdicion) : null;
+    const cambioDeGrupo = grupoId && grupoId !== (existente?.grupoId || null);
+    const orden = cambioDeGrupo ? nextOrdenEnGrupo(grupoId) : undefined;
     const ok = await withBusy(async () => {
-      if (isEdit) await dataApi.updateNota(idEnEdicion, titulo, html, { grupoId, temaId });
-      else await dataApi.createNota(titulo, html, { grupoId, temaId });
+      if (isEdit) await dataApi.updateNota(idEnEdicion, titulo, html, { grupoId, temaId, orden });
+      else await dataApi.createNota(titulo, html, { grupoId, temaId, orden: orden ?? null });
       editingNotaId = null;
       await reloadState();
     });

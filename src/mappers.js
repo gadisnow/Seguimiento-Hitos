@@ -277,6 +277,7 @@ export function notaFromRow(r) {
     contenido: r.contenido || "",
     grupoId: r.grupo_id || null,
     temaId: r.tema_id || null,
+    orden: r.orden,
     userId: r.user_id || null,
     autor: r.autor_nombre || "",
     createdAt: r.created_at,

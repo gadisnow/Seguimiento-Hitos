@@ -2196,15 +2196,16 @@ html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,
 }
 .nota-group-popup-nombre:hover:not(:disabled), .nota-group-popup-nombre:focus { border-color: var(--border); background: var(--card); }
 .nota-group-popup-nombre:disabled { color: var(--text); }
-.nota-group-popup-head .icon-btn { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; color: var(--vencido); }
-.nota-group-popup-head .icon-btn:hover { background: rgba(220,38,38,0.08); border-color: var(--vencido); }
 .nota-group-popup-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; margin: 4px 0 2px; }
 .nota-group-popup-item {
   display: flex; justify-content: space-between; align-items: center; gap: 10px;
   text-align: left; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
   background: var(--card);
+  transition: opacity .15s ease, transform .15s ease;
 }
 .nota-group-popup-item:hover { border-color: var(--primary); background: var(--primary-soft); }
+.nota-group-popup-item[draggable="true"] { cursor: grab; }
+.nota-group-popup-item.dragging { opacity: .4; }
 .nota-group-popup-item-titulo { font-weight: 600; font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nota-group-popup-item-meta { font-size: 11px; color: var(--muted); flex-shrink: 0; }
 /* Volver (si hay) a la izquierda, X de cerrar siempre a la derecha --

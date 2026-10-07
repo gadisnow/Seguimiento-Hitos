@@ -302,7 +302,7 @@ export async function deleteComentario(id) {
 // restringido al autor). grupoId agrupa tipo carpeta (ver notas_grupos
 // mas abajo) -- una nota pertenece a un grupo o ninguno.
 // =====================================================================
-export async function createNota(titulo, contenidoHtml, { grupoId = null, temaId = null } = {}) {
+export async function createNota(titulo, contenidoHtml, { grupoId = null, temaId = null, orden = null } = {}) {
   const id = crypto.randomUUID();
   const userId = currentUserId();
   const autorNombre = currentUserName();
@@ -315,25 +315,40 @@ export async function createNota(titulo, contenidoHtml, { grupoId = null, temaId
     contenido: contenidoLimpio,
     grupo_id: grupoId,
     tema_id: temaId,
+    orden,
     user_id: userId,
     autor_nombre: autorNombre
   }));
   const now = new Date().toISOString();
-  return { id, titulo: tituloLimpio, contenido: contenidoLimpio, grupoId, temaId, userId, autor: autorNombre, createdAt: now, updatedAt: now };
+  return { id, titulo: tituloLimpio, contenido: contenidoLimpio, grupoId, temaId, orden, userId, autor: autorNombre, createdAt: now, updatedAt: now };
 }
 
-export async function updateNota(id, titulo, contenidoHtml, { grupoId = null, temaId = null } = {}) {
-  must(await supabase.from("notas").update({
+// orden: undefined = no tocar (default, para cuando solo cambia titulo/
+// contenido/tema); se pasa un numero explicito cuando la nota entra a un
+// grupo distinto del que tenia y hay que mandarla al final (ver
+// nextOrdenEnGrupo en app.js).
+export async function updateNota(id, titulo, contenidoHtml, { grupoId = null, temaId = null, orden } = {}) {
+  const patch = {
     titulo: (titulo || "").trim(),
     contenido: DOMPurify.sanitize(contenidoHtml),
     grupo_id: grupoId,
     tema_id: temaId,
     updated_at: new Date().toISOString()
-  }).eq("id", id).eq("pizarra_id", currentPizarraId));
+  };
+  if (orden !== undefined) patch.orden = orden;
+  must(await supabase.from("notas").update(patch).eq("id", id).eq("pizarra_id", currentPizarraId));
 }
 
 export async function deleteNota(id) {
   must(await supabase.from("notas").delete().eq("id", id).eq("pizarra_id", currentPizarraId));
+}
+
+// Reasigna 'orden' segun el orden recibido (arrastre manual dentro del
+// popup de un grupo) -- mismo patron que reorderTemas/reorderHitos.
+export async function reorderNotas(orderedIds) {
+  await Promise.all(orderedIds.map((id, i) =>
+    supabase.from("notas").update({ orden: i }).eq("id", id).eq("pizarra_id", currentPizarraId)
+  ));
 }
 
 // ---------------- notas_grupos (carpetas de notas) ----------------
