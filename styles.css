@@ -2068,6 +2068,10 @@ dialog#modalNewResp::backdrop {
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
 }
+/* Altura FIJA (no min-height): toda tarjeta -- suelta o tile de grupo --
+   se ve como una miniatura de tamaño uniforme sin importar cuanto texto
+   tenga la nota adentro; lo que no entra lo recorta .nota-card-body
+   (line-clamp, ver mas abajo). */
 .nota-card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -2077,9 +2081,10 @@ dialog#modalNewResp::backdrop {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-height: 150px;
+  height: 170px;
   min-width: 0;
   transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease, border-color .18s ease;
+  cursor: pointer;
 }
 .nota-card[draggable="true"] { cursor: grab; }
 .nota-card.dragging { opacity: .4; transform: scale(.96) rotate(-1.5deg); }
@@ -2169,12 +2174,12 @@ html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,
 }
 .nota-card-body img:hover, .nota-popup-body img:hover { opacity: .85; }
 .nota-card-meta { font-size: 11px; color: var(--muted); margin-top: auto; padding-top: 4px; }
-.nota-card-footer { display: flex; gap: 8px; padding-top: 6px; border-top: 1px solid var(--border); margin-top: 4px; }
-.nota-btn { font-size: 12px; padding: 5px 10px; display: inline-flex; align-items: center; gap: 5px; }
 .nota-btn-danger { color: var(--vencido); }
 .nota-btn-danger:hover { background: rgba(220,38,38,0.08); border-color: var(--vencido); }
 
-.nota-card-editing { gap: 8px; }
+/* Formulario de edicion/creacion (openNotaDetailEditForm en app.js) --
+   ya no vive in-line en la grilla, es una vista mas dentro del popup
+   (.nota-popup-shell), pero reusa estas mismas clases de campo. */
 .nota-edit-titulo {
   font-size: 14px; font-weight: 600; color: var(--text);
   border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px;
@@ -2193,17 +2198,6 @@ html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,
   text-overflow: ellipsis;
 }
 
-/* .ql-container trae height:100% de quill.core.css. Adentro de un flex
-   column (.nota-card-editing) esa altura "100%" se resuelve contra la
-   altura que el propio algoritmo de flex ya le habia asignado a
-   .task-feed-quill-wrap -- circular, y el navegador termina agrandando
-   el editor mas alla de su contenedor, tapando los botones de abajo
-   (Guardar/Cancelar quedaban debajo del editor, sin poder clickearse).
-   height:auto (mas especifico por ID) corta esa circularidad. */
-#notaEditQuill { height: auto; background: var(--card); border-radius: 8px; }
-#notaEditQuill .ql-editor { min-height: 90px; font-size: 13.5px; }
-.nota-card-editing .task-feed-quill-wrap { flex-shrink: 0; }
-
 /* ---- Popups de grupo: lista -> detalle -> editar, dentro de #dynamicForm ---- */
 .nota-group-popup-head { display: flex; align-items: center; gap: 8px; color: var(--muted); }
 .nota-group-popup-nombre {
@@ -2214,7 +2208,11 @@ html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,
 }
 .nota-group-popup-nombre:hover:not(:disabled), .nota-group-popup-nombre:focus { border-color: var(--border); background: var(--card); }
 .nota-group-popup-nombre:disabled { color: var(--text); }
-.nota-group-popup-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; margin: 4px 0 2px; }
+/* Sin max-height/overflow propio: el scroll ya lo da .nota-popup-scroll
+   (el contenedor de afuera) -- un segundo scroll anidado aca adentro
+   duplicaba la barra y cortaba la lista antes de llegar al borde real
+   del popup. */
+.nota-group-popup-list { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 2px; }
 /* Contenedor (no boton -- adentro hay DOS botones: abrir y quitar del
    grupo, y un <button> no puede anidar otro <button>). Igual que .kcard
    en el kanban, los botones de adentro llevan draggable="false" para que
@@ -2243,19 +2241,54 @@ html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,
 .nota-group-popup-item-remove:hover { background: rgba(220,38,38,0.14); color: var(--vencido); }
 /* Volver (si hay) a la izquierda, X de cerrar siempre a la derecha --
    mismo header en el detalle de una nota y en su formulario de edicion
-   (ahi el lado izquierdo queda vacio, ver notaEditDetailForm en app.js). */
-.nota-popup-head-row { display: flex; justify-content: space-between; align-items: center; }
+   (ahi el lado izquierdo queda vacio, ver openNotaDetailEditForm en app.js). */
+.nota-popup-head-row { flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
 .nota-popup-back { font-size: 12px; padding: 5px 10px; display: inline-flex; align-items: center; gap: 4px; }
 .nota-popup-head-row .icon-btn { width: 32px; height: 32px; border-radius: 8px; }
-.nota-popup-body { font-size: 13.5px; color: var(--text); max-height: 45vh; overflow-y: auto; }
+.nota-popup-body { font-size: 13.5px; color: var(--text); }
 .nota-popup-body p { margin: 0 0 8px; }
 .nota-popup-body p:last-child { margin-bottom: 0; }
 /* Tacho a la izquierda, Editar a la derecha -- reemplaza el viejo
    btn-group de 3 botones (Editar/Eliminar/Cerrar); Cerrar ahora es la X
    del header de arriba. */
-.nota-popup-footer-row { display: flex; justify-content: space-between; align-items: center; }
+.nota-popup-footer-row { flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
 .nota-popup-footer-row .icon-btn { color: var(--vencido); }
 .nota-popup-footer-row .icon-btn:hover { background: rgba(220,38,38,0.08); border-color: var(--vencido); }
+
+/* Las tres vistas de notas (lista de grupo / detalle / editar) envuelven
+   su contenido en este shell para que el popup SIEMPRE tenga el mismo
+   tamaño y la misma posicion en pantalla (el ancho ya lo fija
+   dialog#modalForm; esto fija el alto). El header y el footer quedan
+   pegados arriba/abajo (flex-shrink:0 en sus reglas de mas arriba) y
+   .nota-popup-scroll es la unica region que scrollea cuando el
+   contenido (texto largo, lista larga de un grupo) no entra. */
+.nota-popup-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: min(580px, 76vh);
+}
+.nota-popup-shell > .btn-group { flex-shrink: 0; }
+.nota-popup-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* "Springboard": arranca el fade+scale generico de dialog#modalForm
+   (ver mas arriba, linea ~1673) desde el tile/tarjeta que se tocó en vez
+   de desde el centro -- transform-origin se calcula en JS
+   (prepareNotaPopupOpen en app.js) y la escala de partida es un poco mas
+   chica que la generica (.96) para que el "crecimiento desde el origen"
+   se note, como al abrir una carpeta de apps en un celular. Modificador
+   propio (no se toca la regla base) para no afectar el resto de usos
+   de este mismo dialog (Expedientes, Responsables, etc). */
+dialog#modalForm.nota-popup-open:not([open]) { transform: scale(0.82); }
+@starting-style {
+  dialog#modalForm.nota-popup-open[open] { transform: scale(0.82); }
+}
 /* Mismo bug/fix que #notaEditQuill: #dynamicForm es display:grid, y
    .ql-container{height:100%} de Quill se resuelve circular ahi tambien. */
 #notaPopupEditQuill { height: auto; background: var(--card); border-radius: 8px; }
