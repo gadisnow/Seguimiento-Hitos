@@ -1102,6 +1102,26 @@ function bindEvents() {
     if (link) { e.preventDefault(); window.open(link.href, "_blank", "noopener,noreferrer"); }
   });
 
+  // Click afuera de la nota (en el backdrop -- clickear el <dialog>
+  // mismo, no su contenido, da e.target === el dialog) cierra el popup,
+  // con el mismo aviso de cambios sin guardar que la X. Solo para notas
+  // (.nota-popup-open, puesto por prepareNotaPopupOpen) -- el resto de
+  // los usos de este dialog generico (Expedientes, Responsables, etc) no
+  // pidieron este comportamiento y quedan con su flujo de siempre.
+  els.modalForm?.addEventListener("click", (e) => {
+    if (e.target === els.modalForm && els.modalForm.classList.contains("nota-popup-open")) closeNotaPopupOrWarn();
+  });
+  // Misma regla para Escape: el evento "cancel" nativo del <dialog> se
+  // frena (preventDefault) si hay cambios sin guardar, en vez de dejar
+  // que cierre solo -- sin esto Escape se saltaba el aviso que si frena
+  // al click en la X o afuera.
+  els.modalForm?.addEventListener("cancel", (e) => {
+    if (els.modalForm.classList.contains("nota-popup-open") && notaPopupDirty) {
+      e.preventDefault();
+      showToast("Tenés cambios sin guardar. Guardalos o cancelá antes de cerrar.");
+    }
+  });
+
   // Reset permanente del transform-origin/clase que prepareNotaPopupOpen
   // deja puestos en el dialog generico -- sin esto, el proximo uso de
   // #modalForm para OTRA cosa (Expedientes, Responsables, etc) heredaria
@@ -7056,6 +7076,23 @@ function openExpedienteForm(existing = null, onCreated = null) {
 // =========================================================
 let notaPopupQuillInstance = null;
 let notaGrupoFiltro = ""; // "" = todas (grupos colapsados en tiles); "__sin_grupo__"
+// Si la vista actual del popup es el formulario de edicion y tiene cambios
+// sin guardar -- lo marca openNotaDetailEditForm, lo resetea cualquiera de
+// las tres funciones openNotaGroupPopup/openNotaDetailPopup/
+// openNotaDetailEditForm al renderizar su vista. Vive a nivel de modulo
+// (no como variable local de closure) porque el click afuera del dialog y
+// la tecla Escape -- ver bindEvents -- necesitan poder leerlo desde
+// afuera de openNotaDetailEditForm.
+let notaPopupDirty = false;
+
+// Mismo criterio para cerrar el popup sin importar como se dispare: boton
+// X, click en el backdrop (afuera de la nota) o tecla Escape. Si hay
+// cambios sin guardar en el formulario de edicion, avisa y NO cierra; si
+// no, cierra igual que un Cancelar.
+function closeNotaPopupOrWarn() {
+  if (notaPopupDirty) { showToast("Tenés cambios sin guardar. Guardalos o cancelá antes de cerrar."); return; }
+  els.modalForm.close();
+}
 function notaGrupoNombre(id) {
   const g = (state.notasGrupos || []).find((x) => x.id === id);
   return g ? g.nombre : "";
@@ -7233,6 +7270,7 @@ function renderNotas() {
 // que se tocó para llegar aca -- ver prepareNotaPopupOpen.
 // =========================================================
 function openNotaGroupPopup(grupoId, originEl = null) {
+  notaPopupDirty = false;
   const grupo = (state.notasGrupos || []).find((g) => g.id === grupoId) || { id: grupoId, nombre: "Grupo" };
   // Orden manual (arrastrar en la lista de abajo), no updatedAt -- ver
   // migrations/037_notas_orden.sql.
@@ -7350,6 +7388,7 @@ function openNotaGroupPopup(grupoId, originEl = null) {
 function openNotaDetailPopup(notaId, grupoId, originEl = null) {
   const nota = state.notas.find((n) => n.id === notaId);
   if (!nota) { if (grupoId) openNotaGroupPopup(grupoId); else els.modalForm.close(); return; }
+  notaPopupDirty = false;
   const tema = nota.temaId ? state.temas.find((t) => t.id === nota.temaId) : null;
   els.dynamicForm.innerHTML = `
     <div class="nota-popup-shell">
@@ -7399,6 +7438,7 @@ function openNotaDetailPopup(notaId, grupoId, originEl = null) {
 function openNotaDetailEditForm(notaId, grupoId, originEl = null) {
   const existing = notaId ? state.notas.find((n) => n.id === notaId) : null;
   if (notaId && !existing) { if (grupoId) openNotaGroupPopup(grupoId); else els.modalForm.close(); return; }
+  notaPopupDirty = false;
   const grupos = (state.notasGrupos || []).slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
   const temasOrdenados = state.temas.slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
   const grupoActual = existing ? existing.grupoId : grupoId;
@@ -7460,21 +7500,18 @@ function openNotaDetailEditForm(notaId, grupoId, originEl = null) {
     marcarDirty();
   });
 
-  // Guarda sin preguntar (es una salida explicita); la X de arriba, en
-  // cambio, es el cierre "accidental" -- esa si se frena si hay cambios
-  // sin guardar (notaFormDirty, marcado por interaccion real en vez de
-  // comparar HTML serializado contra el original, que puede diferir en
-  // formato sin que el usuario haya tocado nada).
-  let notaFormDirty = false;
-  function marcarDirty() { notaFormDirty = true; }
+  // Guarda sin preguntar (es una salida explicita); la X de arriba, el
+  // click afuera del popup y Escape, en cambio, son el cierre
+  // "accidental" -- esos si se frenan si hay cambios sin guardar
+  // (notaPopupDirty, marcado por interaccion real en vez de comparar HTML
+  // serializado contra el original, que puede diferir en formato sin que
+  // el usuario haya tocado nada).
+  function marcarDirty() { notaPopupDirty = true; }
   document.getElementById("notaPopupEditTitulo").addEventListener("input", marcarDirty);
   document.getElementById("notaPopupEditTema").addEventListener("change", marcarDirty);
   notaPopupQuillInstance.on("text-change", marcarDirty);
 
-  document.getElementById("notaPopupEditCloseBtn").addEventListener("click", () => {
-    if (notaFormDirty) { showToast("Tenés cambios sin guardar. Guardalos o cancelá antes de cerrar."); return; }
-    els.modalForm.close();
-  });
+  document.getElementById("notaPopupEditCloseBtn").addEventListener("click", closeNotaPopupOrWarn);
   document.getElementById("notaPopupCancelBtn").addEventListener("click", () => {
     if (existing) openNotaDetailPopup(notaId, grupoId);
     else if (grupoId) openNotaGroupPopup(grupoId);
