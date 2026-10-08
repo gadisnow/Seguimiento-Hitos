@@ -2155,12 +2155,17 @@ html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,
 }
 .nota-card-body p { margin: 0 0 6px; }
 .nota-card-body p:last-child { margin-bottom: 0; }
-/* Listas (vinetas/numeradas): el HTML que guarda Quill (quill.root.innerHTML)
+/* .nota-rich-preview: clase compartida por cualquier contenedor que
+   muestre el HTML de Quill en modo lectura -- .nota-card-body (grilla),
+   .nota-popup-body (detalle) y .nota-group-popup-item-preview (lista de
+   un grupo). Centraliza las dos cosas que ese HTML necesita para verse
+   bien fuera de un editor Quill montado: miniaturas de imagen de tamano
+   uniforme y el renderizado de listas con vineta/numero (ver mas abajo).
+   Listas (vinetas/numeradas): el HTML que guarda Quill (quill.root.innerHTML)
    es SIEMPRE un <ol> plano con <li data-list="bullet|ordered" class="ql-indent-N">
    por item -- la vineta/numero real la pinta un <span class="ql-ui"> que Quill
    inserta en vivo en el DOM del editor, pero que NO existe en el HTML guardado.
-   Fuera de un #notaPopupEditQuill (que trae el CSS de Quill completo via
-   quill.snow.css), un <li> asi se ve sin marcador y, como el navegador no
+   Sin el CSS de Quill, un <li> asi se ve sin marcador y, como el navegador no
    entiende ql-indent-N como nesting real (son <li> hermanos, la sangria es
    puramente visual), su numeracion decimal nativa los cuenta a todos
    seguidos sin respetar bullet vs. numerada ni el nivel de indentacion.
@@ -2168,57 +2173,58 @@ html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,
    poniendo el marcador directo en el ::before del <li>, hasta el nivel de
    indentacion 5 (los dos niveles que el toolbar de notas realmente permite
    con Tab se ven siempre; niveles mas profundos son un caso de borde). */
-.nota-card-body ol, .nota-popup-body ol,
-.nota-card-body ul, .nota-popup-body ul { margin: 0; padding: 0; }
-.nota-card-body li, .nota-popup-body li { list-style-type: none; padding-left: 1.5em; position: relative; }
-.nota-card-body li:before, .nota-popup-body li:before {
+.nota-rich-preview ol, .nota-rich-preview ul { margin: 0; padding: 0; }
+.nota-rich-preview li { list-style-type: none; padding-left: 1.5em; position: relative; }
+.nota-rich-preview li:before {
   display: inline-block; width: 1.2em; margin-left: -1.5em; margin-right: .3em;
   text-align: right; white-space: nowrap;
 }
-.nota-card-body li[data-list="bullet"]:before, .nota-popup-body li[data-list="bullet"]:before { content: "\2022"; }
-.nota-card-body li[data-list="checked"]:before, .nota-popup-body li[data-list="checked"]:before { content: "\2611"; color: var(--muted); }
-.nota-card-body li[data-list="unchecked"]:before, .nota-popup-body li[data-list="unchecked"]:before { content: "\2610"; color: var(--muted); }
-.nota-card-body p, .nota-card-body h1, .nota-card-body h2, .nota-card-body h3,
-.nota-popup-body p, .nota-popup-body h1, .nota-popup-body h2, .nota-popup-body h3 {
+.nota-rich-preview li[data-list="bullet"]:before { content: "\2022"; }
+.nota-rich-preview li[data-list="checked"]:before { content: "\2611"; color: var(--muted); }
+.nota-rich-preview li[data-list="unchecked"]:before { content: "\2610"; color: var(--muted); }
+.nota-rich-preview p, .nota-rich-preview h1, .nota-rich-preview h2, .nota-rich-preview h3 {
   counter-reset: list-0 list-1 list-2 list-3 list-4 list-5;
 }
-.nota-card-body li[data-list], .nota-popup-body li[data-list] { counter-reset: list-1 list-2 list-3 list-4 list-5; }
-.nota-card-body li[data-list="ordered"], .nota-popup-body li[data-list="ordered"] { counter-increment: list-0; }
-.nota-card-body li[data-list="ordered"]:before, .nota-popup-body li[data-list="ordered"]:before { content: counter(list-0, decimal) ". "; }
-.nota-card-body li[data-list="ordered"].ql-indent-1, .nota-popup-body li[data-list="ordered"].ql-indent-1 { counter-increment: list-1; }
-.nota-card-body li[data-list="ordered"].ql-indent-1:before, .nota-popup-body li[data-list="ordered"].ql-indent-1:before { content: counter(list-1, lower-alpha) ". "; }
-.nota-card-body li[data-list].ql-indent-1, .nota-popup-body li[data-list].ql-indent-1 { counter-reset: list-2 list-3 list-4 list-5; }
-.nota-card-body li[data-list="ordered"].ql-indent-2, .nota-popup-body li[data-list="ordered"].ql-indent-2 { counter-increment: list-2; }
-.nota-card-body li[data-list="ordered"].ql-indent-2:before, .nota-popup-body li[data-list="ordered"].ql-indent-2:before { content: counter(list-2, lower-roman) ". "; }
-.nota-card-body li[data-list].ql-indent-2, .nota-popup-body li[data-list].ql-indent-2 { counter-reset: list-3 list-4 list-5; }
-.nota-card-body li[data-list="ordered"].ql-indent-3, .nota-popup-body li[data-list="ordered"].ql-indent-3 { counter-increment: list-3; }
-.nota-card-body li[data-list="ordered"].ql-indent-3:before, .nota-popup-body li[data-list="ordered"].ql-indent-3:before { content: counter(list-3, decimal) ". "; }
-.nota-card-body li[data-list].ql-indent-3, .nota-popup-body li[data-list].ql-indent-3 { counter-reset: list-4 list-5; }
-.nota-card-body li[data-list="ordered"].ql-indent-4, .nota-popup-body li[data-list="ordered"].ql-indent-4 { counter-increment: list-4; }
-.nota-card-body li[data-list="ordered"].ql-indent-4:before, .nota-popup-body li[data-list="ordered"].ql-indent-4:before { content: counter(list-4, lower-alpha) ". "; }
-.nota-card-body li[data-list].ql-indent-4, .nota-popup-body li[data-list].ql-indent-4 { counter-reset: list-5; }
-.nota-card-body li[data-list="ordered"].ql-indent-5, .nota-popup-body li[data-list="ordered"].ql-indent-5 { counter-increment: list-5; }
-.nota-card-body li[data-list="ordered"].ql-indent-5:before, .nota-popup-body li[data-list="ordered"].ql-indent-5:before { content: counter(list-5, lower-roman) ". "; }
+.nota-rich-preview li[data-list] { counter-reset: list-1 list-2 list-3 list-4 list-5; }
+.nota-rich-preview li[data-list="ordered"] { counter-increment: list-0; }
+.nota-rich-preview li[data-list="ordered"]:before { content: counter(list-0, decimal) ". "; }
+.nota-rich-preview li[data-list="ordered"].ql-indent-1 { counter-increment: list-1; }
+.nota-rich-preview li[data-list="ordered"].ql-indent-1:before { content: counter(list-1, lower-alpha) ". "; }
+.nota-rich-preview li[data-list].ql-indent-1 { counter-reset: list-2 list-3 list-4 list-5; }
+.nota-rich-preview li[data-list="ordered"].ql-indent-2 { counter-increment: list-2; }
+.nota-rich-preview li[data-list="ordered"].ql-indent-2:before { content: counter(list-2, lower-roman) ". "; }
+.nota-rich-preview li[data-list].ql-indent-2 { counter-reset: list-3 list-4 list-5; }
+.nota-rich-preview li[data-list="ordered"].ql-indent-3 { counter-increment: list-3; }
+.nota-rich-preview li[data-list="ordered"].ql-indent-3:before { content: counter(list-3, decimal) ". "; }
+.nota-rich-preview li[data-list].ql-indent-3 { counter-reset: list-4 list-5; }
+.nota-rich-preview li[data-list="ordered"].ql-indent-4 { counter-increment: list-4; }
+.nota-rich-preview li[data-list="ordered"].ql-indent-4:before { content: counter(list-4, lower-alpha) ". "; }
+.nota-rich-preview li[data-list].ql-indent-4 { counter-reset: list-5; }
+.nota-rich-preview li[data-list="ordered"].ql-indent-5 { counter-increment: list-5; }
+.nota-rich-preview li[data-list="ordered"].ql-indent-5:before { content: counter(list-5, lower-roman) ". "; }
 /* Sangria visual por nivel (mismos valores que .ql-indent-N de Quill:
    padding-left = 3em*N + 1.5em en el <li>, ver quill.core.css). */
-.nota-card-body li.ql-indent-1, .nota-popup-body li.ql-indent-1 { padding-left: 4.5em; }
-.nota-card-body li.ql-indent-2, .nota-popup-body li.ql-indent-2 { padding-left: 7.5em; }
-.nota-card-body li.ql-indent-3, .nota-popup-body li.ql-indent-3 { padding-left: 10.5em; }
-.nota-card-body li.ql-indent-4, .nota-popup-body li.ql-indent-4 { padding-left: 13.5em; }
-.nota-card-body li.ql-indent-5, .nota-popup-body li.ql-indent-5 { padding-left: 16.5em; }
+.nota-rich-preview li.ql-indent-1 { padding-left: 4.5em; }
+.nota-rich-preview li.ql-indent-2 { padding-left: 7.5em; }
+.nota-rich-preview li.ql-indent-3 { padding-left: 10.5em; }
+.nota-rich-preview li.ql-indent-4 { padding-left: 13.5em; }
+.nota-rich-preview li.ql-indent-5 { padding-left: 16.5em; }
 /* Imagenes adjuntas (Quill las inserta como <img> base64 inline, igual
    que en comentarios): siempre el mismo tamano de miniatura en vez del
    tamano original de la imagen pegada -- object-fit:cover recorta en vez
-   de deformar. Mismo tratamiento en la tarjeta, el popup de detalle y
-   los dos editores (ahi sin click-to-ampliar, ver wireNotaCards/
-   bindEvents -- durante la edicion el click selecciona/mueve el cursor
-   de Quill, no corresponde interceptarlo). */
-.nota-card-body img, .nota-popup-body img,
-#notaEditQuill .ql-editor img, #notaPopupEditQuill .ql-editor img {
+   de deformar. En los dos editores (#notaPopupEditQuill) van aparte, sin
+   click-to-ampliar -- ahi el click selecciona/mueve el cursor de Quill,
+   no corresponde interceptarlo. */
+.nota-rich-preview img, #notaPopupEditQuill .ql-editor img {
   display: inline-block; width: 64px; height: 64px; object-fit: cover;
   border-radius: 8px; border: 1px solid var(--border);
   margin: 2px; vertical-align: middle;
 }
+/* Cursor/hover de "ampliable" solo donde el click sobre la imagen abre el
+   lightbox (.nota-card-body, .nota-popup-body -- ver wireNotaCards/
+   bindEvents). En .nota-group-popup-item-preview el click abre la nota
+   entera (es un preview chico dentro de una fila ya clickeable), asi que
+   no corresponde prometer zoom directo sobre la imagen. */
 .nota-card-body img, .nota-popup-body img {
   cursor: zoom-in;
   transition: opacity .12s ease;
@@ -2264,13 +2270,18 @@ html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,
    duplicaba la barra y cortaba la lista antes de llegar al borde real
    del popup. */
 .nota-group-popup-list { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 2px; }
-/* Contenedor (no boton -- adentro hay DOS botones: abrir y quitar del
-   grupo, y un <button> no puede anidar otro <button>). Igual que .kcard
-   en el kanban, los botones de adentro llevan draggable="false" para que
-   el drag-and-drop de reordenar siga arrancando desde el resto de la
-   fila sin que el click en ellos lo interrumpa. */
+/* Contenedor (no boton -- adentro hay un boton "quitar del grupo" y un
+   <button> no puede anidar otro <button>; -open tampoco es boton por la
+   misma razon: el preview de contenido puede traer un <a> de Quill, y un
+   <a> interactivo tampoco puede ir dentro de un <button>. Mismo click-
+   to-open que una tarjeta de la grilla -- cursor:pointer en -open, no en
+   el contenedor entero, para no prometer click en el borde/gap). Igual
+   que .kcard en el kanban, los elementos de adentro llevan
+   draggable="false" para que el drag-and-drop de reordenar siga
+   arrancando desde el resto de la fila sin que el click en ellos lo
+   interrumpa. */
 .nota-group-popup-item {
-  display: flex; align-items: center; gap: 2px;
+  display: flex; align-items: flex-start; gap: 2px;
   border: 1px solid var(--border); border-radius: 8px;
   background: var(--card);
   transition: opacity .15s ease, transform .15s ease, border-color .15s ease, background .15s ease;
@@ -2278,14 +2289,26 @@ html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,
 .nota-group-popup-item:hover { border-color: var(--primary); background: var(--primary-soft); }
 .nota-group-popup-item[draggable="true"] { cursor: grab; }
 .nota-group-popup-item.dragging { opacity: .4; }
+/* Las notas agrupadas se ven mas chicas que las de la grilla (son un
+   preview dentro de una lista, no la tarjeta principal) -- 2 lineas de
+   contenido en vez de 6, pero al tocarlas abren exactamente el mismo
+   popup de siempre (openNotaDetailPopup), con las mismas condiciones
+   que cualquier otra nota. */
 .nota-group-popup-item-open {
-  flex: 1; min-width: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px;
-  text-align: left; padding: 10px 12px; background: transparent; border: 0; border-radius: 8px;
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;
+  text-align: left; padding: 10px 12px; cursor: pointer;
 }
+.nota-group-popup-item-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .nota-group-popup-item-titulo { font-weight: 600; font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nota-group-popup-item-meta { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+.nota-group-popup-item-preview {
+  font-size: 12px; color: var(--muted); line-height: 1.4;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.nota-group-popup-item-preview p { margin: 0 0 3px; }
+.nota-group-popup-item-preview p:last-child { margin-bottom: 0; }
 .nota-group-popup-item-remove {
-  flex-shrink: 0; width: 24px; height: 24px; margin-right: 8px;
+  flex-shrink: 0; width: 24px; height: 24px; margin: 8px 8px 0 0;
   display: inline-flex; align-items: center; justify-content: center;
   border: 0; background: transparent; color: var(--muted); border-radius: 50%;
 }

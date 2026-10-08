@@ -7185,7 +7185,7 @@ function notaReadCardHtml(n) {
     <article class="nota-card" data-nota-id="${n.id}" ${puedeEditar() ? 'draggable="true"' : ""}>
       <div class="nota-card-titulo">${escHtml(n.titulo || "Sin titulo")}</div>
       ${chips ? `<div class="nota-card-chips">${chips}</div>` : ""}
-      <div class="nota-card-body">${n.contenido || ""}</div>
+      <div class="nota-card-body nota-rich-preview">${n.contenido || ""}</div>
       <div class="nota-card-meta">${n.autor ? escHtml(n.autor) + " · " : ""}${fmtDateTimeNice(n.updatedAt)}</div>
     </article>`;
 }
@@ -7289,10 +7289,13 @@ function openNotaGroupPopup(grupoId, originEl = null) {
         <div class="nota-group-popup-list" id="notaGroupPopupList">
           ${notas.length ? notas.map((n) => `
             <div class="nota-group-popup-item" data-nota-id="${n.id}" ${puedeEditar() ? 'draggable="true"' : ""}>
-              <button type="button" class="nota-group-popup-item-open" data-nota-id="${n.id}" draggable="false">
-                <span class="nota-group-popup-item-titulo">${escHtml(n.titulo || "Sin titulo")}</span>
-                <span class="nota-group-popup-item-meta">${fmtDateTimeNice(n.updatedAt)}</span>
-              </button>
+              <div class="nota-group-popup-item-open" data-nota-id="${n.id}" draggable="false">
+                <div class="nota-group-popup-item-head">
+                  <span class="nota-group-popup-item-titulo">${escHtml(n.titulo || "Sin titulo")}</span>
+                  <span class="nota-group-popup-item-meta">${fmtDateTimeNice(n.updatedAt)}</span>
+                </div>
+                <div class="nota-group-popup-item-preview nota-rich-preview">${n.contenido || ""}</div>
+              </div>
               ${puedeEditar() ? `<button type="button" class="nota-group-popup-item-remove" data-nota-remove="${n.id}" draggable="false" title="Quitar del grupo" aria-label="Quitar del grupo">${icon("cerrar", 12)}</button>` : ""}
             </div>
           `).join("") : `<p style="color:var(--muted)">Este grupo todavia no tiene notas.</p>`}
@@ -7307,8 +7310,15 @@ function openNotaGroupPopup(grupoId, originEl = null) {
   `;
   document.getElementById("notaGroupBackBtn").addEventListener("click", () => els.modalForm.close());
   document.getElementById("notaGroupCloseBtn").addEventListener("click", () => els.modalForm.close());
-  els.dynamicForm.querySelectorAll(".nota-group-popup-item-open").forEach((btn) => {
-    btn.addEventListener("click", () => openNotaDetailPopup(btn.dataset.notaId, grupoId));
+  els.dynamicForm.querySelectorAll(".nota-group-popup-item-open").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      // Enlace dentro del preview: se abre en pestaña nueva, igual que en
+      // .nota-card-body/.nota-popup-body -- no corresponde ademas abrir
+      // el popup de detalle encima.
+      const link = e.target.closest(".nota-group-popup-item-preview a[href]");
+      if (link) { e.preventDefault(); window.open(link.href, "_blank", "noopener,noreferrer"); return; }
+      openNotaDetailPopup(el.dataset.notaId, grupoId);
+    });
   });
   els.dynamicForm.querySelectorAll("[data-nota-remove]").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
@@ -7399,7 +7409,7 @@ function openNotaDetailPopup(notaId, grupoId, originEl = null) {
       <div class="nota-popup-scroll">
         <h3>${escHtml(nota.titulo || "Sin titulo")}</h3>
         ${tema ? `<button type="button" class="nota-chip nota-chip-link" data-nota-open-tema="${tema.id}">${icon("enlace", 11)} ${escHtml(tema.nombre)}</button>` : ""}
-        <div class="nota-popup-body">${nota.contenido || ""}</div>
+        <div class="nota-popup-body nota-rich-preview">${nota.contenido || ""}</div>
         <div class="nota-card-meta">${nota.autor ? escHtml(nota.autor) + " · " : ""}${fmtDateTimeNice(nota.updatedAt)}</div>
       </div>
       ${puedeEditar() ? `
