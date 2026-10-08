@@ -2155,6 +2155,57 @@ html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,
 }
 .nota-card-body p { margin: 0 0 6px; }
 .nota-card-body p:last-child { margin-bottom: 0; }
+/* Listas (vinetas/numeradas): el HTML que guarda Quill (quill.root.innerHTML)
+   es SIEMPRE un <ol> plano con <li data-list="bullet|ordered" class="ql-indent-N">
+   por item -- la vineta/numero real la pinta un <span class="ql-ui"> que Quill
+   inserta en vivo en el DOM del editor, pero que NO existe en el HTML guardado.
+   Fuera de un #notaPopupEditQuill (que trae el CSS de Quill completo via
+   quill.snow.css), un <li> asi se ve sin marcador y, como el navegador no
+   entiende ql-indent-N como nesting real (son <li> hermanos, la sangria es
+   puramente visual), su numeracion decimal nativa los cuenta a todos
+   seguidos sin respetar bullet vs. numerada ni el nivel de indentacion.
+   Esto reconstruye el mismo algoritmo que usa Quill (quill.core.css) pero
+   poniendo el marcador directo en el ::before del <li>, hasta el nivel de
+   indentacion 5 (los dos niveles que el toolbar de notas realmente permite
+   con Tab se ven siempre; niveles mas profundos son un caso de borde). */
+.nota-card-body ol, .nota-popup-body ol,
+.nota-card-body ul, .nota-popup-body ul { margin: 0; padding: 0; }
+.nota-card-body li, .nota-popup-body li { list-style-type: none; padding-left: 1.5em; position: relative; }
+.nota-card-body li:before, .nota-popup-body li:before {
+  display: inline-block; width: 1.2em; margin-left: -1.5em; margin-right: .3em;
+  text-align: right; white-space: nowrap;
+}
+.nota-card-body li[data-list="bullet"]:before, .nota-popup-body li[data-list="bullet"]:before { content: "\2022"; }
+.nota-card-body li[data-list="checked"]:before, .nota-popup-body li[data-list="checked"]:before { content: "\2611"; color: var(--muted); }
+.nota-card-body li[data-list="unchecked"]:before, .nota-popup-body li[data-list="unchecked"]:before { content: "\2610"; color: var(--muted); }
+.nota-card-body p, .nota-card-body h1, .nota-card-body h2, .nota-card-body h3,
+.nota-popup-body p, .nota-popup-body h1, .nota-popup-body h2, .nota-popup-body h3 {
+  counter-reset: list-0 list-1 list-2 list-3 list-4 list-5;
+}
+.nota-card-body li[data-list], .nota-popup-body li[data-list] { counter-reset: list-1 list-2 list-3 list-4 list-5; }
+.nota-card-body li[data-list="ordered"], .nota-popup-body li[data-list="ordered"] { counter-increment: list-0; }
+.nota-card-body li[data-list="ordered"]:before, .nota-popup-body li[data-list="ordered"]:before { content: counter(list-0, decimal) ". "; }
+.nota-card-body li[data-list="ordered"].ql-indent-1, .nota-popup-body li[data-list="ordered"].ql-indent-1 { counter-increment: list-1; }
+.nota-card-body li[data-list="ordered"].ql-indent-1:before, .nota-popup-body li[data-list="ordered"].ql-indent-1:before { content: counter(list-1, lower-alpha) ". "; }
+.nota-card-body li[data-list].ql-indent-1, .nota-popup-body li[data-list].ql-indent-1 { counter-reset: list-2 list-3 list-4 list-5; }
+.nota-card-body li[data-list="ordered"].ql-indent-2, .nota-popup-body li[data-list="ordered"].ql-indent-2 { counter-increment: list-2; }
+.nota-card-body li[data-list="ordered"].ql-indent-2:before, .nota-popup-body li[data-list="ordered"].ql-indent-2:before { content: counter(list-2, lower-roman) ". "; }
+.nota-card-body li[data-list].ql-indent-2, .nota-popup-body li[data-list].ql-indent-2 { counter-reset: list-3 list-4 list-5; }
+.nota-card-body li[data-list="ordered"].ql-indent-3, .nota-popup-body li[data-list="ordered"].ql-indent-3 { counter-increment: list-3; }
+.nota-card-body li[data-list="ordered"].ql-indent-3:before, .nota-popup-body li[data-list="ordered"].ql-indent-3:before { content: counter(list-3, decimal) ". "; }
+.nota-card-body li[data-list].ql-indent-3, .nota-popup-body li[data-list].ql-indent-3 { counter-reset: list-4 list-5; }
+.nota-card-body li[data-list="ordered"].ql-indent-4, .nota-popup-body li[data-list="ordered"].ql-indent-4 { counter-increment: list-4; }
+.nota-card-body li[data-list="ordered"].ql-indent-4:before, .nota-popup-body li[data-list="ordered"].ql-indent-4:before { content: counter(list-4, lower-alpha) ". "; }
+.nota-card-body li[data-list].ql-indent-4, .nota-popup-body li[data-list].ql-indent-4 { counter-reset: list-5; }
+.nota-card-body li[data-list="ordered"].ql-indent-5, .nota-popup-body li[data-list="ordered"].ql-indent-5 { counter-increment: list-5; }
+.nota-card-body li[data-list="ordered"].ql-indent-5:before, .nota-popup-body li[data-list="ordered"].ql-indent-5:before { content: counter(list-5, lower-roman) ". "; }
+/* Sangria visual por nivel (mismos valores que .ql-indent-N de Quill:
+   padding-left = 3em*N + 1.5em en el <li>, ver quill.core.css). */
+.nota-card-body li.ql-indent-1, .nota-popup-body li.ql-indent-1 { padding-left: 4.5em; }
+.nota-card-body li.ql-indent-2, .nota-popup-body li.ql-indent-2 { padding-left: 7.5em; }
+.nota-card-body li.ql-indent-3, .nota-popup-body li.ql-indent-3 { padding-left: 10.5em; }
+.nota-card-body li.ql-indent-4, .nota-popup-body li.ql-indent-4 { padding-left: 13.5em; }
+.nota-card-body li.ql-indent-5, .nota-popup-body li.ql-indent-5 { padding-left: 16.5em; }
 /* Imagenes adjuntas (Quill las inserta como <img> base64 inline, igual
    que en comentarios): siempre el mismo tamano de miniatura en vez del
    tamano original de la imagen pegada -- object-fit:cover recorta en vez
