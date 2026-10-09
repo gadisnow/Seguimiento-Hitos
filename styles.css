@@ -2125,8 +2125,13 @@ dialog#modalNewResp::backdrop {
    acciones. Hover usa la misma transition de .nota-card (transform/
    box-shadow .18s, linea ~2125) -- no hace falta redeclararla acá. */
 .nota-group-card { cursor: pointer; justify-content: flex-start; }
-.nota-group-card:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(15,23,42,0.12); }
-html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,0,0,0.3); }
+/* Mismo levante al pasar el mouse en TODAS las notas: tiles de la grilla
+   (sueltas y grupos) y las tarjetas dentro del popup de un grupo. Se
+   excluyen las que estan en pleno drag/merge, que tienen su propio transform. */
+.nota-card:not(.dragging):not(.nota-merge-target):hover,
+.nota-group-popup-item:not(.dragging):hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(15,23,42,0.12); }
+html[data-theme="dark"] .nota-card:not(.dragging):not(.nota-merge-target):hover,
+html[data-theme="dark"] .nota-group-popup-item:not(.dragging):hover { box-shadow: 0 10px 22px rgba(0,0,0,0.3); }
 
 /* Adaptativo: la cantidad de columnas/filas del mini-stack cambia segun
    cuantas notas tiene el grupo (1 a 4; de 5 en adelante la 4ta celda pasa
@@ -2352,7 +2357,7 @@ html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,
   display: flex;
   border: 1px solid var(--border); border-radius: 8px;
   background: var(--card);
-  transition: opacity .15s ease, transform .15s ease, border-color .15s ease, background .15s ease;
+  transition: opacity .18s ease, transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
 }
 .nota-group-popup-item:hover { border-color: var(--primary); background: var(--primary-soft); }
 .nota-group-popup-item[draggable="true"] { cursor: grab; }
