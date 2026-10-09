@@ -659,69 +659,159 @@ button {
 .sem-orange .when { background: #ffedd5; color: #c2410c; }
 .sem-yellow .when { background: #fef3c7; color: #b45309; }
 
-/* ============== Tables ============== */
+/* ============== Tables ==============
+   Manual de marca v3.2, seccion 09 -- las tablas son lo mas sobrio del
+   sistema: texto de 13px, lineas finas, sin cebreado ni bordes
+   verticales, sin relleno de color salvo lo seleccionado. El color solo
+   aparece para decir algo y siempre acompañado de un punto, icono o texto.
+   - Encabezado: 12px, peso 600, gris, borde inferior de linea, fijo arriba.
+   - Fila: 44px; celda con 12px de relleno horizontal.
+   - IDs/codigos: JetBrains Mono 12px gris. Numeros a la derecha, tabulares.
+   - Ordenar: doble chevron gris; la columna activa, chevron azul con el
+     sentido (aria-sort). Ciclo: ascendente, descendente, original.
+   - Fila clicable: lavado ink 6% + "Editar" en azul (solo con puntero);
+     foco: anillo azul de 2px hacia adentro; seleccionada: tinte azul con
+     barra de 3px a la izquierda.
+   - Scroll horizontal dentro del contenedor, primera columna fija.
+   - Paginacion de 25 filas (enhanceDataTables en app.js).
+   - <=640px: lista de tarjetas con tema, estado, responsable y vencimiento. */
 .table-wrap { overflow: auto; }
 
 .data-table {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+  border-collapse: separate; border-spacing: 0;
+  font-size: 13px; color: var(--text);
   min-width: 720px;
 }
-
 .data-table th {
-  text-align: left;
-  font-weight: 600;
-  color: var(--muted);
+  position: sticky; top: 0; z-index: 2;
+  background: var(--card);
+  text-align: left; white-space: nowrap;
+  font-weight: 600; font-size: 12px; color: var(--muted); text-transform: none;
   border-bottom: 1px solid var(--border);
-  padding: 12px 12px;
-  font-size: 12px;
-  text-transform: none;
+  padding: 12px;
 }
-
-.data-table th.sortable {
-  cursor: pointer;
-  user-select: none;
-  position: relative;
-}
-
-.data-table th.sortable::after {
-  content: "↕";
-  margin-left: 8px;
-  font-size: 0.82em;
-  opacity: 0.7;
-}
-
-.data-table th.sortable.sorted-asc::after {
-  content: "▲";
-}
-
-.data-table th.sortable.sorted-desc::after {
-  content: "▼";
-}
-
 .data-table td {
-  padding: 12px 12px;
-  border-bottom: 1px solid #f1f4f8;
-  vertical-align: middle;
+  height: 44px; padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle; white-space: nowrap;
+  background: var(--card);
 }
+.data-table tbody tr:last-child td { border-bottom: 0; }
+.data-table th:first-child, .data-table td:first-child { position: sticky; left: 0; z-index: 1; }
+.data-table th:first-child { z-index: 3; }
 
-.data-table tbody tr:hover { background: #fafbff; cursor: pointer; }
+/* Ordenar: iconos del set (no los glifos de texto) */
+.data-table th.sortable { cursor: pointer; user-select: none; }
+.data-table th.sortable::after {
+  content: ""; display: inline-block; vertical-align: -2px;
+  width: 12px; height: 12px; margin-left: 4px;
+  background-color: #A1A1AA;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 9l4-4 4 4M8 15l4 4 4-4'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 9l4-4 4 4M8 15l4 4 4-4'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.data-table th.sortable.sorted-asc, .data-table th.sortable.sorted-desc { color: var(--text); }
+.data-table th.sortable.sorted-asc::after, .data-table th.sortable.sorted-desc::after {
+  background-color: var(--primary);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 15l6-6 6 6'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 15l6-6 6 6'/%3E%3C/svg%3E");
+}
+.data-table th.sortable.sorted-desc::after { transform: rotate(180deg); }
 
+/* Codigos e IDs; numeros */
+.data-table td.mono, .data-table td .exp-numero-cell { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: var(--muted); }
+.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Fila clicable: hover, foco y seleccion (estados de la seccion 07) */
 .clickable-row { cursor: pointer; }
-.clickable-row:hover { background: #f0f6ff !important; }
-.clickable-row:hover .row-edit-hint { opacity: 1; }
-
+.clickable-row:focus { outline: none; }
+.clickable-row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+@media (hover: hover) {
+  .data-table tbody tr:hover td { background: color-mix(in srgb, var(--text) 6%, var(--card)); }
+  .clickable-row:hover .row-edit-hint { opacity: 1; }
+}
+.data-table tbody tr.is-selected td { background: var(--primary-soft); }
+.data-table tbody tr.is-selected td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
 .row-edit-hint {
-  font-size: 11.5px;
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px;
   color: var(--primary);
   font-weight: 500;
   opacity: 0;
   transition: opacity 0.15s;
   white-space: nowrap;
 }
+@media (hover: none) { .row-edit-hint { display: none; } }
 
-html[data-theme="dark"] .clickable-row:hover { background: rgba(255,255,255,0.04) !important; }
+/* Estado: pastilla con punto de color y texto en ink sobre el tinte */
+.data-table td > .badge:not(.dias-rest-badge) {
+  align-items: center; gap: 6px; padding: 3px 10px 3px 8px;
+  font-size: 12px; color: var(--text);
+}
+.data-table td > .badge:not(.dias-rest-badge)::before {
+  content: ""; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: currentColor;
+}
+.data-table td > .badge.b-pendiente::before { background: #ef4444; }
+.data-table td > .badge.b-en-curso::before { background: #3b82f6; }
+.data-table td > .badge.b-en-revision::before { background: #8b5cf6; }
+.data-table td > .badge.b-bloqueado::before { background: #f59e0b; }
+.data-table td > .badge.b-cerrado::before { background: #10b981; }
+/* Fecha vencida: rojo con icono de alerta (no solo color) */
+.data-table .dias-rest-badge.b-pendiente {
+  background: transparent; color: #DC2626; font-weight: 600; padding: 0; gap: 4px; align-items: center;
+}
+.data-table .dias-rest-badge.b-pendiente::before {
+  content: ""; width: 13px; height: 13px; flex-shrink: 0; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7.5v5.5M12 16.5h.01'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7.5v5.5M12 16.5h.01'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+html[data-theme="dark"] .data-table .dias-rest-badge.b-pendiente { color: #f87171; }
+
+/* Vacia: mensaje centrado */
+.data-table td.tb-empty {
+  height: auto; padding: 24px 12px; text-align: center; white-space: normal;
+  color: var(--muted); font-size: 13.5px;
+}
+
+/* Pie de paginacion: rango en mono + Anterior / Siguiente */
+.tb-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 8px 12px; border-top: 1px solid var(--border);
+}
+.tb-foot[hidden] { display: none; }
+.tb-foot-cnt { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: var(--muted); }
+.tb-foot-pg { display: flex; gap: 8px; }
+.tb-foot-pg button { padding: 6px 12px; font-size: 12.5px; }
+
+/* Movil: lista de tarjetas (columnas marcadas con data-m en el <th>):
+   fila 1 tema + ID, fila 2 estado | responsable · vencimiento, fila 3 acciones. */
+@media (max-width: 640px) {
+  .data-table { min-width: 0; }
+  .data-table thead { display: none; }
+  .data-table, .data-table tbody { display: block; }
+  .data-table tbody tr {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center;
+    column-gap: 8px; row-gap: 6px;
+    border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px;
+    margin-bottom: 8px; background: var(--card);
+  }
+  .data-table tbody tr[hidden] { display: none; }
+  .data-table tbody td {
+    display: none; height: auto; padding: 0; border: 0; position: static;
+    background: transparent !important; white-space: normal; min-width: 0;
+  }
+  .data-table tbody td.m-title { display: block; grid-column: 1 / 3; grid-row: 1; font-weight: 600; font-size: 13.5px; }
+  .data-table tbody td.m-id { display: block; grid-column: 3; grid-row: 1; justify-self: end; }
+  .data-table tbody td.m-estado { display: block; grid-column: 1; grid-row: 2; justify-self: start; }
+  .data-table tbody td.m-resp { display: block; grid-column: 2; grid-row: 2; justify-self: end; font-size: 12.5px; color: var(--muted); }
+  .data-table tbody td.m-vence { display: block; grid-column: 3; grid-row: 2; justify-self: end; font-size: 12.5px; color: var(--muted); }
+  .data-table tbody td.m-resp ~ td.m-vence::before { content: "· "; }
+  .data-table tbody td.m-act { display: block; grid-column: 1 / -1; grid-row: 3; }
+  .data-table tbody td.tb-empty { display: block; grid-column: 1 / -1; padding: 12px 0; }
+  .table-wrap { overflow: visible; }
+  .card:has(> .table-wrap > .data-table) { background: transparent; border: 0; padding: 0; }
+  .tb-foot { border-top: 0; padding: 4px 0; }
+}
 
 /* badges & state */
 .badge {
@@ -2685,9 +2775,6 @@ dialog#modalForm.nota-popup-open:not([open]) { transform: scale(0.82); }
 
 /* Formato lista de responsables: filas mas compactas que el resto de las
    tablas de la app (solo esta, via #respLista). */
-#respLista .data-table { font-size: 12px; }
-#respLista .data-table th { padding: 6px 12px; font-size: 10.5px; }
-#respLista .data-table td { padding: 6px 12px; }
 
 /* Reports */
 .reports-grid {
@@ -2988,8 +3075,6 @@ html[data-theme="dark"] .cal-day { background: var(--card); border-color: var(--
 html[data-theme="dark"] .cal-day.today { background: var(--primary-soft); border-color: var(--primary); }
 html[data-theme="dark"] .cal-day.outside { opacity: 0.3; }
 
-html[data-theme="dark"] .data-table td { border-bottom-color: var(--border); }
-html[data-theme="dark"] .data-table tbody tr:hover { background: rgba(255,255,255,0.04); }
 html[data-theme="dark"] .hito-row { border-bottom-color: var(--border); }
 
 html[data-theme="dark"] .sem-item { background: var(--card); border-color: var(--border); }

@@ -336,6 +336,43 @@
   .beh-row > div{padding:12px 16px;font-size:13.5px;line-height:1.5;color:#3F3F46}
   .beh-row > div:first-child{font-weight:600;color:var(--ink)}
 
+  /* ---------- tables ---------- */
+  .tb-frame{margin-top:20px;border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden}
+  .tb-wrap{overflow-x:auto}
+  .tb{width:100%;min-width:620px;border-collapse:collapse;font-size:13px;color:var(--ink)}
+  .tb th{text-align:left;font-weight:600;font-size:12px;color:var(--muted);padding:12px;border-bottom:1px solid var(--line);white-space:nowrap}
+  .tb td{padding:0 12px;height:44px;border-bottom:1px solid var(--line);white-space:nowrap}
+  .tb tbody tr:last-child td{border-bottom:none}
+  .tb .num{text-align:right;font-variant-numeric:tabular-nums}
+  .tb .sort{display:inline-flex;align-items:center;gap:4px}
+  .tb .sort svg{color:#A1A1AA}
+  .tb th.sorted{color:var(--ink)}
+  .tb th.sorted svg{color:var(--blue)}
+  .tb-id{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);margin-right:8px}
+  .tb tr.hov td{background:rgba(24,24,27,.06)}
+  .tb tr.sel td{background:var(--blue-tint)}
+  .tb tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
+  .tb tr.foc{outline:2px solid var(--blue);outline-offset:-2px}
+  .tb-badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 8px;border-radius:999px;font-size:12px;font-weight:500;color:var(--ink)}
+  .tb-badge i{width:8px;height:8px;border-radius:50%;display:block}
+  .tb-late{display:inline-flex;align-items:center;gap:5px;color:#DC2626;font-weight:600}
+  .tb-hint{font-size:12px;font-weight:500;color:var(--blue)}
+  .tb-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-top:1px solid var(--line);flex-wrap:wrap}
+  .tb-foot .cnt{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted)}
+  .tb-foot .pg{display:flex;gap:8px}
+  .tb-total td{border-top:1.5px solid var(--ink);font-weight:600}
+
+  .tb-card{width:100%;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+  .tb-card .t{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-weight:600;font-size:13.5px}
+  .tb-card .m{margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--muted)}
+  .tb-skel{display:flex;align-items:center;gap:12px;padding:12px;border-top:1px solid var(--line)}
+  .tb-skel:first-child{border-top:none}
+  .tb-skel i{display:block;height:10px;border-radius:99px;background:var(--line)}
+  .tb-empty{text-align:center;padding:18px 12px 6px;font-size:13.5px;color:#3F3F46}
+  .tb-empty svg{color:#A1A1AA;margin-bottom:6px}
+  .tb-empty .c-btn{display:inline-block;margin-top:12px}
+  .tb-panel{width:100%;background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+
   /* ---------- responsive: breakpoints + device mockups ---------- */
   .bp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:20px}
   .bp{border:1px solid var(--line);border-radius:12px;background:#fff;padding:16px 18px}
@@ -475,7 +512,7 @@
       </svg>
     </div>
     <h1>notby</h1>
-    <div class="sub">Manual de marca · v3.1</div>
+    <div class="sub">Manual de marca · v3.2</div>
   </div>
 </div>
 
@@ -665,7 +702,7 @@
     <h3>Ajustes obligatorios en dark mode</h3>
     <p>El logo no se invierte automáticamente. Sobre fondo oscuro cambian tres valores: el contenedor sube de <code>#18181B</code> a <code>#2E2E33</code> para no desaparecer contra la superficie; el azul pasa a <code>#60A5FA</code> porque el tono saturado pierde legibilidad sobre fondos oscuros; y la tarjeta superior baja de 45% a 33% de opacidad, ya que el blanco pesa más sobre gris carbón.</p>
     <p>La superficie oscura es <code>#1C1C1F</code>, no negro puro. El negro absoluto genera un contraste duro que cansa en sesiones largas, que es exactamente el modo en que se usa una herramienta de gestión. El gris es neutro y no cálido: mantiene la coherencia con el ink <code>#18181B</code> y funciona como base fría, coherente con el acento azul.</p>
-    <p><strong>Nota de contraste:</strong> <code>#2563EB</code> tiene menor luminancia que el naranja que reemplaza, así que no se comporta igual sobre todos los fondos. Texto en ink sólido sobre azul da ~2.9:1 (insuficiente incluso para texto grande) — por eso cualquier texto o ícono que vaya <em>sobre</em> un fondo azul sólido usa blanco, no ink. Ver el ejemplo en la sección 10 — Uso.</p>
+    <p><strong>Nota de contraste:</strong> <code>#2563EB</code> tiene menor luminancia que el naranja que reemplaza, así que no se comporta igual sobre todos los fondos. Texto en ink sólido sobre azul da ~2.9:1 (insuficiente incluso para texto grande) — por eso cualquier texto o ícono que vaya <em>sobre</em> un fondo azul sólido usa blanco, no ink. Ver el ejemplo en la sección 11 — Uso.</p>
     <p><strong>Colores de estado:</strong> además de esta paleta de marca, el producto usa un set de colores semánticos para el estado de temas y columnas (pendiente, en curso, bloqueado…). Es un sistema aparte — no reemplaza al azul de marca — documentado junto a sus íconos en 04 — Iconografía.</p>
 
     <h3>Colores funcionales</h3>
@@ -1174,7 +1211,7 @@
   <div class="wrap">
     <div class="eyebrow">05 — Espaciado y forma</div>
     <h2>Espaciado, radios, bordes y sombras</h2>
-    <p>Siete medidas de espacio, seis radios y una sola sombra alcanzan para toda la interfaz. Nada se mide a ojo: si una medida no está acá, se usa la más cercana. Son las mismas en claro y en oscuro y en los tres tamaños de pantalla; lo único que cambia entre dispositivos es cuál se elige (ver 09 — Adaptabilidad).</p>
+    <p>Siete medidas de espacio, seis radios y una sola sombra alcanzan para toda la interfaz. Nada se mide a ojo: si una medida no está acá, se usa la más cercana. Son las mismas en claro y en oscuro y en los tres tamaños de pantalla; lo único que cambia entre dispositivos es cuál se elige (ver 10 — Adaptabilidad).</p>
 
     <h3>Espaciado</h3>
     <div class="tok tok-space">
@@ -1452,10 +1489,157 @@
   </div>
 </section>
 
+<!-- ============ TABLAS ============ -->
+<section>
+  <div class="wrap">
+    <div class="eyebrow">09 — Tablas</div>
+    <h2>Tablas</h2>
+    <p>Las tablas son donde se lee más, así que son las más sobrias del sistema: texto de 13 px, líneas finas, sin cebreado y sin color de relleno salvo para lo seleccionado. El color solo aparece para decir algo (un estado, un vencimiento, una selección) y nunca va solo: siempre lo acompaña un punto, un ícono o un texto.</p>
+
+    <h3>Anatomía</h3>
+    <div class="tb-frame">
+      <div class="tb-wrap">
+        <table class="tb">
+          <thead>
+            <tr>
+              <th>Tema</th>
+              <th>Estado</th>
+              <th>Responsable</th>
+              <th class="sorted"><span class="sort">Vence <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14l5-5 5 5"/></svg></span></th>
+              <th class="num"><span class="sort">Avance <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"/></svg></span></th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="tb-id">T-014</span>Pavimento ruta 11</td>
+              <td><span class="tb-badge" style="background:#FEE2E2"><i style="background:#EF4444"></i>Pendiente</span></td>
+              <td>Ana Gómez</td>
+              <td>12/10</td>
+              <td class="num">40 %</td>
+              <td class="num"></td>
+            </tr>
+            <tr class="hov">
+              <td><span class="tb-id">T-009</span>Puente río Seco</td>
+              <td><span class="tb-badge" style="background:#DBEAFE"><i style="background:#3B82F6"></i>En curso</span></td>
+              <td>Bruno Díaz</td>
+              <td>18/10</td>
+              <td class="num">75 %</td>
+              <td class="num"><span class="tb-hint">Editar</span></td>
+            </tr>
+            <tr class="sel">
+              <td><span class="tb-id">T-021</span>Red cloacal norte</td>
+              <td><span class="tb-badge" style="background:#EDE9FE"><i style="background:#8B5CF6"></i>En revisión</span></td>
+              <td>Carla Ríos</td>
+              <td><span class="tb-late"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 21.3 20H2.7z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="0.9" fill="currentColor" stroke="none"/></svg>02/10</span></td>
+              <td class="num">20 %</td>
+              <td class="num"></td>
+            </tr>
+            <tr class="foc">
+              <td><span class="tb-id">T-017</span>Escuela 214</td>
+              <td><span class="tb-badge" style="background:#FEF3C7"><i style="background:#F59E0B"></i>Bloqueado</span></td>
+              <td>Diego Paz</td>
+              <td>25/10</td>
+              <td class="num">0 %</td>
+              <td class="num"></td>
+            </tr>
+            <tr>
+              <td><span class="tb-id">T-003</span>Hospital zonal</td>
+              <td><span class="tb-badge" style="background:#DCFCE7"><i style="background:#10B981"></i>Cerrado</span></td>
+              <td>Elena Sosa</td>
+              <td>30/09</td>
+              <td class="num">100 %</td>
+              <td class="num"></td>
+            </tr>
+            <tr class="tb-total">
+              <td>Promedio</td><td></td><td></td><td></td><td class="num">47 %</td><td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tb-foot">
+        <span class="cnt">1–5 de 48</span>
+        <div class="pg"><span class="c-btn sec c-dis">Anterior</span><span class="c-btn sec">Siguiente</span></div>
+      </div>
+    </div>
+    <div class="caption">De arriba abajo: fila normal · con el mouse encima (aparece "Editar") · seleccionada y con fecha vencida · con foco de teclado · cerrada · fila de totales. Columna "Vence" ordenada de forma ascendente.</div>
+
+    <h3>Medidas y reglas</h3>
+    <div class="beh">
+      <div class="beh-row"><div>Encabezado</div><div>12 px · peso 600 · gris. En minúsculas de oración, sin mayúsculas sostenidas. Borde inferior de 1 px Línea. Queda fijo al desplazarse hacia abajo.</div></div>
+      <div class="beh-row"><div>Fila</div><div>44 px de alto (compacta: 36 px, para reportes). Separador de 1 px Línea entre filas; sin cebreado y sin bordes verticales.</div></div>
+      <div class="beh-row"><div>Celda</div><div>Relleno horizontal de 12 px (esp-4). Texto de 13 px en ink; el dato secundario, en gris.</div></div>
+      <div class="beh-row"><div>Códigos e IDs</div><div>JetBrains Mono de 12 px en gris (T-014, NTB-2481). Nunca en texto corrido.</div></div>
+      <div class="beh-row"><div>Alineación</div><div>Texto a la izquierda. Números, montos y porcentajes a la derecha, con cifras tabulares; su encabezado se alinea igual. Las acciones van al final, a la derecha.</div></div>
+      <div class="beh-row"><div>Estado</div><div>Badge de pastilla (rad-max): punto del color de estado y texto en ink sobre el tinte. El color nunca va solo en el texto, para no depender del contraste.</div></div>
+      <div class="beh-row"><div>Fecha vencida</div><div>Rojo <code>#DC2626</code> con el ícono de alerta y la fecha. Se identifica por el ícono, no solo por el color.</div></div>
+      <div class="beh-row"><div>Totales</div><div>Fila de cierre con borde superior de 1,5 px ink y texto en peso 600.</div></div>
+    </div>
+
+    <h3>Cómo se comporta</h3>
+    <div class="beh">
+      <div class="beh-row"><div>Ordenar</div><div>Los encabezados ordenables muestran un doble chevron gris; el activo, un chevron azul que indica el sentido (<code>aria-sort</code>). Un clic alterna ascendente, descendente y orden original. Los glifos de texto ↕ ▲ ▼ se reemplazan por íconos del set.</div></div>
+      <div class="beh-row"><div>Fila clicable</div><div>La fila entera abre el detalle. Con el mouse: lavado de ink al 6 % y "Editar" en azul (solo con puntero, nunca en táctil). Foco: anillo azul de 2 px hacia adentro de la fila. Seleccionada: tinte azul con barra de 3 px a la izquierda — son los estados de 07.</div></div>
+      <div class="beh-row"><div>Desplazamiento</div><div>Si la tabla no entra, se desplaza dentro de su contenedor, nunca la página, y la primera columna queda fija.</div></div>
+      <div class="beh-row"><div>Paginación</div><div>Pie con el rango en mono ("1–25 de 120") y los botones Anterior y Siguiente; "Anterior" se deshabilita en la primera página. 25 filas por página.</div></div>
+      <div class="beh-row"><div>Móvil</div><div>Por debajo de 640 px la tabla se convierte en una lista de tarjetas: tema, estado, responsable y vencimiento. El resto de las columnas pasa al detalle del tema.</div></div>
+    </div>
+
+    <h3>Vacía, cargando y móvil</h3>
+    <div class="dd-stage">
+      <div class="dd-box">
+        <div class="dd-cap">Móvil · lista de tarjetas</div>
+        <div class="tb-card"><div class="t"><span>Pavimento ruta 11</span><span class="tb-id" style="margin:0">T-014</span></div><div class="m"><span class="tb-badge" style="background:#FEE2E2"><i style="background:#EF4444"></i>Pendiente</span><span>Ana Gómez · 12/10</span></div></div>
+        <div class="tb-card"><div class="t"><span>Red cloacal norte</span><span class="tb-id" style="margin:0">T-021</span></div><div class="m"><span class="tb-badge" style="background:#EDE9FE"><i style="background:#8B5CF6"></i>En revisión</span><span class="tb-late"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 21.3 20H2.7z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="0.9" fill="currentColor" stroke="none"/></svg>02/10</span></div></div>
+      </div>
+      <div class="dd-box">
+        <div class="dd-cap">Cargando y vacía</div>
+        <div class="tb-panel">
+          <div class="tb-skel"><i style="width:44px"></i><i style="flex:1"></i><i style="width:60px"></i></div>
+          <div class="tb-skel"><i style="width:44px"></i><i style="flex:1"></i><i style="width:60px"></i></div>
+          <div class="tb-skel"><i style="width:44px"></i><i style="flex:1"></i><i style="width:60px"></i></div>
+        </div>
+        <div class="tb-panel">
+          <div class="tb-empty">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="4.5" height="15" rx="2"/><rect x="9.75" y="4.5" width="4.5" height="10" rx="2"/><rect x="16" y="4.5" width="4.5" height="13" rx="2"/></svg>
+            <div>Todavía no hay temas. Creá el primero.</div>
+            <span class="c-btn pri">Crear tema</span>
+          </div>
+          <div style="height:14px"></div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Cargando: filas esqueleto en Línea, sin spinner, con el encabezado ya visible. Vacía: un ícono del set, el mensaje en la voz de notby y una única acción primaria.</div>
+
+    <div class="rules">
+      <div class="rule ok">
+        <span class="tag">Correcto</span>
+        <ul>
+          <li>Alinear números a la derecha, con cifras tabulares</li>
+          <li>Acompañar todo color con un punto, un ícono o un texto</li>
+          <li>Ordenar desde el encabezado, con un chevron azul en la columna activa</li>
+          <li>Desplazar la tabla dentro de su contenedor, con la primera columna fija</li>
+          <li>Reservar el azul de relleno para la fila seleccionada</li>
+        </ul>
+      </div>
+      <div class="rule no">
+        <span class="tag">Incorrecto</span>
+        <ul>
+          <li>Cebrear las filas o dibujar bordes verticales</li>
+          <li>Encabezados en mayúsculas sostenidas</li>
+          <li>Marcar un vencimiento solo con rojo, sin ícono</li>
+          <li>Más de siete columnas a la vista en escritorio: las demás van al detalle</li>
+          <li>Mostrar un spinner en lugar de las filas esqueleto</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ============ ADAPTABILIDAD ============ -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">09 — Adaptabilidad</div>
+    <div class="eyebrow">10 — Adaptabilidad</div>
     <h2>PC, tablet y celular</h2>
     <p>notby se usa en el escritorio para planificar y en el celular para consultar y actualizar en el momento. La marca no cambia entre dispositivos — lo que cambia es cuánto se muestra a la vez, cómo se navega y qué tamaño tiene lo que se toca. Tres reglas lo sostienen: el contenido se reorganiza antes de achicarse, todo lo que se toca mide al menos 44 px, y nada importante depende del hover.</p>
 
@@ -1567,6 +1751,12 @@
         <div data-l="Móvil">Pantalla completa, con tabs y botón de volver</div>
       </div>
       <div class="adapt-row">
+        <div>Tablas</div>
+        <div data-l="Escritorio">Tabla completa, filas de 44 px</div>
+        <div data-l="Tablet">Scroll horizontal dentro de la tabla, primera columna fija</div>
+        <div data-l="Móvil">Lista de tarjetas; las columnas secundarias pasan al detalle</div>
+      </div>
+      <div class="adapt-row">
         <div>Íconos</div>
         <div data-l="Escritorio">24 px · 20 px en inputs y chips</div>
         <div data-l="Tablet">24 px · área táctil 40 px</div>
@@ -1608,7 +1798,7 @@
         <ul>
           <li>Esconder una acción importante detrás de un hover</li>
           <li>Inputs de menos de 16 px en móvil</li>
-          <li>Scroll horizontal de toda la página (solo el tablero puede scrollear a los costados)</li>
+          <li>Scroll horizontal de toda la página (solo el tablero y las tablas anchas pueden scrollear a los costados, dentro de su contenedor)</li>
           <li>Cambiar el logo, el acento o los colores de estado según el dispositivo</li>
           <li>Crear breakpoints nuevos por pantalla en vez de usar 640 y 1024</li>
         </ul>
@@ -1620,7 +1810,7 @@
 <!-- ============ USO ============ -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">10 — Uso</div>
+    <div class="eyebrow">11 — Uso</div>
     <h2>Qué sí y qué no</h2>
 
     <div class="rules">
@@ -1671,7 +1861,7 @@
 <!-- ============ VOZ ============ -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">11 — Voz</div>
+    <div class="eyebrow">12 — Voz</div>
     <h2>Cómo escribe notby</h2>
     <p>Verbos directos, sentence case, sin relleno. Las etiquetas nombran lo que la persona controla, no cómo está construido el sistema. Una acción conserva el mismo nombre en todo el flujo: si el botón dice "Publicar", el aviso dice "Publicado".</p>
     <p>Los errores no piden disculpas ni son vagos: explican qué pasó y cómo resolverlo. Una pantalla vacía es una invitación a actuar, no un mensaje de ánimo.</p>
@@ -1699,7 +1889,7 @@
 
 <footer>
   <div class="wrap">
-    notby — Manual de marca v3.1 · Agosto 2026<br>
+    notby — Manual de marca v3.2 · Agosto 2026<br>
     Consultas sobre uso de marca antes de aplicar el logo en contextos no cubiertos por este documento.
   </div>
 </footer>

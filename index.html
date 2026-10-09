@@ -251,14 +251,14 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th class="sortable" data-sort-table="tableHitos" data-sort-key="id">ID</th>
-                  <th class="sortable" data-sort-table="tableHitos" data-sort-key="nombre">Hito</th>
+                  <th class="sortable" data-sort-table="tableHitos" data-sort-key="id" data-m="id">ID</th>
+                  <th class="sortable" data-sort-table="tableHitos" data-sort-key="nombre" data-m="title">Hito</th>
                   <th class="sortable" data-sort-table="tableHitos" data-sort-key="tema">Tema</th>
-                  <th class="sortable" data-sort-table="tableHitos" data-sort-key="responsable">Responsable</th>
-                  <th class="sortable" data-sort-table="tableHitos" data-sort-key="estado">Estado</th>
+                  <th class="sortable" data-sort-table="tableHitos" data-sort-key="responsable" data-m="resp">Responsable</th>
+                  <th class="sortable" data-sort-table="tableHitos" data-sort-key="estado" data-m="estado">Estado</th>
                   <th>Expediente</th>
                   <th class="sortable" data-sort-table="tableHitos" data-sort-key="fechaInicio">Inicio</th>
-                  <th class="sortable" data-sort-table="tableHitos" data-sort-key="fechaLimite">Vencimiento</th>
+                  <th class="sortable" data-sort-table="tableHitos" data-sort-key="fechaLimite" data-m="vence">Vencimiento</th>
                 </tr>
               </thead>
               <tbody id="tableHitos"></tbody>
@@ -315,14 +315,14 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th class="sortable" data-sort-table="tableExpedientes" data-sort-key="numero">Numero</th>
+                  <th class="sortable" data-sort-table="tableExpedientes" data-sort-key="numero" data-m="title">Número</th>
                   <th class="sortable" data-sort-table="tableExpedientes" data-sort-key="temaAsociado">Tema</th>
                   <th>Hito asociado</th>
-                  <th class="sortable" data-sort-table="tableExpedientes" data-sort-key="responsable">Responsable</th>
+                  <th class="sortable" data-sort-table="tableExpedientes" data-sort-key="responsable" data-m="resp">Responsable</th>
                   <th class="sortable" data-sort-table="tableExpedientes" data-sort-key="fechaInicio">Inicio</th>
-                  <th class="sortable" data-sort-table="tableExpedientes" data-sort-key="fechaLimite">Vencimiento</th>
-                  <th class="sortable" data-sort-table="tableExpedientes" data-sort-key="estado">Estado</th>
-                  <th></th>
+                  <th class="sortable" data-sort-table="tableExpedientes" data-sort-key="fechaLimite" data-m="vence">Vencimiento</th>
+                  <th class="sortable" data-sort-table="tableExpedientes" data-sort-key="estado" data-m="estado">Estado</th>
+                  <th data-m="act"></th>
                 </tr>
               </thead>
               <tbody id="tableExpedientes"></tbody>
@@ -339,13 +339,13 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th class="sortable" data-sort-table="tableAlertas" data-sort-key="nivel">Nivel</th>
+                  <th class="sortable" data-sort-table="tableAlertas" data-sort-key="nivel" data-m="estado">Nivel</th>
                   <th>Tipo</th>
-                  <th class="sortable" data-sort-table="tableAlertas" data-sort-key="tema">Tema / Hito</th>
+                  <th class="sortable" data-sort-table="tableAlertas" data-sort-key="tema" data-m="title">Tema / Hito</th>
                   <th>Tema padre</th>
-                  <th class="sortable" data-sort-table="tableAlertas" data-sort-key="responsable">Responsable</th>
+                  <th class="sortable" data-sort-table="tableAlertas" data-sort-key="responsable" data-m="resp">Responsable</th>
                   <th class="sortable" data-sort-table="tableAlertas" data-sort-key="expediente">Expediente</th>
-                  <th class="sortable" data-sort-table="tableAlertas" data-sort-key="fechaLimite">Vencimiento</th>
+                  <th class="sortable" data-sort-table="tableAlertas" data-sort-key="fechaLimite" data-m="vence">Vencimiento</th>
                   <th></th>
                 </tr>
               </thead>
@@ -499,8 +499,8 @@
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th>Nombre</th><th>Cargo</th><th>Dependencia</th>
-                    <th>Correo</th><th>Usuario GDE</th><th>Temas</th><th>Hitos</th><th></th>
+                    <th data-m="title">Nombre</th><th data-m="resp">Cargo</th><th>Dependencia</th>
+                    <th>Correo</th><th>Usuario GDE</th><th class="num">Temas</th><th class="num">Hitos</th><th data-m="act"></th>
                   </tr>
                 </thead>
                 <tbody id="tbodyResponsables"></tbody>
@@ -522,7 +522,7 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Estado</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Ultimo acceso</th><th>Acciones</th>
+                  <th>Estado</th><th data-m="title">Nombre</th><th data-m="resp">Email</th><th data-m="estado">Rol</th><th>Último acceso</th><th data-m="act">Acciones</th>
                 </tr>
               </thead>
               <tbody id="tableUsuariosActivos"></tbody>

@@ -172,9 +172,12 @@ function sortTableData(items, tableId) {
   });
 }
 
+// Ciclo del manual v3.2 (seccion 09): ascendente -> descendente -> orden original.
 function setTableSort(tableId, key) {
   const st = tableSortState[tableId] || { key: null, dir: 1 };
-  if (st.key === key) st.dir = -st.dir; else { st.key = key; st.dir = 1; }
+  if (st.key !== key) { st.key = key; st.dir = 1; }
+  else if (st.dir === 1) st.dir = -1;
+  else { st.key = null; st.dir = 1; }
   tableSortState[tableId] = st;
   renderAll();
 }
@@ -183,8 +186,75 @@ function updateSortHeaders() {
   document.querySelectorAll(".data-table th.sortable").forEach((th) => {
     th.classList.remove("sorted-asc", "sorted-desc");
     const cfg = tableSortState[th.dataset.sortTable];
-    if (cfg && cfg.key === th.dataset.sortKey) th.classList.add(cfg.dir === 1 ? "sorted-asc" : "sorted-desc");
+    const activo = cfg && cfg.key === th.dataset.sortKey;
+    if (activo) th.classList.add(cfg.dir === 1 ? "sorted-asc" : "sorted-desc");
+    th.setAttribute("aria-sort", activo ? (cfg.dir === 1 ? "ascending" : "descending") : "none");
   });
+}
+
+// ---------------- Tablas (manual de marca v3.2, seccion 09) ----------------
+// Se engancha una vez sobre cada .data-table y se reaplica sola cada vez que
+// un render reemplaza el <tbody> (MutationObserver), sin tocar los render:
+// - Paginacion de 25 filas con pie "1–25 de 120" + Anterior/Siguiente
+//   (Anterior deshabilitado en la primera pagina). Si cambia la cantidad de
+//   filas (otro filtro) vuelve a la pagina 1.
+// - Movil: copia a cada <td> la marca data-m de su <th> (m-title, m-id,
+//   m-estado, m-resp, m-vence, m-act) para armar la lista de tarjetas.
+// - Filas clicables enfocables con teclado (Enter/Espacio las abren).
+// - Fila de "tabla vacia" (un solo <td> con colspan): clase tb-empty.
+function enhanceDataTables() {
+  document.querySelectorAll(".data-table").forEach((table) => {
+    const tbody = table.tBodies[0];
+    if (!tbody || tbody._tb) return;
+    const wrap = table.closest(".table-wrap") || table;
+    const foot = document.createElement("div");
+    foot.className = "tb-foot";
+    foot.hidden = true;
+    foot.innerHTML = `<span class="tb-foot-cnt"></span>
+      <div class="tb-foot-pg"><button type="button" class="ghost" data-pg="-1">Anterior</button><button type="button" class="ghost" data-pg="1">Siguiente</button></div>`;
+    wrap.after(foot);
+    tbody._tb = { page: 0, count: -1, foot };
+    foot.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-pg]");
+      if (!b || b.disabled) return;
+      tbody._tb.page += Number(b.dataset.pg);
+      applyDataTable(table);
+      wrap.scrollTop = 0;
+    });
+    tbody.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const tr = e.target.closest?.("tr.clickable-row");
+      if (!tr || e.target !== tr) return;
+      e.preventDefault();
+      tr.click();
+    });
+    new MutationObserver(() => applyDataTable(table)).observe(tbody, { childList: true });
+    applyDataTable(table);
+  });
+}
+
+function applyDataTable(table) {
+  const POR_PAGINA = 25;
+  const tbody = table.tBodies[0];
+  const st = tbody._tb;
+  const marcas = [...(table.tHead?.rows[0]?.cells || [])].map((th) => th.dataset.m || "");
+  const esVacia = (tr) => tr.cells.length === 1 && tr.cells[0].colSpan > 1;
+  const filas = [...tbody.rows];
+  filas.forEach((tr) => {
+    if (esVacia(tr)) { tr.cells[0].classList.add("tb-empty"); return; }
+    [...tr.cells].forEach((td, i) => { if (marcas[i]) td.classList.add(`m-${marcas[i]}`); });
+    if (tr.classList.contains("clickable-row") && !tr.hasAttribute("tabindex")) tr.tabIndex = 0;
+  });
+  const datos = filas.filter((tr) => !esVacia(tr));
+  if (datos.length !== st.count) { st.page = 0; st.count = datos.length; }
+  const paginas = Math.max(1, Math.ceil(datos.length / POR_PAGINA));
+  st.page = Math.min(Math.max(0, st.page), paginas - 1);
+  const desde = st.page * POR_PAGINA;
+  datos.forEach((tr, i) => { tr.hidden = i < desde || i >= desde + POR_PAGINA; });
+  st.foot.hidden = datos.length <= POR_PAGINA;
+  st.foot.querySelector(".tb-foot-cnt").textContent = `${desde + 1}–${Math.min(desde + POR_PAGINA, datos.length)} de ${datos.length}`;
+  st.foot.querySelector('[data-pg="-1"]').disabled = st.page === 0;
+  st.foot.querySelector('[data-pg="1"]').disabled = st.page >= paginas - 1;
 }
 
 // seedData eliminado: la fuente de verdad ahora es Supabase.
@@ -945,6 +1015,7 @@ function bindEvents() {
   [els.fResponsable, els.fEstado, els.fPrioridad, els.fEtiqueta,
    els.fHResponsable, els.fHEstado, els.fHPrioridad, els.fHEtiqueta,
    els.dashFResponsable, els.dashFEstado, els.dashFPrioridad].forEach(enhanceMultiSelect);
+  enhanceDataTables();
   // Punto de color por opcion: solo en el filtro de estados (manual v3.1).
   [els.fEstado, els.fHEstado, els.dashFEstado].forEach((s) => (s.dataset.dots = "estado"));
 
@@ -1547,7 +1618,7 @@ function renderUsuarios() {
           ${u.id !== state.profile.id ? `<button class="ghost" style="font-size:12px;color:#dc2626" data-eliminar="${u.id}">Eliminar</button>` : ""}
         </div>
       </td>
-    </tr>`).join("") || `<tr><td colspan="6" style="color:var(--muted);text-align:center">Sin usuarios.</td></tr>`;
+    </tr>`).join("") || `<tr><td colspan="6">Todavía no hay usuarios activos.</td></tr>`;
 
   tbActivos.querySelectorAll("[data-eliminar]").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -3659,7 +3730,7 @@ function renderHitos() {
       <td class="mono">${h.expediente || "-"}</td>
       <td>${fmtDateNice(h.fechaInicio)}</td>
       <td><span class="fecha-with-badge"><span>${fmtDateNice(h.fechaLimite)}</span>${diasRestantesBadge(h.fechaLimite, h.estado === "Cerrado" ? h.fechaCierre : null)}</span></td>
-    </tr>`).join("") : `<tr><td colspan="8" style="color:var(--muted);text-align:center">Sin hitos.</td></tr>`;
+    </tr>`).join("") : `<tr><td colspan="8">No hay hitos con estos filtros.</td></tr>`;
 
   els.tableHitos.querySelectorAll("[data-tema]").forEach((row) =>
     row.addEventListener("click", () => openTemaFormById(row.dataset.tema, { activeTab: "general" }))
@@ -3979,10 +4050,10 @@ function renderExpedientes() {
       <td>${respDisplay(e.responsable)}</td>
       <td>${fmtDateNice(e.fechaInicio)}</td>
       <td>${fmtDateNice(e.fechaLimite)}</td>
-      <td>${e.estado}</td>
+      <td>${STATES.includes(e.estado) ? badge(e.estado) : escHtml(e.estado || "-")}</td>
       <td>${e.catalog ? `<button class="ghost" data-exp-edit="${escHtml(e.catalog.numero)}">Editar</button>` : ""}</td>
     </tr>`;
-  }).join("");
+  }).join("") || `<tr><td colspan="8">No hay expedientes con estos filtros.</td></tr>`;
 
   els.tableExpedientes.querySelectorAll("[data-gde-open]").forEach((a) => {
     a.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); openGDE(a.dataset.gdeOpen); });
@@ -4067,7 +4138,7 @@ function renderAlertas() {
       <td class="mono">${a.expediente || "-"}</td>
       <td>${fmtDateNice(a.fechaLimite)}</td>
       <td><span class="row-edit-hint">${icon("lapiz", 12)} Editar</span></td>
-    </tr>`).join("") || `<tr><td colspan="8" style="color:var(--muted);text-align:center">Sin alertas activas.</td></tr>`;
+    </tr>`).join("") || `<tr><td colspan="8">No hay alertas activas.</td></tr>`;
 
   els.tableAlertas.querySelectorAll("[data-tema]").forEach((row) =>
     row.addEventListener("click", () => openTemaFormById(row.dataset.tema))
@@ -8092,11 +8163,11 @@ function renderResponsables() {
         <td>${r.dependencia || "<span style='color:var(--muted)'>—</span>"}</td>
         <td>${r.email || "<span style='color:var(--muted)'>—</span>"}</td>
         <td>${r.usuarioGDE || "<span style='color:var(--muted)'>—</span>"}</td>
-        <td style="text-align:center">${stats.temas}</td>
-        <td style="text-align:center">${stats.hitos}</td>
+        <td class="num">${stats.temas}</td>
+        <td class="num">${stats.hitos}</td>
         <td><button class="ghost" data-resp-edit="${r.id}" style="font-size:12.5px">${icon("lapiz", 12)} Editar</button></td>
       </tr>`;
-    }).join("");
+    }).join("") || `<tr><td colspan="8">Todavía no hay responsables. Creá el primero.</td></tr>`;
     els.tbodyResponsables.querySelectorAll("[data-resp-edit]").forEach((btn) => {
       btn.addEventListener("click", () => { const r = state.responsables.find((x) => x.id === btn.dataset.respEdit); if (r) openResponsableForm(r); });
     });
