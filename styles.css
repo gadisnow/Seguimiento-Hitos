@@ -698,6 +698,18 @@ button {
   background: var(--card);
 }
 .data-table tbody tr:last-child td { border-bottom: 0; }
+/* Tabla que se ajusta al ancho (Hitos): sin min-width ni scroll horizontal;
+   las columnas de texto largo (.tb-wrap: hito, tema, responsable) bajan de
+   linea en vez de estirar la tabla fuera de la pantalla. La fila sigue
+   midiendo 44px como minimo y, si el texto ocupa varias lineas, gana
+   relleno vertical para que no toque los separadores. */
+.data-table.tb-fit { min-width: 0; }
+.data-table td.tb-wrap {
+  white-space: normal; overflow-wrap: anywhere;
+  padding-top: 8px; padding-bottom: 8px; line-height: 1.4;
+}
+.data-table.tb-fit td.tb-wrap:nth-child(2) { min-width: 180px; }
+.table-wrap:has(> .data-table.tb-fit) { overflow-x: hidden; }
 .data-table th:first-child, .data-table td:first-child { position: sticky; left: 0; z-index: 1; }
 .data-table th:first-child { z-index: 3; }
 

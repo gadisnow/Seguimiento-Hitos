@@ -3723,9 +3723,9 @@ function renderHitos() {
   els.tableHitos.innerHTML = rows.length ? rows.map((h) => `
     <tr class="clickable-row" data-tema="${h.temaId}" title="Clic para abrir el tema">
       <td class="mono">${h.id}</td>
-      <td>${escHtml(h.nombre)}</td>
-      <td>${escHtml(h.temaNombre)}</td>
-      <td>${respDisplay(h.responsable)}</td>
+      <td class="tb-wrap">${escHtml(h.nombre)}</td>
+      <td class="tb-wrap">${escHtml(h.temaNombre)}</td>
+      <td class="tb-wrap">${respDisplay(h.responsable)}</td>
       <td>${badge(h.estado)}</td>
       <td class="mono">${h.expediente || "-"}</td>
       <td>${fmtDateNice(h.fechaInicio)}</td>
