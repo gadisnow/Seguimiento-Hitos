@@ -45,6 +45,10 @@
 :where(button, a, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--primary); outline-offset: 2px;
 }
+/* En campos de texto el anillo va POR DENTRO del borde: separado 2px se
+   salia de la caja y quedaba recortado en contenedores con overflow
+   (ej. el titulo de una nota en .nota-popup-scroll, que va a ras). */
+:where(input, select, textarea):focus-visible { outline-offset: -2px; }
 /* Barras de desplazamiento de toda la app: finas, translucidas y sin
    flechitas; se vuelven mas nitidas al pasar el mouse. Chromium/Safari
    usan ::-webkit-scrollbar (permite :hover sobre la barra); como en
