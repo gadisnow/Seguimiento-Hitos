@@ -7372,8 +7372,10 @@ function openNotaGroupPopup(grupoId, originEl = null) {
         e.preventDefault();
         const dragging = list.querySelector(".nota-group-popup-item.dragging");
         if (!dragging || dragging === item) return;
+        // Grilla de tarjetas: el orden corre de izquierda a derecha, asi
+        // que se decide por la mitad horizontal de la tarjeta.
         const rect = item.getBoundingClientRect();
-        const before = (e.clientY - rect.top) < rect.height / 2;
+        const before = (e.clientX - rect.left) < rect.width / 2;
         item.parentElement.insertBefore(dragging, before ? item : item.nextSibling);
       });
     });
