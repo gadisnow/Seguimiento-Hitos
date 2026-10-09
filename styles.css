@@ -2326,10 +2326,14 @@ html[data-theme="dark"] .nota-group-popup-item:not(.dragging):hover { box-shadow
 .nota-group-popup-nombre {
   flex: 1; min-width: 0;
   font-size: 18px; font-weight: 700; color: var(--text);
-  border: 1px solid transparent; border-radius: 8px; padding: 4px 8px; margin: -4px 0 -4px -8px;
+  border: 1px solid transparent; border-radius: 8px; padding: 5px 10px; margin: 0;
+  /* sin margenes negativos: antes el borde (hover/foco) se montaba sobre
+     el icono y el lado derecho quedaba cortado por el overflow del popup */
+  width: 100%; box-shadow: none; outline: none;
   background: transparent;
 }
-.nota-group-popup-nombre:hover:not(:disabled), .nota-group-popup-nombre:focus { border-color: var(--border); background: var(--card); }
+.nota-group-popup-nombre:hover:not(:disabled) { border-color: var(--border); background: var(--card); }
+.nota-group-popup-nombre:focus { border-color: var(--primary); background: var(--card); }
 .nota-group-popup-nombre:disabled { color: var(--text); }
 /* Sin max-height/overflow propio: el scroll ya lo da .nota-popup-scroll
    (el contenedor de afuera) -- un segundo scroll anidado aca adentro
