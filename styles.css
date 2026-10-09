@@ -2653,6 +2653,7 @@ html[data-theme="dark"] .switch .track::before { background: #cbd5e1; }
   .user-menu-name { display: none; }
   .topbar { padding: 0 12px; gap: 10px; }
   .tabbar { padding: 0 12px; }
+  .kpi { flex-basis: calc((100% - 22px) / 2); }
   .reports-grid { grid-template-columns: 1fr; }
   .resp-grid { grid-template-columns: 1fr; }
   #dynamicForm .row { grid-template-columns: 1fr; }
