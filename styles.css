@@ -511,7 +511,8 @@ button {
   font-weight: 500;
 }
 
-.primary:hover { background: var(--primary-2); }
+/* Hover del primario: azul al 88% de opacidad (manual v3.1, seccion 07) */
+@media (hover: hover) { .primary:hover:not(:disabled) { background: var(--primary); opacity: .88; } }
 
 .ghost { background: white; }
 
@@ -823,57 +824,146 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
 .push-right { margin-left: auto; }
 
 /* ---- Filtros con multiseleccion (enhanceMultiSelect en app.js) ----
-   Boton = "Selector" del manual v2.9 (seccion Estados): borde de control,
-   radio 8px, flecha de linea 14px gris. Hover: borde ink. Con algo elegido:
-   borde azul. Panel = menu flotante: tarjeta, borde, radio 10px, sombra
-   unica; opciones con casilla, lavado ink 6% al pasar el mouse y tinte
-   azul con texto azul las elegidas. */
+   Manual de marca v3.1, seccion 08. Disparador: borde de control, radio
+   8px, chevron de linea 14px gris; borde ink al pasar el mouse, azul con
+   seleccion o abierto; contador azul desde 2 elegidas (unico relleno azul).
+   Panel: menu flotante (tarjeta, borde, radio 10px, sombra unica), casillas
+   de 18px radio 4px; la seleccion se marca con la casilla, NO tiñendo la
+   fila; lavado ink 6% al pasar el mouse; foco por dentro (-2px). */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
 .ms { position: relative; display: inline-flex; }
 .ms > select { display: none; }
 .ms-trigger {
-  display: inline-flex; align-items: center; justify-content: space-between; gap: 6px;
-  min-width: 120px; max-width: 220px;
+  display: inline-flex; align-items: center; gap: 8px;
+  min-width: 176px; max-width: 240px;
   border: 1px solid var(--border-control); border-radius: 8px;
-  padding: 8px 8px 8px 12px; font-size: 13px; color: var(--text); background: var(--card);
+  padding: 8px 12px; font-size: 13.5px; color: var(--text); background: var(--card);
   transition: border-color .15s ease;
 }
-.ms-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ms-label { flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ms-badge {
+  min-width: 18px; height: 18px; padding: 0 6px; border-radius: 999px;
+  background: var(--primary); color: #fff; font-size: 11px; font-weight: 700; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.ms-badge[hidden] { display: none; }
 .ms-chevron { flex-shrink: 0; color: var(--muted); transition: transform .15s var(--ease-out); }
 .ms.open .ms-chevron { transform: rotate(180deg); }
-@media (hover: hover) { .ms-trigger:hover, html[data-theme="dark"] .ms-trigger:hover { border-color: var(--text); } }
-.ms.has-value .ms-trigger { border-color: var(--primary); }
+@media (hover: hover) { .ms-trigger:hover:not(:disabled), html[data-theme="dark"] .ms-trigger:hover:not(:disabled) { border-color: var(--text); } }
+.ms.has-value .ms-trigger, .ms.open .ms-trigger,
+html[data-theme="dark"] .ms.has-value .ms-trigger, html[data-theme="dark"] .ms.open .ms-trigger { border-color: var(--primary); }
+.ms-trigger:disabled { opacity: .45; cursor: not-allowed; }
+
 .ms-panel {
   position: absolute; top: calc(100% + 4px); left: 0; z-index: 40;
-  min-width: max(100%, 200px); max-width: 300px; max-height: min(320px, 60vh); overflow-y: auto;
+  min-width: 100%; width: max-content; max-width: 320px;
   background: var(--card); border: 1px solid var(--border); border-radius: 10px;
-  box-shadow: var(--shadow-float); padding: 6px;
-  display: flex; flex-direction: column; gap: 2px;
+  box-shadow: var(--shadow-float);
+  display: flex; flex-direction: column; overflow: hidden;
+  animation: msIn .12s var(--ease-out);
 }
-.ms-panel[hidden] { display: none; }
-.ms-opt, .ms-clear {
-  display: flex; align-items: center; gap: 8px; width: 100%;
-  border: 0; border-radius: 6px; background: transparent;
-  padding: 8px 12px; font-size: 13px; color: var(--text); text-align: left;
+.ms.up .ms-panel { top: auto; bottom: calc(100% + 4px); animation-name: msInUp; }
+.ms-panel[hidden], .ms-overlay[hidden] { display: none; }
+@keyframes msIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes msInUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.ms-list { padding: 6px; max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; }
+.ms-opt {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  padding: 8px; border-radius: 6px; font-size: 13.5px; color: var(--text);
+  cursor: pointer; user-select: none;
 }
-.ms-opt-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ms-opt:focus { outline: none; }
+.ms-opt:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 @media (hover: hover) {
-  .ms-opt:hover, .ms-clear:hover { background: rgba(24,24,27,0.06); }
-  html[data-theme="dark"] .ms-opt:hover, html[data-theme="dark"] .ms-clear:hover { background: rgba(255,255,255,0.06); }
+  .ms-opt:hover { background: rgba(24,24,27,0.06); }
+  html[data-theme="dark"] .ms-opt:hover { background: rgba(255,255,255,0.06); }
 }
-.ms-opt.is-on { background: var(--primary-soft); color: var(--primary); }
+.ms-opt-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ms-master { font-weight: 600; }
 .ms-box {
-  flex-shrink: 0; width: 16px; height: 16px; border-radius: 4px;
+  flex-shrink: 0; width: 18px; height: 18px; border-radius: 4px;
   border: 1px solid var(--border-control); background: var(--card);
   display: inline-flex; align-items: center; justify-content: center; color: #fff;
 }
-.ms-opt.is-on .ms-box { background: var(--primary); border-color: var(--primary); }
-.ms-sep { height: 1px; background: var(--border); margin: 4px 6px; flex-shrink: 0; }
-.ms-clear { color: var(--muted); font-size: 12.5px; }
-.ms-empty { padding: 8px 12px; font-size: 13px; color: var(--muted); }
-html[data-theme="dark"] .ms-trigger, html[data-theme="dark"] .ms-opt, html[data-theme="dark"] .ms-clear { border-color: var(--border-control); }
-html[data-theme="dark"] .ms-opt, html[data-theme="dark"] .ms-clear { background: transparent; }
-html[data-theme="dark"] .ms-opt.is-on { background: var(--primary-soft); }
+.ms-box.on { background: var(--primary); border-color: var(--primary); }
+.ms-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.ms-sep { height: 1px; background: var(--border); margin: 2px 6px; flex-shrink: 0; }
+.ms-link, html[data-theme="dark"] .ms-link {
+  margin-left: auto; border: 0; background: transparent; padding: 0;
+  font-size: 12.5px; font-weight: 500; color: var(--text);
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.ms-empty { padding: 8px; font-size: 13px; color: var(--muted); }
+.ms-search {
+  margin: 8px 8px 2px; display: flex; align-items: center; gap: 8px;
+  border: 1px solid var(--border-control); border-radius: 8px; padding: 6px 8px;
+  color: var(--muted); background: var(--card);
+}
+.ms-search svg { flex-shrink: 0; }
+.ms-search-input {
+  flex: 1; min-width: 0; border: 0; outline: none; background: transparent;
+  font: inherit; font-size: 13px; color: var(--text); padding: 2px 0;
+}
+.ms-search:focus-within { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+/* Movil: hoja inferior sobre velo de ink al 40%, hasta el 70% del alto,
+   opciones de 44px, "Limpiar" arriba y "Listo (n)" fijo al pie. La pagina
+   de atras no se desplaza (html.ms-lock). */
+.ms-overlay { position: fixed; inset: 0; z-index: 90; background: rgba(24,24,27,0.4); }
+.ms.is-sheet .ms-panel {
+  position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 91;
+  width: auto; max-width: none; max-height: 70vh;
+  border-radius: 14px 14px 0 0; border-bottom: 0;
+  padding: 8px 12px calc(12px + env(safe-area-inset-bottom));
+  animation: msSheetIn .18s var(--ease-out);
+}
+@keyframes msSheetIn { from { transform: translateY(100%); } to { transform: none; } }
+.ms.is-sheet .ms-list { max-height: none; flex: 1; min-height: 0; padding: 4px 0; }
+.ms.is-sheet .ms-opt { min-height: 44px; padding: 8px; }
+.ms.is-sheet .ms-search { margin: 4px 0; }
+.ms-grab { width: 32px; height: 4px; border-radius: 999px; background: var(--border-control); margin: 0 auto 8px; flex-shrink: 0; }
+.ms-sheet-title { display: flex; justify-content: space-between; align-items: center; padding: 0 4px 4px; font-weight: 700; font-size: 14px; }
+.ms-sheet-foot { padding-top: 8px; flex-shrink: 0; }
+.ms-done { width: 100%; padding: 12px; font-weight: 700; }
+html.ms-lock, html.ms-lock body { overflow: hidden; }
+@media (prefers-reduced-motion: reduce) {
+  .ms-panel, .ms.is-sheet .ms-panel { animation: none; }
+  .ms-chevron { transition: none; }
+}
+
+/* Chips de filtro: una por opcion elegida; la x la desmarca. */
+.ms-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ms-chips[hidden] { display: none; }
+.ms-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 6px 4px 12px; border-radius: 999px;
+  background: var(--primary-soft); border: 1px solid var(--primary-soft-border); color: var(--primary);
+  font-size: 12.5px; font-weight: 500; white-space: nowrap;
+}
+@media (hover: hover) { .ms-chip:hover { border-color: var(--primary); } }
+.ms-chip-x, html[data-theme="dark"] .ms-chip-x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%;
+  background: transparent; color: inherit;
+}
 @media (max-width: 640px) { .ms-trigger { min-width: 0; } }
+
+/* ---- Estados de los controles (manual v3.1, seccion 07) ----
+   Hover solo con puntero: borde ink en controles claros, primario al 88%,
+   filas/pestanas/opciones con lavado ink 6%. Deshabilitado: 45% de
+   opacidad y cursor bloqueado, sin efecto de hover. Seleccionado en una
+   fila: tinte azul con barra azul de 3px a la izquierda. */
+button:disabled, select:disabled, input:disabled, textarea:disabled,
+.primary:disabled, .ghost:disabled { opacity: .45; cursor: not-allowed; }
+@media (hover: hover) {
+  .ghost:hover:not(:disabled), .pill.ghost:hover:not(:disabled) { background: rgba(24,24,27,0.06); }
+  html[data-theme="dark"] .ghost:hover:not(:disabled) { background: rgba(255,255,255,0.06); }
+  .tab-item:hover { background: rgba(24,24,27,0.06); }
+  html[data-theme="dark"] .tab-item:hover { background: rgba(255,255,255,0.06); }
+}
 
 /* Barra de filtros del Dashboard: mismo .filter-pills de siempre (flex/gap/
    wrap) mas el look de tarjeta que le da el mockup aprobado -- estado
@@ -2817,7 +2907,7 @@ html[data-theme="dark"] .primary {
   border-width: 0;
 }
 
-html[data-theme="dark"] .primary:hover { background: var(--primary-2); }
+html[data-theme="dark"] .primary:hover { background: var(--primary); }
 
 html[data-theme="dark"] .tab,
 html[data-theme="dark"] .col-add,

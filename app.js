@@ -936,6 +936,8 @@ function bindEvents() {
   [els.fResponsable, els.fEstado, els.fPrioridad, els.fEtiqueta,
    els.fHResponsable, els.fHEstado, els.fHPrioridad, els.fHEtiqueta,
    els.dashFResponsable, els.dashFEstado, els.dashFPrioridad].forEach(enhanceMultiSelect);
+  // Punto de color por opcion: solo en el filtro de estados (manual v3.1).
+  [els.fEstado, els.fHEstado, els.dashFEstado].forEach((s) => (s.dataset.dots = "estado"));
 
   $("clearFilters").addEventListener("click", () => {
     [els.fResponsable, els.fEstado, els.fPrioridad, els.fEtiqueta].forEach(clearSel);
@@ -1763,19 +1765,54 @@ function fillSelect(el, options, placeholder) {
 }
 
 // ---------------- Filtros con multiseleccion ----------------
-// Los <select class="pill"> de filtros (Dashboard, Temas, Hitos) pasan a
-// multiple y quedan ocultos; encima se arma un boton con la flecha del
-// manual de marca (seccion Estados: "Selector") y un panel con casillas.
-// El <select> sigue siendo la fuente de verdad: cada tilde marca su
-// <option> y dispara "change", asi los listeners de siempre no cambian.
-// Sin nada elegido = sin filtro; con varias = cualquiera de ellas (OR).
+// Menu desplegable multiseleccion segun el manual de marca v3.1 (seccion
+// 08). Los <select class="pill"> de filtros (Dashboard, Temas, Hitos) pasan
+// a multiple y quedan ocultos: siguen siendo la fuente de verdad, cada
+// cambio marca sus <option> y dispara "change", asi los listeners de
+// siempre no cambian. Sin nada elegido = sin filtro; varias = cualquiera (OR).
+// - Disparador: nombre del filtro / la opcion elegida / filtro + contador
+//   azul. Borde azul con seleccion o abierto.
+// - Panel (escritorio/tablet): popover anclado abajo (o arriba si no hay
+//   lugar), 320px max de ancho y alto, "Seleccionar todo" (con estado
+//   parcial) + "Limpiar", casillas de 18px, busqueda desde 8 opciones,
+//   punto de color solo en Estado. Cada cambio aplica al instante.
+// - Movil (<=640px): hoja inferior sobre velo, opciones de 44px, "Limpiar"
+//   arriba y "Listo (n)" al pie; aplica recien al tocar Listo.
+// - Teclado: Enter/Espacio/flecha abajo abren; flechas, Inicio/Fin, Espacio
+//   alterna, escribir salta por inicial; Esc cierra y vuelve al disparador;
+//   Tab cierra. Un solo menu abierto a la vez.
+// - Cada opcion elegida aparece como chip de filtro junto a los controles;
+//   la x del chip la desmarca.
 const MS_CHEVRON = `<svg class="ms-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>`;
 const MS_CHECK = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
+const MS_DASH = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"/></svg>`;
+const MS_SEARCH_MIN = 8;
+let msOpenEl = null;
 
 function selVals(el) { return [...el.selectedOptions].map((o) => o.value).filter(Boolean); }
 function matchSel(el, valor) { const v = selVals(el); return !v.length || v.includes(valor); }
 function matchSelAny(el, valores) { const v = selVals(el); return !v.length || valores.some((x) => v.includes(x)); }
 function clearSel(el) { [...el.options].forEach((o) => (o.selected = false)); syncMultiSelect(el); }
+
+const msIsSheet = () => window.matchMedia("(max-width: 640px)").matches;
+const msNorm = (t) => String(t).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+function msDotColor(nombre) {
+  const col = (state.columnas || []).find((c) => c.nombre === nombre);
+  if (col?.color) return columnaColorHex(col.color);
+  return STATE_COLORS[nombre] || "#94a3b8";
+}
+function msAnnounce(texto) {
+  let live = document.getElementById("msLive");
+  if (!live) {
+    live = document.createElement("div");
+    live.id = "msLive";
+    live.className = "sr-only";
+    live.setAttribute("aria-live", "polite");
+    document.body.appendChild(live);
+  }
+  live.textContent = "";
+  setTimeout(() => { live.textContent = texto; }, 30);
+}
 
 function enhanceMultiSelect(el) {
   if (!el || el.multiple) return;
@@ -1787,58 +1824,216 @@ function enhanceMultiSelect(el) {
   const wrap = document.createElement("div");
   wrap.className = "ms";
   wrap.innerHTML = `
-    <button type="button" class="ms-trigger" aria-haspopup="listbox" aria-expanded="false"><span class="ms-label"></span>${MS_CHEVRON}</button>
-    <div class="ms-panel" role="listbox" aria-multiselectable="true" hidden></div>`;
+    <button type="button" class="ms-trigger" aria-haspopup="listbox" aria-expanded="false">
+      <span class="ms-label"></span><span class="ms-badge" hidden></span>${MS_CHEVRON}
+    </button>
+    <div class="ms-overlay" hidden></div>
+    <div class="ms-panel" hidden></div>`;
   el.before(wrap);
   wrap.appendChild(el);
+  el._ms = { wrap, draft: null, query: "" };
   const trigger = wrap.querySelector(".ms-trigger");
   const panel = wrap.querySelector(".ms-panel");
-  const close = () => {
-    panel.hidden = true;
-    wrap.classList.remove("open");
-    trigger.setAttribute("aria-expanded", "false");
-    document.removeEventListener("pointerdown", onOutside, true);
-    document.removeEventListener("keydown", onKey, true);
-  };
-  const onOutside = (e) => { if (!wrap.contains(e.target)) close(); };
-  const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); trigger.focus(); } };
-  trigger.addEventListener("click", () => {
-    if (!panel.hidden) { close(); return; }
-    renderMultiSelectPanel(el);
-    panel.hidden = false;
-    wrap.classList.add("open");
-    trigger.setAttribute("aria-expanded", "true");
-    document.addEventListener("pointerdown", onOutside, true);
-    document.addEventListener("keydown", onKey, true);
+
+  trigger.addEventListener("click", () => (msOpenEl === el ? closeMultiSelect(el, { focus: false }) : openMultiSelect(el)));
+  trigger.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown" && msOpenEl !== el) { e.preventDefault(); openMultiSelect(el); }
   });
+  wrap.querySelector(".ms-overlay").addEventListener("click", () => closeMultiSelect(el));
+
   panel.addEventListener("click", (e) => {
-    const limpiar = e.target.closest(".ms-clear");
-    const opt = e.target.closest(".ms-opt");
-    if (limpiar) {
-      clearSel(el);
-    } else if (opt) {
-      const o = el.options[Number(opt.dataset.i)];
-      if (!o) return;
-      o.selected = !o.selected;
-      syncMultiSelect(el);
-    } else return;
-    renderMultiSelectPanel(el);
-    el.dispatchEvent(new Event("change"));
+    const t = e.target;
+    if (t.closest(".ms-clear")) { msSetSelected(el, new Set()); return; }
+    if (t.closest(".ms-done")) { msCommitDraft(el); closeMultiSelect(el); return; }
+    const row = t.closest(".ms-opt");
+    if (row) msToggleRow(el, row);
   });
+  panel.addEventListener("input", (e) => {
+    if (!e.target.classList.contains("ms-search-input")) return;
+    el._ms.query = e.target.value;
+    renderMultiSelectPanel(el, { keepSearchFocus: true });
+  });
+  panel.addEventListener("keydown", (e) => msPanelKeydown(el, e));
+
+  // Hoja movil: arrastrar el agarre hacia abajo la cierra (sin aplicar).
+  let dragY = null;
+  panel.addEventListener("touchstart", (e) => { if (e.target.closest(".ms-grab, .ms-sheet-title")) dragY = e.touches[0].clientY; }, { passive: true });
+  panel.addEventListener("touchmove", (e) => {
+    if (dragY == null) return;
+    const dy = Math.max(0, e.touches[0].clientY - dragY);
+    panel.style.transform = `translateY(${dy}px)`;
+  }, { passive: true });
+  panel.addEventListener("touchend", (e) => {
+    if (dragY == null) return;
+    const dy = e.changedTouches[0].clientY - dragY;
+    dragY = null;
+    panel.style.transform = "";
+    if (dy > 80) closeMultiSelect(el);
+  });
+
   syncMultiSelect(el);
 }
 
-function renderMultiSelectPanel(el) {
-  const panel = el.parentElement?.querySelector(".ms-panel");
-  if (!panel) return;
-  const opts = [...el.options];
-  panel.innerHTML = opts.length
-    ? opts.map((o, i) => `
-        <button type="button" class="ms-opt${o.selected ? " is-on" : ""}" role="option" aria-selected="${o.selected}" data-i="${i}">
-          <span class="ms-box">${o.selected ? MS_CHECK : ""}</span><span class="ms-opt-text">${escHtml(o.textContent)}</span>
-        </button>`).join("")
-      + (selVals(el).length ? `<div class="ms-sep"></div><button type="button" class="ms-clear">Limpiar selección</button>` : "")
-    : `<div class="ms-empty">Sin opciones</div>`;
+function msSelected(el) { return el._ms.draft ? new Set(el._ms.draft) : new Set(selVals(el)); }
+function msVisibleOptions(el) {
+  const q = msNorm(el._ms.query.trim());
+  return [...el.options].map((o, i) => ({ i, value: o.value, text: o.textContent }))
+    .filter((o) => !q || msNorm(o.text).includes(q));
+}
+function msSetSelected(el, set) {
+  if (el._ms.draft) {
+    el._ms.draft = set;
+    renderMultiSelectPanel(el);
+    return;
+  }
+  [...el.options].forEach((o) => (o.selected = set.has(o.value)));
+  syncMultiSelect(el);
+  renderMultiSelectPanel(el);
+  el.dispatchEvent(new Event("change"));
+}
+function msCommitDraft(el) {
+  if (!el._ms.draft) return;
+  const set = el._ms.draft;
+  el._ms.draft = null;
+  msSetSelected(el, set);
+}
+function msToggleRow(el, row) {
+  const set = msSelected(el);
+  if (row.dataset.key === "all") {
+    const vis = msVisibleOptions(el).map((o) => o.value);
+    const todos = vis.length && vis.every((v) => set.has(v));
+    vis.forEach((v) => (todos ? set.delete(v) : set.add(v)));
+  } else {
+    const o = el.options[Number(row.dataset.key)];
+    if (!o) return;
+    set.has(o.value) ? set.delete(o.value) : set.add(o.value);
+  }
+  msSetSelected(el, set);
+}
+
+function openMultiSelect(el) {
+  if (msOpenEl && msOpenEl !== el) closeMultiSelect(msOpenEl, { focus: false });
+  const { wrap } = el._ms;
+  const trigger = wrap.querySelector(".ms-trigger");
+  const panel = wrap.querySelector(".ms-panel");
+  const sheet = msIsSheet();
+  el._ms.query = "";
+  el._ms.draft = sheet ? new Set(selVals(el)) : null;
+  wrap.classList.toggle("is-sheet", sheet);
+  wrap.classList.add("open");
+  trigger.setAttribute("aria-expanded", "true");
+  panel.hidden = false;
+  wrap.querySelector(".ms-overlay").hidden = !sheet;
+  if (sheet) document.documentElement.classList.add("ms-lock");
+  renderMultiSelectPanel(el);
+  // Popover: abajo del disparador, o arriba si abajo no entra.
+  wrap.classList.remove("up");
+  if (!sheet) {
+    const r = trigger.getBoundingClientRect();
+    const alto = Math.min(panel.scrollHeight, 340);
+    if (window.innerHeight - r.bottom < alto + 12 && r.top > window.innerHeight - r.bottom) wrap.classList.add("up");
+  }
+  msOpenEl = el;
+  document.addEventListener("pointerdown", msOnOutside, true);
+  // Foco a la primera opcion elegida, o a la primera de la lista.
+  const rows = [...panel.querySelectorAll('.ms-opt:not([data-key="all"])')];
+  (rows.find((r) => r.getAttribute("aria-selected") === "true") || rows[0] || panel.querySelector(".ms-search-input"))?.focus();
+}
+function msOnOutside(e) {
+  if (msOpenEl && !msOpenEl._ms.wrap.contains(e.target)) closeMultiSelect(msOpenEl, { focus: false });
+}
+function closeMultiSelect(el, { focus = true } = {}) {
+  const { wrap } = el._ms;
+  if (!wrap.classList.contains("open")) return;
+  el._ms.draft = null;
+  el._ms.query = "";
+  wrap.classList.remove("open", "up", "is-sheet");
+  wrap.querySelector(".ms-trigger").setAttribute("aria-expanded", "false");
+  wrap.querySelector(".ms-panel").hidden = true;
+  wrap.querySelector(".ms-overlay").hidden = true;
+  document.documentElement.classList.remove("ms-lock");
+  document.removeEventListener("pointerdown", msOnOutside, true);
+  if (msOpenEl === el) msOpenEl = null;
+  const n = selVals(el).length;
+  msAnnounce(n === 1 ? "1 seleccionado" : `${n} seleccionados`);
+  if (focus) wrap.querySelector(".ms-trigger").focus();
+}
+
+function renderMultiSelectPanel(el, { keepSearchFocus = false } = {}) {
+  const { wrap } = el._ms;
+  const panel = wrap.querySelector(".ms-panel");
+  if (panel.hidden) return;
+  const focusedKey = document.activeElement?.closest?.(".ms-opt")?.dataset.key;
+  const ph = el.dataset.placeholder || "";
+  const total = el.options.length;
+  const sel = msSelected(el);
+  const vis = msVisibleOptions(el);
+  const sheet = wrap.classList.contains("is-sheet");
+  const conDot = el.dataset.dots === "estado";
+  const visSel = vis.filter((o) => sel.has(o.value)).length;
+  const masterState = !vis.length || visSel === 0 ? "off" : visSel === vis.length ? "on" : "mixed";
+  const box = (st) => `<span class="ms-box${st !== "off" ? " on" : ""}">${st === "on" ? MS_CHECK : st === "mixed" ? MS_DASH : ""}</span>`;
+  const head = sheet
+    ? `<div class="ms-grab" aria-hidden="true"></div>
+       <div class="ms-sheet-title"><span>${escHtml(ph)}</span>${total ? `<button type="button" class="ms-clear ms-link">Limpiar</button>` : ""}</div>`
+    : "";
+  const search = total >= MS_SEARCH_MIN
+    ? `<label class="ms-search">${icon("buscar", 14)}<input type="text" class="ms-search-input" placeholder="Buscar ${escHtml(ph.toLowerCase())}" value="${escHtml(el._ms.query)}" aria-label="Buscar ${escHtml(ph.toLowerCase())}" /></label>`
+    : "";
+  const master = total > 2 && vis.length
+    ? `<div class="ms-opt ms-master" role="option" tabindex="-1" data-key="all" aria-selected="${masterState === "on"}">
+         ${box(masterState)}<span class="ms-opt-text">Seleccionar todo</span>
+         ${sheet ? "" : `<button type="button" class="ms-clear ms-link" tabindex="-1">Limpiar</button>`}
+       </div><div class="ms-sep" role="presentation"></div>`
+    : "";
+  const opts = vis.map((o) => {
+    const on = sel.has(o.value);
+    return `<div class="ms-opt" role="option" tabindex="-1" data-key="${o.i}" aria-selected="${on}">
+      ${box(on ? "on" : "off")}${conDot ? `<span class="ms-dot" style="background:${msDotColor(o.value)}"></span>` : ""}<span class="ms-opt-text">${escHtml(o.text)}</span>
+    </div>`;
+  }).join("");
+  const vacio = !total ? `<div class="ms-empty">Sin opciones</div>` : !vis.length ? `<div class="ms-empty">Sin resultados</div>` : "";
+  const foot = sheet ? `<div class="ms-sheet-foot"><button type="button" class="primary ms-done">Listo (${sel.size})</button></div>` : "";
+  panel.innerHTML = `${head}${search}
+    <div class="ms-list" role="listbox" aria-multiselectable="true" aria-label="${escHtml(ph)}">${master}${opts}${vacio}</div>${foot}`;
+  if (keepSearchFocus) {
+    const inp = panel.querySelector(".ms-search-input");
+    if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+  } else if (focusedKey != null) {
+    panel.querySelector(`.ms-opt[data-key="${focusedKey}"]`)?.focus();
+  }
+}
+
+function msPanelKeydown(el, e) {
+  const panel = el._ms.wrap.querySelector(".ms-panel");
+  const rows = [...panel.querySelectorAll(".ms-opt")];
+  const inSearch = e.target.classList?.contains("ms-search-input");
+  const idx = rows.indexOf(document.activeElement);
+  const go = (i) => { e.preventDefault(); rows[Math.max(0, Math.min(rows.length - 1, i))]?.focus(); };
+  switch (e.key) {
+    case "Escape": e.preventDefault(); e.stopPropagation(); closeMultiSelect(el); return;
+    case "Tab": closeMultiSelect(el, { focus: false }); return;
+    case "ArrowDown": return go(idx + 1);
+    case "ArrowUp":
+      if (idx <= 0 && panel.querySelector(".ms-search-input")) { e.preventDefault(); panel.querySelector(".ms-search-input").focus(); return; }
+      return go(idx - 1);
+    case "Home": if (!inSearch) go(0); return;
+    case "End": if (!inSearch) go(rows.length - 1); return;
+    case " ":
+    case "Enter":
+      if (inSearch && e.key === " ") return;
+      if (idx >= 0) { e.preventDefault(); msToggleRow(el, rows[idx]); }
+      return;
+    default:
+      // Escribir salta a la opcion que empieza con esas letras.
+      if (!inSearch && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const ms = el._ms;
+        ms.typed = (Date.now() - (ms.typedAt || 0) < 700 ? ms.typed || "" : "") + msNorm(e.key);
+        ms.typedAt = Date.now();
+        const hit = rows.find((r) => r.dataset.key !== "all" && msNorm(r.textContent.trim()).startsWith(ms.typed));
+        if (hit) { e.preventDefault(); hit.focus(); }
+      }
+  }
 }
 
 function syncMultiSelect(el) {
@@ -1846,11 +2041,44 @@ function syncMultiSelect(el) {
   if (!wrap?.classList.contains("ms")) return;
   const vals = selVals(el);
   const ph = el.dataset.placeholder || "";
-  const label = !vals.length ? ph : vals.length === 1 ? vals[0] : `${ph} · ${vals.length}`;
-  wrap.querySelector(".ms-label").textContent = label;
-  wrap.querySelector(".ms-trigger").title = vals.length ? `${ph}: ${vals.join(", ")}` : ph;
+  wrap.querySelector(".ms-label").textContent = vals.length === 1 ? vals[0] : ph;
+  const badge = wrap.querySelector(".ms-badge");
+  badge.hidden = vals.length < 2;
+  badge.textContent = vals.length;
+  const trigger = wrap.querySelector(".ms-trigger");
+  trigger.title = vals.length ? `${ph}: ${vals.join(", ")}` : ph;
+  trigger.disabled = el.options.length === 0;
   wrap.classList.toggle("has-value", vals.length > 0);
-  if (!wrap.querySelector(".ms-panel").hidden) renderMultiSelectPanel(el);
+  renderMultiSelectChips(wrap.closest(".filter-pills"));
+  if (!el._ms?.draft) renderMultiSelectPanel(el);
+}
+
+// Chips de filtro: una por opcion elegida, junto a los controles de la barra.
+function renderMultiSelectChips(bar) {
+  if (!bar) return;
+  const ultimo = [...bar.querySelectorAll(".ms")].pop();
+  if (!ultimo) return;
+  let box = bar.querySelector(".ms-chips");
+  if (!box) {
+    box = document.createElement("div");
+    box.className = "ms-chips";
+    box.addEventListener("click", (e) => {
+      const x = e.target.closest(".ms-chip-x");
+      if (!x) return;
+      const sel = document.getElementById(x.dataset.sel);
+      const o = sel && [...sel.options].find((op) => op.value === x.dataset.v);
+      if (!o) return;
+      o.selected = false;
+      syncMultiSelect(sel);
+      sel.dispatchEvent(new Event("change"));
+    });
+  }
+  // Siempre despues del ultimo filtro (los filtros se arman de a uno).
+  if (ultimo.nextElementSibling !== box) ultimo.after(box);
+  box.innerHTML = [...bar.querySelectorAll(".ms > select")].flatMap((sel) =>
+    selVals(sel).map((v) => `<span class="ms-chip">${escHtml(v)}<button type="button" class="ms-chip-x" data-sel="${sel.id}" data-v="${escHtml(v)}" aria-label="Quitar filtro ${escHtml(v)}" title="Quitar">${icon("cerrar", 12)}</button></span>`)
+  ).join("");
+  box.hidden = !box.innerHTML;
 }
 
 // Nombre de etiqueta -> color (nombre de TAG_COLORS o hex legado). Catalogo
