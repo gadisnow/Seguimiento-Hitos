@@ -2458,6 +2458,12 @@ html[data-theme="dark"] .nota-group-popup-item:not(.dragging):hover { box-shadow
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /* 4px de aire adentro (compensado con margen negativo, asi el contenido
+     no se mueve): sin esto, los bordes y anillos de foco de los campos que
+     van a ras (titulo, selects de grupo/tema, editor) quedaban recortados
+     por el overflow de este contenedor. */
+  padding: 4px;
+  margin: -4px;
 }
 /* "Springboard": arranca el fade+scale generico de dialog#modalForm
    (ver mas arriba, linea ~1673) desde el tile/tarjeta que se tocó en vez
