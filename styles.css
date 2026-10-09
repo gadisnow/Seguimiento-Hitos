@@ -2201,7 +2201,7 @@ html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,
    Aplica a todos los editores (.ql-container .ql-editor: notas, composer
    de comentarios y edicion de comentario) y a las vistas de lectura
    (.nota-rich-preview y .feed-comment-body), asi lo que se escribe se ve
-   igual a lo que queda guardado. Sangria: 1.2em + 1.6em por nivel.
+   igual a lo que queda guardado. Sangria: 1.2em, nivel 2 en 2.4em y +1.6em por cada nivel siguiente.
    Vinetas por nivel estilo documento: disco, circulo hueco, cuadradito
    (y se repite), agrandadas con scale para que no queden chicas.
    El marcador vive en lugares distintos segun el contexto: en el editor
@@ -2231,7 +2231,7 @@ html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,
 .nota-rich-preview li[data-list="bullet"].ql-indent-4:before {
   content: "\25E6"; transform: scale(1.6);
   /* el glifo del circulo hueco es de trazo muy fino: se engrosa el borde */
-  -webkit-text-stroke: .03em currentColor;
+  -webkit-text-stroke: .015em currentColor;
 }
 .ql-container .ql-editor li[data-list="bullet"].ql-indent-2 > .ql-ui:before,
 .feed-comment-body li[data-list="bullet"].ql-indent-2 > .ql-ui::before,
@@ -2239,11 +2239,11 @@ html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,
 .ql-container .ql-editor li[data-list="bullet"].ql-indent-5 > .ql-ui:before,
 .feed-comment-body li[data-list="bullet"].ql-indent-5 > .ql-ui::before,
 .nota-rich-preview li[data-list="bullet"].ql-indent-5:before { content: "\25AA"; }
-.ql-container .ql-editor li.ql-indent-1:not(.ql-direction-rtl), .feed-comment-body li.ql-indent-1, .nota-rich-preview li.ql-indent-1 { padding-left: 2.8em; }
-.ql-container .ql-editor li.ql-indent-2:not(.ql-direction-rtl), .feed-comment-body li.ql-indent-2, .nota-rich-preview li.ql-indent-2 { padding-left: 4.4em; }
-.ql-container .ql-editor li.ql-indent-3:not(.ql-direction-rtl), .feed-comment-body li.ql-indent-3, .nota-rich-preview li.ql-indent-3 { padding-left: 6em; }
-.ql-container .ql-editor li.ql-indent-4:not(.ql-direction-rtl), .feed-comment-body li.ql-indent-4, .nota-rich-preview li.ql-indent-4 { padding-left: 7.6em; }
-.ql-container .ql-editor li.ql-indent-5:not(.ql-direction-rtl), .feed-comment-body li.ql-indent-5, .nota-rich-preview li.ql-indent-5 { padding-left: 9.2em; }
+.ql-container .ql-editor li.ql-indent-1:not(.ql-direction-rtl), .feed-comment-body li.ql-indent-1, .nota-rich-preview li.ql-indent-1 { padding-left: 2.4em; }
+.ql-container .ql-editor li.ql-indent-2:not(.ql-direction-rtl), .feed-comment-body li.ql-indent-2, .nota-rich-preview li.ql-indent-2 { padding-left: 4em; }
+.ql-container .ql-editor li.ql-indent-3:not(.ql-direction-rtl), .feed-comment-body li.ql-indent-3, .nota-rich-preview li.ql-indent-3 { padding-left: 5.6em; }
+.ql-container .ql-editor li.ql-indent-4:not(.ql-direction-rtl), .feed-comment-body li.ql-indent-4, .nota-rich-preview li.ql-indent-4 { padding-left: 7.2em; }
+.ql-container .ql-editor li.ql-indent-5:not(.ql-direction-rtl), .feed-comment-body li.ql-indent-5, .nota-rich-preview li.ql-indent-5 { padding-left: 8.8em; }
 /* Imagenes adjuntas (Quill las inserta como <img> base64 inline, igual
    que en comentarios): siempre el mismo tamano de miniatura en vez del
    tamano original de la imagen pegada -- object-fit:cover recorta en vez
