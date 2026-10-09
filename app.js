@@ -24,6 +24,15 @@ const STATE_COLORS = {
   "En revision": "#8b5cf6"
 };
 
+// Menus de filtro multiseleccion (ver enhanceMultiSelect). Van aca arriba,
+// antes de init(): bindEvents() ya los usa al arrancar, y una const
+// declarada mas abajo todavia no existe en ese momento (pantalla en blanco).
+const MS_CHEVRON = `<svg class="ms-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>`;
+const MS_CHECK = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
+const MS_DASH = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"/></svg>`;
+const MS_SEARCH_MIN = 8;
+let msOpenEl = null;
+
 const RESP_PALETTE = ["#4f46e5","#3b82f6","#06b6d4","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899","#84cc16","#f97316"];
 
 // Paleta de 24 colores para etiquetas (estilo Google Calendar): nombre + hex
@@ -1783,19 +1792,14 @@ function fillSelect(el, options, placeholder) {
 //   Tab cierra. Un solo menu abierto a la vez.
 // - Cada opcion elegida aparece como chip de filtro junto a los controles;
 //   la x del chip la desmarca.
-const MS_CHEVRON = `<svg class="ms-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>`;
-const MS_CHECK = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
-const MS_DASH = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"/></svg>`;
-const MS_SEARCH_MIN = 8;
-let msOpenEl = null;
 
 function selVals(el) { return [...el.selectedOptions].map((o) => o.value).filter(Boolean); }
 function matchSel(el, valor) { const v = selVals(el); return !v.length || v.includes(valor); }
 function matchSelAny(el, valores) { const v = selVals(el); return !v.length || valores.some((x) => v.includes(x)); }
 function clearSel(el) { [...el.options].forEach((o) => (o.selected = false)); syncMultiSelect(el); }
 
-const msIsSheet = () => window.matchMedia("(max-width: 640px)").matches;
-const msNorm = (t) => String(t).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+function msIsSheet() { return window.matchMedia("(max-width: 640px)").matches; }
+function msNorm(t) { return String(t).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
 function msDotColor(nombre) {
   const col = (state.columnas || []).find((c) => c.nombre === nombre);
   if (col?.color) return columnaColorHex(col.color);
