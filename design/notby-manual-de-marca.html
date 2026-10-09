@@ -229,6 +229,37 @@
   .progress-wrap{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
   .progress-label{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
 
+  /* ---------- foundations: spacing, radii, borders, shadow ---------- */
+  :root{--shadow-float:0 8px 24px rgba(24,24,27,.14)}
+  .tok{border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden;margin-top:20px}
+  .tok-row{display:grid;align-items:center;border-top:1px solid var(--line)}
+  .tok-row:first-child{border-top:none}
+  .tok-row > div{padding:11px 16px;font-size:13.5px;color:#3F3F46;line-height:1.45}
+  .tok-row.head{background:var(--paper)}
+  .tok-row.head > div{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+  .tok-name{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--ink)}
+  .tok-val{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--muted);white-space:nowrap}
+  .tok-space .tok-row{grid-template-columns:84px 84px 100px 1fr}
+  .tok-space .tok-bar > i{display:block;height:12px;border-radius:3px;background:var(--blue)}
+  .tok-border .tok-row{grid-template-columns:76px 1.15fr 1.25fr}
+  .tok-border .sample > i{display:block;width:44px;height:24px;border-radius:6px;background:#fff}
+
+  .rad-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-top:20px}
+  .rad-box{height:64px;border:2px solid var(--ink);background:#fff}
+  .rad-name{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;color:var(--ink);margin-top:10px}
+  .rad-use{font-size:12.5px;color:var(--muted);line-height:1.45;margin-top:4px}
+
+  .found-split{display:grid;grid-template-columns:1.15fr .85fr;gap:20px;margin-top:20px;align-items:start}
+  .found-split .tok{margin-top:0}
+  .shadow-stage{border:1px solid var(--line);border-radius:14px;background:var(--paper);padding:24px 24px 20px}
+  .shadow-stage .lbl{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:16px}
+  .float-menu{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-float);padding:6px;max-width:240px}
+  .float-menu .fm-item{padding:9px 12px;border-radius:8px;font-size:14px;color:var(--ink)}
+  .float-menu .fm-item.active{background:var(--blue-tint);color:var(--blue)}
+  .float-menu .fm-sep{height:1px;background:var(--line);margin:4px 6px}
+  .shadow-note{font-size:12.5px;color:var(--muted);line-height:1.55;margin-top:18px;max-width:none}
+  .shadow-note code{white-space:nowrap}
+
   /* ---------- responsive: breakpoints + device mockups ---------- */
   .bp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:20px}
   .bp{border:1px solid var(--line);border-radius:12px;background:#fff;padding:16px 18px}
@@ -300,7 +331,9 @@
 
   /* Tablet: 641–1024 */
   @media(max-width:1024px){
-    .wrap{padding:0 28px}
+    .wrap{padding:0 24px}
+    .found-split{grid-template-columns:1fr}
+    .rad-grid{grid-template-columns:repeat(3,1fr)}
     section{padding:60px 0}
     h2{font-size:29px}
     .adapt-row{grid-template-columns:.9fr 1fr 1fr 1fr}
@@ -310,7 +343,13 @@
   @media(max-width:680px){
     .grid2,.rules{grid-template-columns:1fr}
     .typerow{grid-template-columns:1fr;gap:6px}
-    .wrap{padding:0 20px}
+    .wrap{padding:0 16px}
+    .rad-grid{grid-template-columns:repeat(2,1fr)}
+    .tok-space .tok-row{grid-template-columns:64px 72px 1fr}
+    .tok-row > div{padding:10px 12px}
+    .tok-space .tok-bar{display:none}
+    .tok-border .tok-row{grid-template-columns:60px 1fr}
+    .tok-border .tok-row > div:nth-child(3){grid-column:1 / -1;padding-top:0}
     section{padding:52px 0}
     h2{font-size:26px}
     .panel,.clearspace{padding:24px 16px}
@@ -340,7 +379,7 @@
       </svg>
     </div>
     <h1>notby</h1>
-    <div class="sub">Manual de marca · v2.8</div>
+    <div class="sub">Manual de marca · v2.9</div>
   </div>
 </div>
 
@@ -530,7 +569,7 @@
     <h3>Ajustes obligatorios en dark mode</h3>
     <p>El logo no se invierte automáticamente. Sobre fondo oscuro cambian tres valores: el contenedor sube de <code>#18181B</code> a <code>#2E2E33</code> para no desaparecer contra la superficie; el azul pasa a <code>#60A5FA</code> porque el tono saturado pierde legibilidad sobre fondos oscuros; y la tarjeta superior baja de 45% a 33% de opacidad, ya que el blanco pesa más sobre gris carbón.</p>
     <p>La superficie oscura es <code>#1C1C1F</code>, no negro puro. El negro absoluto genera un contraste duro que cansa en sesiones largas, que es exactamente el modo en que se usa una herramienta de gestión. El gris es neutro y no cálido: mantiene la coherencia con el ink <code>#18181B</code> y funciona como base fría, coherente con el acento azul.</p>
-    <p><strong>Nota de contraste:</strong> <code>#2563EB</code> tiene menor luminancia que el naranja que reemplaza, así que no se comporta igual sobre todos los fondos. Texto en ink sólido sobre azul da ~2.9:1 (insuficiente incluso para texto grande) — por eso cualquier texto o ícono que vaya <em>sobre</em> un fondo azul sólido usa blanco, no ink. Ver el ejemplo en la sección 07 — Uso.</p>
+    <p><strong>Nota de contraste:</strong> <code>#2563EB</code> tiene menor luminancia que el naranja que reemplaza, así que no se comporta igual sobre todos los fondos. Texto en ink sólido sobre azul da ~2.9:1 (insuficiente incluso para texto grande) — por eso cualquier texto o ícono que vaya <em>sobre</em> un fondo azul sólido usa blanco, no ink. Ver el ejemplo en la sección 08 — Uso.</p>
     <p><strong>Colores de estado:</strong> además de esta paleta de marca, el producto usa un set de colores semánticos para el estado de temas y columnas (pendiente, en curso, bloqueado…). Es un sistema aparte — no reemplaza al azul de marca — documentado junto a sus íconos en 04 — Iconografía.</p>
 
     <h3>Colores funcionales</h3>
@@ -935,7 +974,7 @@
     <div class="caption">El toggle usa un solo ícono según el estado actual del modo, no los dos a la vez — acá el sol/luna se documentan por separado para dejar registrados ambos glifos.</div>
 
     <h3>Formatos de archivo <span style="font-weight:400;color:var(--muted);font-size:13px">— excepción documentada</span></h3>
-    <p class="familynote">Único caso en todo el sistema donde un ícono no es de línea ni monocromo. Excel, PDF y Word usan la convención de color por formato ya establecida fuera de la marca (verde, rojo, gris) — cambiarla generaría más fricción que coherencia. Aparecen exclusivamente dentro del menú que abre "Exportar" (línea/ink, set base) — nunca reemplazan a Exportar, ni el azul de acento se usa acá: el ítem resaltado del menú usa el mismo tinte de azul que cualquier fila activa (ver 05 — Componentes), no el color del formato.</p>
+    <p class="familynote">Único caso en todo el sistema donde un ícono no es de línea ni monocromo. Excel, PDF y Word usan la convención de color por formato ya establecida fuera de la marca (verde, rojo, gris) — cambiarla generaría más fricción que coherencia. Aparecen exclusivamente dentro del menú que abre "Exportar" (línea/ink, set base) — nunca reemplazan a Exportar, ni el azul de acento se usa acá: el ítem resaltado del menú usa el mismo tinte de azul que cualquier fila activa (ver 06 — Componentes), no el color del formato.</p>
     <div class="filetype-menu">
       <div class="filetype-item">
         <svg width="22" height="22" viewBox="0 0 24 24"><rect x="3" y="2" width="18" height="20" rx="3" fill="#16A34A"/><rect x="6.5" y="6" width="11" height="12" rx="1" fill="#fff"/><path d="M6.5 10h11M6.5 14h11M10.7 6v12M14.3 6v12" stroke="#16A34A" stroke-width="1"/></svg>
@@ -1034,10 +1073,68 @@
   </div>
 </section>
 
+<!-- ============ ESPACIADO Y FORMA ============ -->
+<section>
+  <div class="wrap">
+    <div class="eyebrow">05 — Espaciado y forma</div>
+    <h2>Espaciado, radios, bordes y sombras</h2>
+    <p>Siete medidas de espacio, seis radios y una sola sombra alcanzan para toda la interfaz. Nada se mide a ojo: si una medida no está acá, se usa la más cercana. Son las mismas en claro y en oscuro y en los tres tamaños de pantalla; lo único que cambia entre dispositivos es cuál se elige (ver 07 — Adaptabilidad).</p>
+
+    <h3>Espaciado</h3>
+    <div class="tok tok-space">
+      <div class="tok-row head"><div>Espacio</div><div style="text-align:right">Valor</div><div class="tok-bar"></div><div>Dónde</div></div>
+      <div class="tok-row"><div class="tok-name">esp-1</div><div class="tok-val" style="text-align:right">4 px</div><div class="tok-bar"><i style="width:4px"></i></div><div>Ícono y texto en chips y etiquetas</div></div>
+      <div class="tok-row"><div class="tok-name">esp-2</div><div class="tok-val" style="text-align:right">6 px</div><div class="tok-bar"><i style="width:6px"></i></div><div>Entre chips; ícono y texto en botones</div></div>
+      <div class="tok-row"><div class="tok-name">esp-3</div><div class="tok-val" style="text-align:right">8 px</div><div class="tok-bar"><i style="width:8px"></i></div><div>Entre botones; entre íconos de una barra; alto de celda (8 × 10 px)</div></div>
+      <div class="tok-row"><div class="tok-name">esp-4</div><div class="tok-val" style="text-align:right">12 px</div><div class="tok-bar"><i style="width:12px"></i></div><div>Entre filtros y entre KPIs</div></div>
+      <div class="tok-row"><div class="tok-name">esp-5</div><div class="tok-val" style="text-align:right">16 px</div><div class="tok-bar"><i style="width:16px"></i></div><div>Entre tarjetas de una columna; relleno de tarjeta; margen lateral en móvil</div></div>
+      <div class="tok-row"><div class="tok-name">esp-6</div><div class="tok-val" style="text-align:right">24 px</div><div class="tok-bar"><i style="width:24px"></i></div><div>Entre bloques de una pantalla; margen lateral en tablet</div></div>
+      <div class="tok-row"><div class="tok-name">esp-7</div><div class="tok-val" style="text-align:right">32 px</div><div class="tok-bar"><i style="width:32px"></i></div><div>Margen lateral en escritorio; entre secciones grandes</div></div>
+    </div>
+    <div class="caption">Base de 4 px (el paso de 6 px es la única excepción, para chips y botones chicos). Las barras azules son solo guía de escala.</div>
+
+    <h3>Radios</h3>
+    <div class="rad-grid">
+      <div><div class="rad-box" style="border-radius:4px"></div><div class="rad-name">rad-1 · 4 px</div><div class="rad-use">Barras de gráficos, cuadritos de leyenda</div></div>
+      <div><div class="rad-box" style="border-radius:6px"></div><div class="rad-name">rad-2 · 6 px</div><div class="rad-use">Botones chicos, opciones de menú</div></div>
+      <div><div class="rad-box" style="border-radius:8px"></div><div class="rad-name">rad-3 · 8 px</div><div class="rad-use">Botones, selects, búsqueda</div></div>
+      <div><div class="rad-box" style="border-radius:10px"></div><div class="rad-name">rad-4 · 10 px</div><div class="rad-use">Contenedor de tabs, tooltips, popovers</div></div>
+      <div><div class="rad-box" style="border-radius:14px"></div><div class="rad-name">rad-5 · 14 px</div><div class="rad-use">Tarjetas, paneles y modales</div></div>
+      <div><div class="rad-box" style="border-radius:999px"></div><div class="rad-name">rad-max · pastilla</div><div class="rad-use">Chips, etiquetas de estado, barras de progreso</div></div>
+    </div>
+    <div class="caption">El ícono de marca no usa esta escala: su radio es proporcional al lado (≈ 23%), así que escala con el logo en cualquier tamaño.</div>
+
+    <h3>Bordes y sombra</h3>
+    <div class="found-split">
+      <div class="tok tok-border">
+        <div class="tok-row head"><div></div><div>Borde</div><div>Dónde</div></div>
+        <div class="tok-row"><div class="sample"><i style="border:1px solid #E4E4E7"></i></div><div>1 px · Línea <span class="tok-val">#E4E4E7</span></div><div>Tarjetas, tablas, divisores</div></div>
+        <div class="tok-row"><div class="sample"><i style="border:1px solid #D4D4D8"></i></div><div>1 px · Control <span class="tok-val">#D4D4D8</span></div><div>Selects, búsqueda y campos de texto</div></div>
+        <div class="tok-row"><div class="sample"><i style="border:1.5px solid #18181B"></i></div><div>1,5 px · Ink</div><div>Botón secundario</div></div>
+        <div class="tok-row"><div class="sample"><i style="border:1px solid #BFDBFE;background:#EFF6FF"></i></div><div>1 px · Azul tinte <span class="tok-val">#BFDBFE</span></div><div>Chip o fila activa sobre el tinte</div></div>
+        <div class="tok-row"><div class="sample"><i style="outline:2px solid #2563EB;outline-offset:2px;border:1px solid #D4D4D8"></i></div><div>2 px · Azul, separado 2 px</div><div>Foco de teclado</div></div>
+        <div class="tok-row"><div class="sample"><i style="border:1px solid #E4E4E7;border-left:3px solid #2563EB;border-radius:0 6px 6px 0"></i></div><div>3 px · Azul, a la izquierda</div><div>Fila seleccionada; notas destacadas</div></div>
+      </div>
+      <div class="shadow-stage">
+        <div class="lbl">Sombra única</div>
+        <div class="float-menu">
+          <div class="fm-item active">Cambiar pizarra</div>
+          <div class="fm-item">Configuración</div>
+          <div class="fm-item">Modo oscuro</div>
+          <div class="fm-sep"></div>
+          <div class="fm-item" style="color:#DC2626">Salir</div>
+        </div>
+        <p class="shadow-note"><code>0 8px 24px</code> ink al 14 % (oscuro: negro al 45 %). Solo en lo que flota: menús, popovers, tooltips y modales. Las tarjetas no llevan sombra: se separan del fondo por su borde.</p>
+      </div>
+    </div>
+    <div class="note"><code>styles.css</code> hoy usa más medidas de las que fija esta escala: espacios de 5, 7, 9, 10 y 14 px, radios de 7, 9 y 12 px, tarjetas con <code>var(--shadow)</code> y modales con <code>0 30px 60px</code>. Al aplicar el manual, cada valor pasa al paso más cercano de esta escala y las sombras de tarjeta se reemplazan por el borde de 1 px.</div>
+  </div>
+</section>
+
 <!-- ============ COMPONENTES ============ -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">05 — Componentes</div>
+    <div class="eyebrow">06 — Componentes</div>
     <h2>Color e íconos en uso</h2>
     <p>Ejemplos mínimos de cómo el azul y el set de íconos se combinan en interfaz. El botón primario y el chip activo son los únicos lugares donde el azul cubre un área grande; en todo lo demás aparece como acento puntual.</p>
 
@@ -1074,7 +1171,7 @@
 <!-- ============ ADAPTABILIDAD ============ -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">06 — Adaptabilidad</div>
+    <div class="eyebrow">07 — Adaptabilidad</div>
     <h2>PC, tablet y celular</h2>
     <p>notby se usa en el escritorio para planificar y en el celular para consultar y actualizar en el momento. La marca no cambia entre dispositivos — lo que cambia es cuánto se muestra a la vez, cómo se navega y qué tamaño tiene lo que se toca. Tres reglas lo sostienen: el contenido se reorganiza antes de achicarse, todo lo que se toca mide al menos 44 px, y nada importante depende del hover.</p>
 
@@ -1205,9 +1302,9 @@
       </div>
       <div class="adapt-row">
         <div>Margen lateral</div>
-        <div data-l="Escritorio">32 px</div>
-        <div data-l="Tablet">28 px</div>
-        <div data-l="Móvil">16–20 px</div>
+        <div data-l="Escritorio">32 px (esp-7)</div>
+        <div data-l="Tablet">24 px (esp-6)</div>
+        <div data-l="Móvil">16 px (esp-5)</div>
       </div>
     </div>
 
@@ -1239,7 +1336,7 @@
 <!-- ============ USO ============ -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">07 — Uso</div>
+    <div class="eyebrow">08 — Uso</div>
     <h2>Qué sí y qué no</h2>
 
     <div class="rules">
@@ -1290,7 +1387,7 @@
 <!-- ============ VOZ ============ -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">08 — Voz</div>
+    <div class="eyebrow">09 — Voz</div>
     <h2>Cómo escribe notby</h2>
     <p>Verbos directos, sentence case, sin relleno. Las etiquetas nombran lo que la persona controla, no cómo está construido el sistema. Una acción conserva el mismo nombre en todo el flujo: si el botón dice "Publicar", el aviso dice "Publicado".</p>
     <p>Los errores no piden disculpas ni son vagos: explican qué pasó y cómo resolverlo. Una pantalla vacía es una invitación a actuar, no un mensaje de ánimo.</p>
@@ -1318,7 +1415,7 @@
 
 <footer>
   <div class="wrap">
-    notby — Manual de marca v2.8 · Agosto 2026<br>
+    notby — Manual de marca v2.9 · Agosto 2026<br>
     Consultas sobre uso de marca antes de aplicar el logo en contextos no cubiertos por este documento.
   </div>
 </footer>
