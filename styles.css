@@ -2174,12 +2174,18 @@ html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,
    indentacion 5 (los dos niveles que el toolbar de notas realmente permite
    con Tab se ven siempre; niveles mas profundos son un caso de borde). */
 .nota-rich-preview ol, .nota-rich-preview ul { margin: 0; padding: 0; }
-.nota-rich-preview li { list-style-type: none; padding-left: 1.5em; position: relative; }
+.nota-rich-preview li { list-style-type: none; padding-left: 1.4em; position: relative; line-height: 1.6; }
 .nota-rich-preview li:before {
-  display: inline-block; width: 1.2em; margin-left: -1.5em; margin-right: .3em;
+  display: inline-block; width: 1.1em; margin-left: -1.4em; margin-right: .3em;
   text-align: right; white-space: nowrap;
 }
-.nota-rich-preview li[data-list="bullet"]:before { content: "\2022"; }
+/* Vinetas por nivel, estilo documento: disco lleno, circulo hueco,
+   cuadradito, y vuelve a empezar. */
+.nota-rich-preview li[data-list="bullet"]:before { content: "\2022"; text-align: center; }
+.nota-rich-preview li[data-list="bullet"].ql-indent-1:before,
+.nota-rich-preview li[data-list="bullet"].ql-indent-4:before { content: "\25E6"; }
+.nota-rich-preview li[data-list="bullet"].ql-indent-2:before,
+.nota-rich-preview li[data-list="bullet"].ql-indent-5:before { content: "\25AA"; }
 .nota-rich-preview li[data-list="checked"]:before { content: "\2611"; color: var(--muted); }
 .nota-rich-preview li[data-list="unchecked"]:before { content: "\2610"; color: var(--muted); }
 .nota-rich-preview p, .nota-rich-preview h1, .nota-rich-preview h2, .nota-rich-preview h3 {
@@ -2202,13 +2208,31 @@ html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,
 .nota-rich-preview li[data-list].ql-indent-4 { counter-reset: list-5; }
 .nota-rich-preview li[data-list="ordered"].ql-indent-5 { counter-increment: list-5; }
 .nota-rich-preview li[data-list="ordered"].ql-indent-5:before { content: counter(list-5, lower-roman) ". "; }
-/* Sangria visual por nivel (mismos valores que .ql-indent-N de Quill:
-   padding-left = 3em*N + 1.5em en el <li>, ver quill.core.css). */
-.nota-rich-preview li.ql-indent-1 { padding-left: 4.5em; }
-.nota-rich-preview li.ql-indent-2 { padding-left: 7.5em; }
-.nota-rich-preview li.ql-indent-3 { padding-left: 10.5em; }
-.nota-rich-preview li.ql-indent-4 { padding-left: 13.5em; }
-.nota-rich-preview li.ql-indent-5 { padding-left: 16.5em; }
+/* Sangria visual por nivel: padding-left = 1.4em + 2.4em*N en el <li>
+   (mas compacta que los 3em*N de Quill, para que el subnivel quede
+   apenas a la derecha del texto del padre). El editor de notas usa los
+   mismos valores (ver #notaPopupEditQuill abajo). */
+.nota-rich-preview li.ql-indent-1 { padding-left: 3.8em; }
+.nota-rich-preview li.ql-indent-2 { padding-left: 6.2em; }
+.nota-rich-preview li.ql-indent-3 { padding-left: 8.6em; }
+.nota-rich-preview li.ql-indent-4 { padding-left: 11em; }
+.nota-rich-preview li.ql-indent-5 { padding-left: 13.4em; }
+/* Mismo look de vinetas/sangria dentro del editor de notas, asi lo que
+   se escribe se ve igual que lo que queda guardado. En Quill 2 el marcador
+   lo pinta li > .ql-ui:before (absolute); el #id le gana en especificidad
+   a las reglas .ql-editor .ql-indent-N de quill.snow.css. */
+#notaPopupEditQuill .ql-editor li { padding-left: 1.4em; line-height: 1.6; }
+#notaPopupEditQuill .ql-editor li > .ql-ui { margin-left: -1.4em; width: 1.1em; }
+#notaPopupEditQuill .ql-editor li[data-list="bullet"] > .ql-ui { text-align: center; }
+#notaPopupEditQuill .ql-editor li[data-list="bullet"].ql-indent-1 > .ql-ui:before,
+#notaPopupEditQuill .ql-editor li[data-list="bullet"].ql-indent-4 > .ql-ui:before { content: "\25E6"; }
+#notaPopupEditQuill .ql-editor li[data-list="bullet"].ql-indent-2 > .ql-ui:before,
+#notaPopupEditQuill .ql-editor li[data-list="bullet"].ql-indent-5 > .ql-ui:before { content: "\25AA"; }
+#notaPopupEditQuill .ql-editor li.ql-indent-1 { padding-left: 3.8em; }
+#notaPopupEditQuill .ql-editor li.ql-indent-2 { padding-left: 6.2em; }
+#notaPopupEditQuill .ql-editor li.ql-indent-3 { padding-left: 8.6em; }
+#notaPopupEditQuill .ql-editor li.ql-indent-4 { padding-left: 11em; }
+#notaPopupEditQuill .ql-editor li.ql-indent-5 { padding-left: 13.4em; }
 /* Imagenes adjuntas (Quill las inserta como <img> base64 inline, igual
    que en comentarios): siempre el mismo tamano de miniatura en vez del
    tamano original de la imagen pegada -- object-fit:cover recorta en vez
