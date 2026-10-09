@@ -49,6 +49,37 @@
    salia de la caja y quedaba recortado en contenedores con overflow
    (ej. el titulo de una nota en .nota-popup-scroll, que va a ras). */
 :where(input, select, textarea):focus-visible { outline-offset: -2px; }
+/* Lista de los <select> con el look del menu flotante del manual v2.9:
+   superficie de tarjeta, borde de linea, radio de popover (rad-4),
+   sombra unica, opciones con radio rad-2 y la elegida en azul tinte.
+   La lista nativa del sistema no se puede estilizar; appearance:
+   base-select (Chrome/Edge 135+) si lo permite. Donde no hay soporte
+   queda la lista nativa, sin romper nada. Los multiple/size no entran
+   (base-select no los cubre). */
+@supports (appearance: base-select) {
+  select:not([multiple]):not([size]),
+  select:not([multiple]):not([size])::picker(select) { appearance: base-select; }
+  select:not([multiple]):not([size]) { display: inline-flex; align-items: center; gap: 6px; }
+  select:not([multiple]):not([size]) > button { display: contents; }
+  select::picker-icon { color: var(--muted); margin-left: auto; transition: transform .15s var(--ease-out); }
+  select:open::picker-icon { transform: rotate(180deg); }
+  select::picker(select) {
+    background: var(--card); color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: var(--shadow-float);
+    padding: 6px; margin-block: 4px;
+    max-height: min(320px, 60vh);
+  }
+  select option {
+    padding: 8px 12px; border-radius: 6px;
+    font-size: 13.5px; color: var(--text); background: transparent;
+    cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  select option::checkmark { display: none; }
+  select option:hover, select option:focus-visible { background: var(--bg); outline: none; }
+  select option:checked { background: var(--primary-soft); color: var(--primary); }
+  select option:disabled { color: var(--muted); cursor: default; }
+}
 /* Barras de desplazamiento de toda la app: finas, translucidas y sin
    flechitas; se vuelven mas nitidas al pasar el mouse. Chromium/Safari
    usan ::-webkit-scrollbar (permite :hover sobre la barra); como en
