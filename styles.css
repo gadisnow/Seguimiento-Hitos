@@ -61,7 +61,14 @@
   select:not([multiple]):not([size])::picker(select) { appearance: base-select; }
   select:not([multiple]):not([size]) { display: inline-flex; align-items: center; gap: 6px; }
   select:not([multiple]):not([size]) > button { display: contents; }
-  select::picker-icon { color: var(--muted); margin-left: auto; transition: transform .15s var(--ease-out); }
+  /* Flecha del manual (seccion Estados, "Selector"): chevron de linea 14px */
+  select::picker-icon {
+    content: ""; width: 14px; height: 14px; margin-left: auto; flex-shrink: 0;
+    background-color: var(--muted);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+    transition: transform .15s var(--ease-out);
+  }
   select:open::picker-icon { transform: rotate(180deg); }
   select::picker(select) {
     background: var(--card); color: var(--text);
@@ -814,6 +821,59 @@ html[data-theme="dark"] .nivel-4 { color: #f87171; }
 }
 
 .push-right { margin-left: auto; }
+
+/* ---- Filtros con multiseleccion (enhanceMultiSelect en app.js) ----
+   Boton = "Selector" del manual v2.9 (seccion Estados): borde de control,
+   radio 8px, flecha de linea 14px gris. Hover: borde ink. Con algo elegido:
+   borde azul. Panel = menu flotante: tarjeta, borde, radio 10px, sombra
+   unica; opciones con casilla, lavado ink 6% al pasar el mouse y tinte
+   azul con texto azul las elegidas. */
+.ms { position: relative; display: inline-flex; }
+.ms > select { display: none; }
+.ms-trigger {
+  display: inline-flex; align-items: center; justify-content: space-between; gap: 6px;
+  min-width: 120px; max-width: 220px;
+  border: 1px solid var(--border-control); border-radius: 8px;
+  padding: 8px 8px 8px 12px; font-size: 13px; color: var(--text); background: var(--card);
+  transition: border-color .15s ease;
+}
+.ms-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ms-chevron { flex-shrink: 0; color: var(--muted); transition: transform .15s var(--ease-out); }
+.ms.open .ms-chevron { transform: rotate(180deg); }
+@media (hover: hover) { .ms-trigger:hover, html[data-theme="dark"] .ms-trigger:hover { border-color: var(--text); } }
+.ms.has-value .ms-trigger { border-color: var(--primary); }
+.ms-panel {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 40;
+  min-width: max(100%, 200px); max-width: 300px; max-height: min(320px, 60vh); overflow-y: auto;
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: var(--shadow-float); padding: 6px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.ms-panel[hidden] { display: none; }
+.ms-opt, .ms-clear {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  border: 0; border-radius: 6px; background: transparent;
+  padding: 8px 12px; font-size: 13px; color: var(--text); text-align: left;
+}
+.ms-opt-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (hover: hover) {
+  .ms-opt:hover, .ms-clear:hover { background: rgba(24,24,27,0.06); }
+  html[data-theme="dark"] .ms-opt:hover, html[data-theme="dark"] .ms-clear:hover { background: rgba(255,255,255,0.06); }
+}
+.ms-opt.is-on { background: var(--primary-soft); color: var(--primary); }
+.ms-box {
+  flex-shrink: 0; width: 16px; height: 16px; border-radius: 4px;
+  border: 1px solid var(--border-control); background: var(--card);
+  display: inline-flex; align-items: center; justify-content: center; color: #fff;
+}
+.ms-opt.is-on .ms-box { background: var(--primary); border-color: var(--primary); }
+.ms-sep { height: 1px; background: var(--border); margin: 4px 6px; flex-shrink: 0; }
+.ms-clear { color: var(--muted); font-size: 12.5px; }
+.ms-empty { padding: 8px 12px; font-size: 13px; color: var(--muted); }
+html[data-theme="dark"] .ms-trigger, html[data-theme="dark"] .ms-opt, html[data-theme="dark"] .ms-clear { border-color: var(--border-control); }
+html[data-theme="dark"] .ms-opt, html[data-theme="dark"] .ms-clear { background: transparent; }
+html[data-theme="dark"] .ms-opt.is-on { background: var(--primary-soft); }
+@media (max-width: 640px) { .ms-trigger { min-width: 0; } }
 
 /* Barra de filtros del Dashboard: mismo .filter-pills de siempre (flex/gap/
    wrap) mas el look de tarjeta que le da el mockup aprobado -- estado

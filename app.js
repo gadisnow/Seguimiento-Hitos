@@ -688,7 +688,7 @@ let showMisHitosOnly = false;
 // Filtros propios del Dashboard -- estado independiente de los de Agenda
 // (els.fResponsable/fEstado/fPrioridad/fEtiqueta), asi cambiar de pestana no
 // pisa lo que el usuario tenia elegido en cada vista.
-let dashFiltros = { responsable: "", estado: "", prioridad: "", etiquetas: [] };
+let dashFiltros = { responsable: [], estado: [], prioridad: [], etiquetas: [] };
 const PRIORIDAD_COLORS = { "Alta": "#dc2626", "Media": "#f59e0b", "Baja": "#3b82f6" };
 
 // Historial de KPIs (flecha "avance desde la semana pasada", ver
@@ -933,8 +933,12 @@ function bindEvents() {
     });
   });
 
+  [els.fResponsable, els.fEstado, els.fPrioridad, els.fEtiqueta,
+   els.fHResponsable, els.fHEstado, els.fHPrioridad, els.fHEtiqueta,
+   els.dashFResponsable, els.dashFEstado, els.dashFPrioridad].forEach(enhanceMultiSelect);
+
   $("clearFilters").addEventListener("click", () => {
-    [els.fResponsable, els.fEstado, els.fPrioridad, els.fEtiqueta].forEach((s) => (s.value = ""));
+    [els.fResponsable, els.fEstado, els.fPrioridad, els.fEtiqueta].forEach(clearSel);
     showMisTemasOnly = false;
     els.btnMisTemas.classList.remove("mis-temas-active");
     renderAll();
@@ -944,12 +948,12 @@ function bindEvents() {
 
   // Filtros propios del Dashboard: estado independiente (dashFiltros), asi
   // que alcanza con re-renderizar el dashboard, no toda la app.
-  els.dashFResponsable.addEventListener("change", () => { dashFiltros.responsable = els.dashFResponsable.value; renderDashboard(); });
-  els.dashFEstado.addEventListener("change", () => { dashFiltros.estado = els.dashFEstado.value; renderDashboard(); });
-  els.dashFPrioridad.addEventListener("change", () => { dashFiltros.prioridad = els.dashFPrioridad.value; renderDashboard(); });
+  els.dashFResponsable.addEventListener("change", () => { dashFiltros.responsable = selVals(els.dashFResponsable); renderDashboard(); });
+  els.dashFEstado.addEventListener("change", () => { dashFiltros.estado = selVals(els.dashFEstado); renderDashboard(); });
+  els.dashFPrioridad.addEventListener("change", () => { dashFiltros.prioridad = selVals(els.dashFPrioridad); renderDashboard(); });
   els.dashClearFilters.addEventListener("click", () => {
-    dashFiltros = { responsable: "", estado: "", prioridad: "", etiquetas: [] };
-    els.dashFResponsable.value = ""; els.dashFEstado.value = ""; els.dashFPrioridad.value = "";
+    dashFiltros = { responsable: [], estado: [], prioridad: [], etiquetas: [] };
+    [els.dashFResponsable, els.dashFEstado, els.dashFPrioridad].forEach(clearSel);
     renderDashboard();
   });
   els.globalSearch.addEventListener("input", renderAll);
@@ -961,7 +965,7 @@ function bindEvents() {
   });
 
   els.clearHitosFilters.addEventListener("click", () => {
-    [els.fHResponsable, els.fHEstado, els.fHPrioridad, els.fHEtiqueta].forEach((s) => (s.value = ""));
+    [els.fHResponsable, els.fHEstado, els.fHPrioridad, els.fHEtiqueta].forEach(clearSel);
     showMisHitosOnly = false;
     els.btnMisHitos.classList.remove("mis-temas-active");
     renderAll();
@@ -1745,9 +1749,108 @@ function fillFilterOptions() {
 }
 
 function fillSelect(el, options, placeholder) {
+  // Filtro multiseleccion (enhanceMultiSelect): sin opcion placeholder, y
+  // se conservan las elegidas que sigan existiendo.
+  if (el.multiple) {
+    const prev = new Set(selVals(el));
+    el.innerHTML = options.map((o) => `<option${prev.has(o) ? " selected" : ""}>${escHtml(o)}</option>`).join("");
+    syncMultiSelect(el);
+    return;
+  }
   const prev = el.value;
   el.innerHTML = `<option value="">${placeholder}</option>` + options.map((o) => `<option>${escHtml(o)}</option>`).join("");
   el.value = options.includes(prev) ? prev : "";
+}
+
+// ---------------- Filtros con multiseleccion ----------------
+// Los <select class="pill"> de filtros (Dashboard, Temas, Hitos) pasan a
+// multiple y quedan ocultos; encima se arma un boton con la flecha del
+// manual de marca (seccion Estados: "Selector") y un panel con casillas.
+// El <select> sigue siendo la fuente de verdad: cada tilde marca su
+// <option> y dispara "change", asi los listeners de siempre no cambian.
+// Sin nada elegido = sin filtro; con varias = cualquiera de ellas (OR).
+const MS_CHEVRON = `<svg class="ms-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>`;
+const MS_CHECK = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
+
+function selVals(el) { return [...el.selectedOptions].map((o) => o.value).filter(Boolean); }
+function matchSel(el, valor) { const v = selVals(el); return !v.length || v.includes(valor); }
+function matchSelAny(el, valores) { const v = selVals(el); return !v.length || valores.some((x) => v.includes(x)); }
+function clearSel(el) { [...el.options].forEach((o) => (o.selected = false)); syncMultiSelect(el); }
+
+function enhanceMultiSelect(el) {
+  if (!el || el.multiple) return;
+  el.dataset.placeholder = el.options[0]?.textContent || "";
+  el.querySelector('option[value=""]')?.remove();
+  el.multiple = true;
+  el.tabIndex = -1;
+  el.setAttribute("aria-hidden", "true");
+  const wrap = document.createElement("div");
+  wrap.className = "ms";
+  wrap.innerHTML = `
+    <button type="button" class="ms-trigger" aria-haspopup="listbox" aria-expanded="false"><span class="ms-label"></span>${MS_CHEVRON}</button>
+    <div class="ms-panel" role="listbox" aria-multiselectable="true" hidden></div>`;
+  el.before(wrap);
+  wrap.appendChild(el);
+  const trigger = wrap.querySelector(".ms-trigger");
+  const panel = wrap.querySelector(".ms-panel");
+  const close = () => {
+    panel.hidden = true;
+    wrap.classList.remove("open");
+    trigger.setAttribute("aria-expanded", "false");
+    document.removeEventListener("pointerdown", onOutside, true);
+    document.removeEventListener("keydown", onKey, true);
+  };
+  const onOutside = (e) => { if (!wrap.contains(e.target)) close(); };
+  const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); trigger.focus(); } };
+  trigger.addEventListener("click", () => {
+    if (!panel.hidden) { close(); return; }
+    renderMultiSelectPanel(el);
+    panel.hidden = false;
+    wrap.classList.add("open");
+    trigger.setAttribute("aria-expanded", "true");
+    document.addEventListener("pointerdown", onOutside, true);
+    document.addEventListener("keydown", onKey, true);
+  });
+  panel.addEventListener("click", (e) => {
+    const limpiar = e.target.closest(".ms-clear");
+    const opt = e.target.closest(".ms-opt");
+    if (limpiar) {
+      clearSel(el);
+    } else if (opt) {
+      const o = el.options[Number(opt.dataset.i)];
+      if (!o) return;
+      o.selected = !o.selected;
+      syncMultiSelect(el);
+    } else return;
+    renderMultiSelectPanel(el);
+    el.dispatchEvent(new Event("change"));
+  });
+  syncMultiSelect(el);
+}
+
+function renderMultiSelectPanel(el) {
+  const panel = el.parentElement?.querySelector(".ms-panel");
+  if (!panel) return;
+  const opts = [...el.options];
+  panel.innerHTML = opts.length
+    ? opts.map((o, i) => `
+        <button type="button" class="ms-opt${o.selected ? " is-on" : ""}" role="option" aria-selected="${o.selected}" data-i="${i}">
+          <span class="ms-box">${o.selected ? MS_CHECK : ""}</span><span class="ms-opt-text">${escHtml(o.textContent)}</span>
+        </button>`).join("")
+      + (selVals(el).length ? `<div class="ms-sep"></div><button type="button" class="ms-clear">Limpiar selección</button>` : "")
+    : `<div class="ms-empty">Sin opciones</div>`;
+}
+
+function syncMultiSelect(el) {
+  const wrap = el.parentElement;
+  if (!wrap?.classList.contains("ms")) return;
+  const vals = selVals(el);
+  const ph = el.dataset.placeholder || "";
+  const label = !vals.length ? ph : vals.length === 1 ? vals[0] : `${ph} · ${vals.length}`;
+  wrap.querySelector(".ms-label").textContent = label;
+  wrap.querySelector(".ms-trigger").title = vals.length ? `${ph}: ${vals.join(", ")}` : ph;
+  wrap.classList.toggle("has-value", vals.length > 0);
+  if (!wrap.querySelector(".ms-panel").hidden) renderMultiSelectPanel(el);
 }
 
 // Nombre de etiqueta -> color (nombre de TAG_COLORS o hex legado). Catalogo
@@ -1766,9 +1869,9 @@ function tagColorMap() {
 // etiquetas no seleccionadas apenas se activa una.
 function dashboardBaseTemas() {
   return state.temas.filter(isTemaVisible).filter((t) => !t.esArchivado).filter((t) => {
-    if (dashFiltros.responsable && t.responsable !== dashFiltros.responsable) return false;
-    if (dashFiltros.estado && t.estado !== dashFiltros.estado) return false;
-    if (dashFiltros.prioridad && t.prioridad !== dashFiltros.prioridad) return false;
+    if (dashFiltros.responsable.length && !dashFiltros.responsable.includes(t.responsable)) return false;
+    if (dashFiltros.estado.length && !dashFiltros.estado.includes(t.estado)) return false;
+    if (dashFiltros.prioridad.length && !dashFiltros.prioridad.includes(t.prioridad)) return false;
     return true;
   });
 }
@@ -1859,10 +1962,10 @@ function getFilteredTemas() {
   const results = state.temas.filter((t) => {
     if (!isTemaVisible(t)) return false;
     if (showMisTemasOnly && !t.responsable.includes(activeUserName())) return false;
-    if (els.fResponsable.value && t.responsable !== els.fResponsable.value) return false;
-    if (els.fEstado.value && t.estado !== els.fEstado.value) return false;
-    if (els.fPrioridad.value && t.prioridad !== els.fPrioridad.value) return false;
-    if (els.fEtiqueta.value && !(t.etiquetas || []).some((e) => e.nombre === els.fEtiqueta.value)) return false;
+    if (!matchSel(els.fResponsable, t.responsable)) return false;
+    if (!matchSel(els.fEstado, t.estado)) return false;
+    if (!matchSel(els.fPrioridad, t.prioridad)) return false;
+    if (!matchSelAny(els.fEtiqueta, (t.etiquetas || []).map((e) => e.nombre))) return false;
     if (!q) return true;
     const blobTema = [t.id, t.nombre, t.expediente, t.responsable, t.solicitante, t.descripcion, t.estado].join(" ").toLowerCase();
     if (blobTema.includes(q)) return true;
@@ -2078,7 +2181,7 @@ function renderDashboard() {
     ensureKpiBaselineLoaded();
     maybeSaveKpiSnapshot(state.currentPizarraId, computeDashboardKpis(dashboardTrueBaseTemas()));
   }
-  const hasAnyDashFiltro = Boolean(dashFiltros.responsable || dashFiltros.estado || dashFiltros.prioridad || dashFiltros.etiquetas.length);
+  const hasAnyDashFiltro = Boolean(dashFiltros.responsable.length || dashFiltros.estado.length || dashFiltros.prioridad.length || dashFiltros.etiquetas.length);
   const showAvance = !hasAnyDashFiltro && Boolean(kpiBaseline);
   const avanza = (actual, key) => showAvance && kpiBaseline[key] != null && actual < kpiBaseline[key];
 
@@ -3307,10 +3410,10 @@ function renderHitos() {
   );
   const filtered = allHitos.filter((h) => {
     if (showMisHitosOnly && !(h.responsable || "").includes(activeUserName())) return false;
-    if (els.fHResponsable.value && h.responsable !== els.fHResponsable.value) return false;
-    if (els.fHEstado.value && h.estado !== els.fHEstado.value) return false;
-    if (els.fHPrioridad.value && h.temaPrioridad !== els.fHPrioridad.value) return false;
-    if (els.fHEtiqueta.value && !h.temaEtiquetas.some((e) => e.nombre === els.fHEtiqueta.value)) return false;
+    if (!matchSel(els.fHResponsable, h.responsable)) return false;
+    if (!matchSel(els.fHEstado, h.estado)) return false;
+    if (!matchSel(els.fHPrioridad, h.temaPrioridad)) return false;
+    if (!matchSelAny(els.fHEtiqueta, h.temaEtiquetas.map((e) => e.nombre))) return false;
     return true;
   });
   const rows = sortTableData(filtered, "tableHitos");

@@ -195,8 +195,8 @@
   .toggle-switch.on::after{left:auto;right:2px}
 
   /* ---------- filetype exception ---------- */
-  .filetype-menu{display:flex;flex-direction:column;gap:2px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px;max-width:260px}
-  .filetype-item{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:8px;font-size:14px;font-weight:500;color:var(--ink)}
+  .filetype-menu{display:flex;flex-direction:column;gap:2px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px;max-width:260px}
+  .filetype-item{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:6px;font-size:14px;font-weight:500;color:var(--ink)}
   .filetype-item.active{background:var(--blue-tint);color:var(--blue)}
   .filetype-item svg{flex-shrink:0}
 
@@ -218,7 +218,36 @@
     border:1.5px solid var(--ink);color:var(--ink);font-weight:700;font-size:14px;
     padding:9.5px 20px;border-radius:8px;display:inline-flex;align-items:center;gap:8px;background:#fff;
   }
-  .btn-primary.disabled{background:#DBEAFE;color:#93C5FD}
+  .btn-primary.disabled{opacity:.45;cursor:not-allowed}
+
+  /* ---------- control states ---------- */
+  .cs{margin-top:24px;border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden}
+  .cs-row{display:grid;grid-template-columns:116px repeat(5,minmax(0,1fr));align-items:stretch;border-top:1px solid var(--line)}
+  .cs-row:first-child{border-top:none}
+  .cs-row.head{background:var(--paper)}
+  .cs-row > div{padding:12px 10px;min-height:64px;display:flex;align-items:center;font-size:13px;min-width:0}
+  .cs-row > div:first-child{padding-left:16px;font-weight:600;color:var(--ink);font-size:13.5px}
+  .cs-row.head > div{min-height:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+  .cs-na{color:#A1A1AA}
+  .c-foc{outline:2px solid var(--blue);outline-offset:2px}
+  .c-dis{opacity:.45;cursor:not-allowed}
+  .c-btn{font-family:'Inter',sans-serif;font-weight:700;font-size:13px;line-height:1;padding:9px 13px;border-radius:8px;white-space:nowrap}
+  .c-btn.sec{border:1.5px solid var(--ink);background:#fff;color:var(--ink)}
+  .c-btn.sec.c-hov{background:rgba(24,24,27,.06)}
+  .c-btn.pri{border:1.5px solid transparent;background:var(--blue);color:#fff}
+  .c-btn.pri.c-hov{opacity:.88}
+  .c-tab{font-weight:700;font-size:13px;line-height:1;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink);white-space:nowrap}
+  .c-tab.c-hov{border-color:var(--ink);background:rgba(24,24,27,.06)}
+  .c-tab.c-sel{background:var(--blue-tint);border-color:var(--blue-tint-line);color:var(--blue)}
+  .c-select{display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;max-width:132px;border:1px solid #D4D4D8;border-radius:8px;padding:8px 9px 8px 11px;font-size:13px;color:var(--ink);background:#fff}
+  .c-select svg{flex-shrink:0;color:var(--muted)}
+  .c-select.c-hov{border-color:var(--ink)}
+  .c-select.c-sel{border-color:var(--blue)}
+  .c-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;background:var(--blue-tint);border:1px solid var(--blue-tint-line);color:var(--blue);font-size:12.5px;font-weight:500;white-space:nowrap}
+  .c-chip.c-hov{border-color:var(--blue)}
+  .c-line{width:100%;padding:10px 11px;border-radius:8px;border-left:3px solid transparent;font-size:13px;color:var(--ink)}
+  .c-line.c-hov{background:rgba(24,24,27,.06)}
+  .c-line.c-sel{background:var(--blue-tint);border-left-color:var(--blue);border-radius:0 8px 8px 0}
   .chip-tag{
     border:1px solid var(--line);color:var(--muted);font-size:13px;
     padding:6px 14px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;background:#fff;
@@ -253,12 +282,59 @@
   .found-split .tok{margin-top:0}
   .shadow-stage{border:1px solid var(--line);border-radius:14px;background:var(--paper);padding:24px 24px 20px}
   .shadow-stage .lbl{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:16px}
-  .float-menu{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-float);padding:6px;max-width:240px}
-  .float-menu .fm-item{padding:9px 12px;border-radius:8px;font-size:14px;color:var(--ink)}
+  .float-menu{background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow-float);padding:6px;max-width:240px}
+  .float-menu .fm-item{padding:9px 12px;border-radius:6px;font-size:14px;color:var(--ink)}
   .float-menu .fm-item.active{background:var(--blue-tint);color:var(--blue)}
   .float-menu .fm-sep{height:1px;background:var(--line);margin:4px 6px}
   .shadow-note{font-size:12.5px;color:var(--muted);line-height:1.55;margin-top:18px;max-width:none}
   .shadow-note code{white-space:nowrap}
+
+  /* ---------- multiselect dropdown ---------- */
+  .dd-row{display:flex;flex-wrap:wrap;gap:20px 24px;align-items:flex-start;margin-top:20px}
+  .dd-item{display:flex;flex-direction:column;gap:8px}
+  .dd-cap{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
+  .dd-trigger{display:inline-flex;align-items:center;justify-content:space-between;gap:10px;min-width:176px;border:1px solid #D4D4D8;border-radius:8px;padding:9px 11px 9px 12px;font-size:13.5px;background:#fff;color:var(--ink)}
+  .dd-trigger .l{display:flex;align-items:center;gap:8px}
+  .dd-trigger svg{color:var(--muted);flex-shrink:0}
+  .dd-trigger.sel,.dd-trigger.open{border-color:var(--blue)}
+  .dd-trigger.open svg{transform:rotate(180deg)}
+  .dd-badge{min-width:18px;height:18px;padding:0 6px;border-radius:999px;background:var(--blue);color:#fff;font-size:11px;font-weight:700;line-height:1;display:inline-flex;align-items:center;justify-content:center}
+
+  .dd-stage{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}
+  .dd-box{border:1px solid var(--line);border-radius:14px;background:var(--paper);padding:24px 20px 20px;display:flex;flex-direction:column;align-items:center;gap:14px}
+  .dd-box .dd-cap{align-self:flex-start}
+  .dd-panel{width:272px;max-width:100%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow-float);overflow:hidden}
+  .dd-list{padding:6px}
+  .dd-opt{display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:6px;font-size:13.5px;color:var(--ink)}
+  .dd-opt.hov{background:rgba(24,24,27,.06)}
+  .dd-opt.foc{outline:2px solid var(--blue);outline-offset:-2px}
+  .dd-opt .cnt{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted)}
+  .dd-opt .link{margin-left:auto;font-size:12.5px;font-weight:500;color:var(--ink);text-decoration:underline;text-underline-offset:2px}
+  .dd-opt .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .dd-opt.master{font-weight:600}
+  .dd-sep{height:1px;background:var(--line);margin:2px 6px}
+  .dd-cb{width:18px;height:18px;border-radius:4px;border:1px solid #D4D4D8;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff}
+  .dd-cb.on{background:var(--blue);border-color:var(--blue)}
+  .dd-search{margin:8px 8px 2px;display:flex;align-items:center;gap:8px;border:1px solid #D4D4D8;border-radius:8px;padding:8px 10px;font-size:13px;color:var(--muted);background:#fff}
+  .dd-search svg{flex-shrink:0}
+
+  .sheet-frame{position:relative;width:236px;height:392px;border:2px solid var(--ink);border-radius:18px;background:#fff;overflow:hidden}
+  .sheet-frame .bg{position:absolute;inset:0;padding:12px;display:flex;flex-direction:column;gap:8px}
+  .sheet-frame .bg i{display:block;height:28px;border-radius:6px;background:var(--line)}
+  .sheet-frame .dim{position:absolute;inset:0;background:rgba(24,24,27,.4)}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:14px 14px 0 0;padding:8px 10px 12px}
+  .sheet .grab{width:32px;height:4px;border-radius:99px;background:#D4D4D8;margin:0 auto 8px}
+  .sheet .ttl{display:flex;justify-content:space-between;align-items:center;padding:0 4px 4px;font-weight:700;font-size:14px}
+  .sheet .ttl span{font-size:12.5px;font-weight:500;text-decoration:underline;text-underline-offset:2px}
+  .sheet .dd-search{margin:4px 0 4px}
+  .sheet .dd-opt{padding:11px 8px;min-height:44px}
+  .sheet .done{display:block;text-align:center;background:var(--blue);color:#fff;font-weight:700;font-size:13.5px;border-radius:8px;padding:12px;margin-top:8px}
+
+  .beh{margin-top:24px;border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden}
+  .beh-row{display:grid;grid-template-columns:168px 1fr;border-top:1px solid var(--line)}
+  .beh-row:first-child{border-top:none}
+  .beh-row > div{padding:12px 16px;font-size:13.5px;line-height:1.5;color:#3F3F46}
+  .beh-row > div:first-child{font-weight:600;color:var(--ink)}
 
   /* ---------- responsive: breakpoints + device mockups ---------- */
   .bp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:20px}
@@ -339,6 +415,26 @@
     .adapt-row{grid-template-columns:.9fr 1fr 1fr 1fr}
   }
 
+  @media(max-width:760px){
+    .dd-stage{grid-template-columns:1fr}
+    .beh-row{grid-template-columns:1fr}
+    .beh-row > div:first-child{padding-bottom:2px}
+    .beh-row > div:last-child{padding-top:2px;padding-bottom:14px}
+  }
+
+  /* Estados de controles: apilar cuando no entran las cinco columnas */
+  @media(max-width:760px){
+    .cs-row{grid-template-columns:1fr}
+    .cs-row.head{display:none}
+    .cs-row > div{min-height:0;padding:8px 16px}
+    .cs-row > div:first-child{padding-top:14px}
+    .cs-row > div:last-child{padding-bottom:14px}
+    .cs-row > div.cs-na{display:none}
+    .cs-row > div[data-l]{flex-direction:column;align-items:flex-start;gap:6px}
+    .cs-row > div[data-l]::before{content:attr(data-l);font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--blue)}
+    .c-select{max-width:220px}
+  }
+
   /* Móvil: ≤ 640 */
   @media(max-width:680px){
     .grid2,.rules{grid-template-columns:1fr}
@@ -379,7 +475,7 @@
       </svg>
     </div>
     <h1>notby</h1>
-    <div class="sub">Manual de marca · v2.9</div>
+    <div class="sub">Manual de marca · v3.1</div>
   </div>
 </div>
 
@@ -569,7 +665,7 @@
     <h3>Ajustes obligatorios en dark mode</h3>
     <p>El logo no se invierte automáticamente. Sobre fondo oscuro cambian tres valores: el contenedor sube de <code>#18181B</code> a <code>#2E2E33</code> para no desaparecer contra la superficie; el azul pasa a <code>#60A5FA</code> porque el tono saturado pierde legibilidad sobre fondos oscuros; y la tarjeta superior baja de 45% a 33% de opacidad, ya que el blanco pesa más sobre gris carbón.</p>
     <p>La superficie oscura es <code>#1C1C1F</code>, no negro puro. El negro absoluto genera un contraste duro que cansa en sesiones largas, que es exactamente el modo en que se usa una herramienta de gestión. El gris es neutro y no cálido: mantiene la coherencia con el ink <code>#18181B</code> y funciona como base fría, coherente con el acento azul.</p>
-    <p><strong>Nota de contraste:</strong> <code>#2563EB</code> tiene menor luminancia que el naranja que reemplaza, así que no se comporta igual sobre todos los fondos. Texto en ink sólido sobre azul da ~2.9:1 (insuficiente incluso para texto grande) — por eso cualquier texto o ícono que vaya <em>sobre</em> un fondo azul sólido usa blanco, no ink. Ver el ejemplo en la sección 08 — Uso.</p>
+    <p><strong>Nota de contraste:</strong> <code>#2563EB</code> tiene menor luminancia que el naranja que reemplaza, así que no se comporta igual sobre todos los fondos. Texto en ink sólido sobre azul da ~2.9:1 (insuficiente incluso para texto grande) — por eso cualquier texto o ícono que vaya <em>sobre</em> un fondo azul sólido usa blanco, no ink. Ver el ejemplo en la sección 10 — Uso.</p>
     <p><strong>Colores de estado:</strong> además de esta paleta de marca, el producto usa un set de colores semánticos para el estado de temas y columnas (pendiente, en curso, bloqueado…). Es un sistema aparte — no reemplaza al azul de marca — documentado junto a sus íconos en 04 — Iconografía.</p>
 
     <h3>Colores funcionales</h3>
@@ -1078,7 +1174,7 @@
   <div class="wrap">
     <div class="eyebrow">05 — Espaciado y forma</div>
     <h2>Espaciado, radios, bordes y sombras</h2>
-    <p>Siete medidas de espacio, seis radios y una sola sombra alcanzan para toda la interfaz. Nada se mide a ojo: si una medida no está acá, se usa la más cercana. Son las mismas en claro y en oscuro y en los tres tamaños de pantalla; lo único que cambia entre dispositivos es cuál se elige (ver 07 — Adaptabilidad).</p>
+    <p>Siete medidas de espacio, seis radios y una sola sombra alcanzan para toda la interfaz. Nada se mide a ojo: si una medida no está acá, se usa la más cercana. Son las mismas en claro y en oscuro y en los tres tamaños de pantalla; lo único que cambia entre dispositivos es cuál se elige (ver 09 — Adaptabilidad).</p>
 
     <h3>Espaciado</h3>
     <div class="tok tok-space">
@@ -1168,10 +1264,198 @@
   </div>
 </section>
 
+<!-- ============ ESTADOS DE CONTROLES ============ -->
+<section>
+  <div class="wrap">
+    <div class="eyebrow">07 — Estados de los controles</div>
+    <h2>Estados de los controles</h2>
+    <p>Todo control interactivo tiene los mismos cinco estados, resueltos siempre igual. Así cualquiera reconoce qué se puede tocar, dónde está el foco y qué está elegido, en cualquier pantalla y en cualquier tamaño. El azul sigue significando una sola cosa: elegido o con foco.</p>
+
+    <div class="cs">
+      <div class="cs-row head"><div>Control</div><div>Normal</div><div>Al pasar el mouse</div><div>Foco de teclado</div><div>Seleccionado</div><div>Deshabilitado</div></div>
+
+      <div class="cs-row">
+        <div>Botón secundario</div>
+        <div data-l="Normal"><span class="c-btn sec">Limpiar</span></div>
+        <div data-l="Al pasar el mouse"><span class="c-btn sec c-hov">Limpiar</span></div>
+        <div data-l="Foco de teclado"><span class="c-btn sec c-foc">Limpiar</span></div>
+        <div class="cs-na">—</div>
+        <div data-l="Deshabilitado"><span class="c-btn sec c-dis">Limpiar</span></div>
+      </div>
+
+      <div class="cs-row">
+        <div>Botón primario</div>
+        <div data-l="Normal"><span class="c-btn pri">Exportar</span></div>
+        <div data-l="Al pasar el mouse"><span class="c-btn pri c-hov">Exportar</span></div>
+        <div data-l="Foco de teclado"><span class="c-btn pri c-foc">Exportar</span></div>
+        <div class="cs-na">—</div>
+        <div data-l="Deshabilitado"><span class="c-btn pri c-dis">Exportar</span></div>
+      </div>
+
+      <div class="cs-row">
+        <div>Pestaña / tramo</div>
+        <div data-l="Normal"><span class="c-tab">7 días</span></div>
+        <div data-l="Al pasar el mouse"><span class="c-tab c-hov">7 días</span></div>
+        <div data-l="Foco de teclado"><span class="c-tab c-foc">7 días</span></div>
+        <div data-l="Seleccionado"><span class="c-tab c-sel">7 días</span></div>
+        <div data-l="Deshabilitado"><span class="c-tab c-dis">7 días</span></div>
+      </div>
+
+      <div class="cs-row">
+        <div>Selector</div>
+        <div data-l="Normal"><span class="c-select">Todos<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></div>
+        <div data-l="Al pasar el mouse"><span class="c-select c-hov">Todos<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></div>
+        <div data-l="Foco de teclado"><span class="c-select c-foc">Todos<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></div>
+        <div data-l="Seleccionado"><span class="c-select c-sel">En curso<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></div>
+        <div data-l="Deshabilitado"><span class="c-select c-dis">Todos<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></div>
+      </div>
+
+      <div class="cs-row">
+        <div>Chip de filtro</div>
+        <div class="cs-na">—</div>
+        <div data-l="Al pasar el mouse"><span class="c-chip c-hov">En curso ×</span></div>
+        <div data-l="Foco de teclado"><span class="c-chip c-foc">En curso ×</span></div>
+        <div data-l="Seleccionado"><span class="c-chip">En curso ×</span></div>
+        <div class="cs-na">—</div>
+      </div>
+
+      <div class="cs-row">
+        <div>Fila de tabla</div>
+        <div data-l="Normal"><span class="c-line">Ruta 11</span></div>
+        <div data-l="Al pasar el mouse"><span class="c-line c-hov">Ruta 11</span></div>
+        <div data-l="Foco de teclado"><span class="c-line c-foc">Ruta 11</span></div>
+        <div data-l="Seleccionado"><span class="c-line c-sel">Ruta 11</span></div>
+        <div class="cs-na">—</div>
+      </div>
+    </div>
+    <div class="caption">"—" = el estado no existe para ese control: un chip de filtro solo aparece cuando ya está elegido; los botones no se "seleccionan".</div>
+
+    <div class="rules">
+      <div class="rule ok">
+        <span class="tag">Regla de cada estado</span>
+        <ul>
+          <li><strong>Al pasar el mouse:</strong> el borde pasa a ink en los controles claros; el botón primario se aclara (azul al 88 % de opacidad); filas, pestañas y opciones de menú toman un lavado de ink al 6 %. Cursor de mano en todo lo que se puede tocar. Solo con puntero (<code>@media (hover: hover)</code>): en táctil no hay hover.</li>
+          <li><strong>Foco de teclado:</strong> anillo azul de 2 px separado 2 px del control, en todos los controles sin excepción. Nunca se quita.</li>
+          <li><strong>Seleccionado:</strong> tinte azul con texto azul y borde azul tinte (pestaña, tramo, chip). En selectores con un valor elegido, borde azul. En la fila elegida, tinte con una barra azul de 3 px a la izquierda.</li>
+          <li><strong>Deshabilitado:</strong> 45 % de opacidad, cursor bloqueado y sin efecto al pasar el mouse. Se usa cuando la acción no aplica por ahora (ej. "Anterior" en la página 1); si un control nunca aplica, no se muestra.</li>
+        </ul>
+      </div>
+      <div class="rule ok">
+        <span class="tag">Tablero y gráficos</span>
+        <ul>
+          <li><strong>Al pasar el mouse</strong> por un segmento o barra de un gráfico: baja al 82 % de opacidad y aparece el tooltip.</li>
+          <li><strong>Al elegir</strong> un segmento (por ejemplo un estado en el gráfico de dona): el resto baja al 25 % de opacidad; lo elegido queda al 100 %.</li>
+          <li>Volver a tocar lo elegido, o "Limpiar", lo deselecciona.</li>
+          <li>Transiciones de 150 ms como máximo; sin animación si el sistema pide movimiento reducido (<code>prefers-reduced-motion</code>).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MENUS DESPLEGABLES ============ -->
+<section>
+  <div class="wrap">
+    <div class="eyebrow">08 — Menús desplegables</div>
+    <h2>Menús desplegables multiselección</h2>
+    <p>Todo menú desplegable de filtro permite elegir más de una opción. El panel se queda abierto mientras se elige, cada opción se marca con una casilla y el disparador siempre dice cuántas hay elegidas. Los estados de cada pieza son los de 07 — Estados de los controles; acá se define cómo se arma y cómo se comporta el conjunto.</p>
+
+    <h3>El disparador</h3>
+    <div class="dd-row">
+      <div class="dd-item"><div class="dd-trigger"><span class="l">Estado</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></div><div class="dd-cap">Sin elegir (= todos)</div></div>
+      <div class="dd-item"><div class="dd-trigger sel"><span class="l">En curso</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></div><div class="dd-cap">1 elegida: su nombre</div></div>
+      <div class="dd-item"><div class="dd-trigger sel"><span class="l">Estado <span class="dd-badge">3</span></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></div><div class="dd-cap">2 o más: filtro + contador</div></div>
+      <div class="dd-item"><div class="dd-trigger sel open"><span class="l">Estado <span class="dd-badge">2</span></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></div><div class="dd-cap">Abierto (el chevron gira)</div></div>
+      <div class="dd-item"><div class="dd-trigger c-foc"><span class="l">Estado</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></div><div class="dd-cap">Foco de teclado</div></div>
+      <div class="dd-item"><div class="dd-trigger c-dis"><span class="l">Estado</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></div><div class="dd-cap">Deshabilitado</div></div>
+    </div>
+    <div class="caption">El borde azul indica que hay una selección activa — la misma regla que "Seleccionado" en los demás controles. El contador es el único relleno azul del disparador.</div>
+
+    <h3>El panel</h3>
+    <div class="dd-stage">
+      <div class="dd-box">
+        <div class="dd-cap">Escritorio y tablet · popover</div>
+        <div class="dd-panel">
+          <div class="dd-list">
+            <div class="dd-opt master"><span class="dd-cb on"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h12"/></svg></span>Seleccionar todo<span class="link">Limpiar</span></div>
+            <div class="dd-sep"></div>
+            <div class="dd-opt"><span class="dd-cb on"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span><span class="dot" style="background:#EF4444"></span>Pendiente<span class="cnt">14</span></div>
+            <div class="dd-opt hov"><span class="dd-cb on"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span><span class="dot" style="background:#3B82F6"></span>En curso<span class="cnt">10</span></div>
+            <div class="dd-opt foc"><span class="dd-cb"></span><span class="dot" style="background:#8B5CF6"></span>En revisión<span class="cnt">7</span></div>
+            <div class="dd-opt"><span class="dd-cb"></span><span class="dot" style="background:#F59E0B"></span>Bloqueado<span class="cnt">5</span></div>
+            <div class="dd-opt"><span class="dd-cb"></span><span class="dot" style="background:#10B981"></span>Cerrado<span class="cnt">4</span></div>
+          </div>
+        </div>
+        <div class="dd-cap" style="align-self:center;text-align:center">Fila "En curso" con el mouse encima · "En revisión" con foco de teclado</div>
+      </div>
+
+      <div class="dd-box">
+        <div class="dd-cap">Móvil · hoja inferior</div>
+        <div class="sheet-frame">
+          <div class="bg"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="dim"></div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <div class="ttl">Responsable<span>Limpiar</span></div>
+            <div class="dd-search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M19.5 19.5l-4.3-4.3"/></svg>Buscar responsable</div>
+            <div class="dd-opt"><span class="dd-cb on"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span>Ana Gómez</div>
+            <div class="dd-opt"><span class="dd-cb"></span>Bruno Díaz</div>
+            <div class="dd-opt"><span class="dd-cb on"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span>Carla Ríos</div>
+            <div class="done">Listo (2)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Casilla de 18 px (radio 4 px). La selección se marca con la casilla, no tiñendo la fila. El punto de color aparece solo en el filtro de estados.</div>
+
+    <h3>Cómo se comporta</h3>
+    <div class="beh">
+      <div class="beh-row"><div>Abrir</div><div>Clic en el disparador, o Enter, Espacio o ↓ con foco. El foco pasa a la primera opción elegida (o a la primera de la lista). Solo hay un menú abierto a la vez: abrir otro cierra el anterior.</div></div>
+      <div class="beh-row"><div>Elegir</div><div>Clic o Espacio alterna una opción. El panel no se cierra al elegir: se pueden marcar varias seguidas.</div></div>
+      <div class="beh-row"><div>Aplicar</div><div>En escritorio y tablet cada cambio filtra al instante y actualiza el disparador y los chips de filtro; no hay botón "Aplicar". En móvil se aplica al tocar "Listo", para no recargar el tablero que queda detrás de la hoja.</div></div>
+      <div class="beh-row"><div>Seleccionar todo y limpiar</div><div>La primera fila alterna todas las opciones y muestra el estado parcial con una raya en la casilla. "Limpiar" quita la selección y equivale a no filtrar.</div></div>
+      <div class="beh-row"><div>Disparador</div><div>Sin elegir: nombre del filtro. Una elegida: el nombre de esa opción. Dos o más: nombre del filtro y contador azul. El borde azul marca que hay selección.</div></div>
+      <div class="beh-row"><div>Chips de filtro</div><div>Cada opción elegida aparece como chip de filtro junto a los controles. Quitar el chip con × desmarca la opción en el menú.</div></div>
+      <div class="beh-row"><div>Búsqueda</div><div>Aparece desde 8 opciones. Filtra la lista sin perder lo ya elegido; "Seleccionar todo" actúa solo sobre lo que se ve.</div></div>
+      <div class="beh-row"><div>Orden</div><div>Las opciones elegidas no saltan al principio: la lista conserva su orden para que nada se mueva bajo el mouse.</div></div>
+      <div class="beh-row"><div>Teclado</div><div>↑ ↓ mueven el foco; Inicio y Fin van a los extremos; Espacio alterna; escribir salta a la opción que empieza con esas letras. Esc cierra y devuelve el foco al disparador.</div></div>
+      <div class="beh-row"><div>Cerrar</div><div>Esc, clic afuera o Tab. En móvil, además "Listo" y arrastrar la hoja hacia abajo.</div></div>
+      <div class="beh-row"><div>Posición y tamaño</div><div>Se ancla debajo del disparador, con su ancho como mínimo y 320 px como máximo; si abajo no hay lugar, se abre hacia arriba. Alto máximo de 320 px con scroll interno; dentro de la lista el anillo de foco va hacia adentro (−2 px) para que el scroll no lo corte.</div></div>
+      <div class="beh-row"><div>Móvil</div><div>Hoja inferior de hasta el 70 % de la pantalla, opciones de 44 px, "Limpiar" arriba y "Listo (n)" fijo al pie, sobre un velo de ink al 40 %.</div></div>
+      <div class="beh-row"><div>Sin opciones</div><div>El panel muestra "Sin opciones" en gris. Si el filtro nunca tendrá valores, el disparador se deshabilita.</div></div>
+      <div class="beh-row"><div>Animación</div><div>Aparece en 120 ms (fundido y 4 px hacia abajo); sin animación si el sistema pide movimiento reducido.</div></div>
+      <div class="beh-row"><div>Accesibilidad</div><div>Disparador con <code>aria-haspopup="listbox"</code> y <code>aria-expanded</code>; panel con <code>role="listbox"</code> y <code>aria-multiselectable="true"</code>; cada opción con <code>role="option"</code> y <code>aria-selected</code>. Al cerrar se anuncia el total ("3 seleccionados").</div></div>
+    </div>
+
+    <div class="rules">
+      <div class="rule ok">
+        <span class="tag">Correcto</span>
+        <ul>
+          <li>Mantener el panel abierto mientras se elige</li>
+          <li>Marcar la selección con casillas y mostrar el contador en el disparador</li>
+          <li>Ofrecer "Seleccionar todo" y "Limpiar" en toda lista de más de dos opciones</li>
+          <li>Agregar búsqueda desde 8 opciones</li>
+          <li>Usar el punto de color solo en el filtro de estados</li>
+        </ul>
+      </div>
+      <div class="rule no">
+        <span class="tag">Incorrecto</span>
+        <ul>
+          <li>Cerrar el panel al elegir una opción</li>
+          <li>Teñir la fila elegida: en multiselección la marca es la casilla</li>
+          <li>Mezclar selección única y múltiple en el mismo menú</li>
+          <li>Dejar que la página se desplace por detrás de la hoja móvil</li>
+          <li>Reordenar las opciones elegidas mientras el panel está abierto</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ============ ADAPTABILIDAD ============ -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">07 — Adaptabilidad</div>
+    <div class="eyebrow">09 — Adaptabilidad</div>
     <h2>PC, tablet y celular</h2>
     <p>notby se usa en el escritorio para planificar y en el celular para consultar y actualizar en el momento. La marca no cambia entre dispositivos — lo que cambia es cuánto se muestra a la vez, cómo se navega y qué tamaño tiene lo que se toca. Tres reglas lo sostienen: el contenido se reorganiza antes de achicarse, todo lo que se toca mide al menos 44 px, y nada importante depende del hover.</p>
 
@@ -1336,7 +1620,7 @@
 <!-- ============ USO ============ -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">08 — Uso</div>
+    <div class="eyebrow">10 — Uso</div>
     <h2>Qué sí y qué no</h2>
 
     <div class="rules">
@@ -1387,7 +1671,7 @@
 <!-- ============ VOZ ============ -->
 <section>
   <div class="wrap">
-    <div class="eyebrow">09 — Voz</div>
+    <div class="eyebrow">11 — Voz</div>
     <h2>Cómo escribe notby</h2>
     <p>Verbos directos, sentence case, sin relleno. Las etiquetas nombran lo que la persona controla, no cómo está construido el sistema. Una acción conserva el mismo nombre en todo el flujo: si el botón dice "Publicar", el aviso dice "Publicado".</p>
     <p>Los errores no piden disculpas ni son vagos: explican qué pasó y cómo resolverlo. Una pantalla vacía es una invitación a actuar, no un mensaje de ánimo.</p>
@@ -1415,7 +1699,7 @@
 
 <footer>
   <div class="wrap">
-    notby — Manual de marca v2.9 · Agosto 2026<br>
+    notby — Manual de marca v3.1 · Agosto 2026<br>
     Consultas sobre uso de marca antes de aplicar el logo en contextos no cubiertos por este documento.
   </div>
 </footer>
