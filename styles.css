@@ -2210,7 +2210,10 @@ html[data-theme="dark"] .nota-group-card:hover { box-shadow: 0 10px 22px rgba(0,
    El ".ql-container" adelante es para ganarle en especificidad a
    quill.core.css (.ql-editor li.ql-indent-N:not(.ql-direction-rtl)). */
 .ql-container .ql-editor ol, .feed-comment-body ol, .nota-rich-preview ol { padding-left: 0; }
-.ql-container .ql-editor li, .feed-comment-body li, .nota-rich-preview li { padding-left: 1.2em; line-height: 1.6; }
+.ql-container .ql-editor li, .feed-comment-body li, .nota-rich-preview li { padding-left: 1.2em; line-height: 1.85; }
+/* El parrafo que encabeza una lista (ej. "Temas tratados:") va pegado a ella,
+   con el mismo interlineado que los items. */
+.ql-container .ql-editor p:has(+ ol), .feed-comment-body p:has(+ ol), .nota-rich-preview p:has(+ ol) { line-height: 1.85; margin-bottom: 0; }
 .feed-comment-body li > .ql-ui { display: inline; margin: 0; width: auto; }
 .ql-container .ql-editor li > .ql-ui:before,
 .feed-comment-body li > .ql-ui::before,
