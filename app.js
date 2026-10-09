@@ -1108,9 +1108,33 @@ function bindEvents() {
   // (.nota-popup-open, puesto por prepareNotaPopupOpen) -- el resto de
   // los usos de este dialog generico (Expedientes, Responsables, etc) no
   // pidieron este comportamiento y quedan con su flujo de siempre.
-  els.modalForm?.addEventListener("click", (e) => {
-    if (e.target === els.modalForm && els.modalForm.classList.contains("nota-popup-open")) closeNotaPopupOrWarn();
-  });
+  //
+  // Menos sensible que un click cualquiera en el dialog: (1) el click
+  // tiene que empezar Y terminar afuera -- un click que arranca adentro
+  // (ej. seleccionar texto) y se suelta afuera tambien llega con
+  // e.target === dialog y antes cerraba; (2) se ignora una franja de
+  // MARGEN px alrededor de la ventana, para que un click que erra el
+  // borde por poco no la cierre; (3) si el puntero se movio mas de
+  // MOVIMIENTO px entre apretar y soltar es un arrastre, no un click.
+  if (els.modalForm) {
+    const MARGEN = 24, MOVIMIENTO = 6;
+    let downAt = null;
+    const lejosDeLaVentana = (e) => {
+      const r = els.modalForm.getBoundingClientRect();
+      return e.clientX < r.left - MARGEN || e.clientX > r.right + MARGEN
+        || e.clientY < r.top - MARGEN || e.clientY > r.bottom + MARGEN;
+    };
+    els.modalForm.addEventListener("pointerdown", (e) => {
+      downAt = (e.target === els.modalForm && lejosDeLaVentana(e)) ? { x: e.clientX, y: e.clientY } : null;
+    });
+    els.modalForm.addEventListener("click", (e) => {
+      const d = downAt;
+      downAt = null;
+      if (!d || e.target !== els.modalForm || !els.modalForm.classList.contains("nota-popup-open")) return;
+      if (!lejosDeLaVentana(e) || Math.hypot(e.clientX - d.x, e.clientY - d.y) > MOVIMIENTO) return;
+      closeNotaPopupOrWarn();
+    });
+  }
   // Misma regla para Escape: el evento "cancel" nativo del <dialog> se
   // frena (preventDefault) si hay cambios sin guardar, en vez de dejar
   // que cierre solo -- sin esto Escape se saltaba el aviso que si frena
